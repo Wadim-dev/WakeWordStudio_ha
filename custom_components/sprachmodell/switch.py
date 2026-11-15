@@ -1,4 +1,4 @@
-"""Schalter: nachts trainieren, bessere Version selbst einspielen."""
+"""Schalter je Wort: nachts trainieren, bessere Version selbst einspielen."""
 
 from __future__ import annotations
 
@@ -9,34 +9,32 @@ from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import OPT_AUTO, OPT_NACHTS
-from .entity import SprachEntitaet
+from .entity import SprachEntitaet, plattform_anmelden
 
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
     z = entry.runtime_data
-    async_add_entities([Option(z, "nachts_trainieren", OPT_NACHTS), Option(z, "automatisch_einspielen", OPT_AUTO)])
+    plattform_anmelden(
+        z, "switch", [],
+        lambda w: [Option(z, w, "nachts_trainieren", "nachts"), Option(z, w, "automatisch_einspielen", "automatisch_einspielen")],
+        async_add_entities,
+    )
 
 
 class Option(SprachEntitaet, SwitchEntity):
     _plattform = "switch"
     _attr_entity_category = EntityCategory.CONFIG
 
-    def __init__(self, z, schluessel: str, option: str) -> None:
-        super().__init__(z, schluessel)
+    def __init__(self, z, w, schluessel: str, option: str) -> None:
+        super().__init__(z, schluessel, w)
         self._option = option
 
     @property
     def is_on(self) -> bool:
-        return bool(self.z.opt(self._option))
-
-    def _setzen(self, wert: bool) -> None:
-        self.hass.config_entries.async_update_entry(
-            self.z.entry, options={**self.z.entry.options, self._option: wert}
-        )
+        return bool(self.w.cfg.get(self._option))
 
     async def async_turn_on(self, **kwargs: Any) -> None:
-        self._setzen(True)
+        await self.z.wort_aendern(self.w.id, {self._option: True})
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        self._setzen(False)
+        await self.z.wort_aendern(self.w.id, {self._option: False})

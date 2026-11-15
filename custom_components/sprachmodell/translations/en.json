@@ -3,42 +3,11 @@
     "step": {
       "user": {
         "title": "Set up Sprachmodell",
-        "description": "Review, train and roll out your own wake word to all Echos. The defaults are fine.",
-        "data": {
-          "wort": "Word",
-          "anzeige": "Name in the Echo's selection",
-          "modell_id": "Model file name",
-          "ordner": "Folder for recordings and versions"
-        },
-        "data_description": {
-          "wort": "As spoken.",
-          "anzeige": "Shown under the Echos' wake word.",
-          "modell_id": "In /config/custom_wake_words.",
-          "ordner": "Included in HA backups."
-        }
+        "description": "Review, train and roll out your own wake words for voice devices. Afterwards everything is under **Sprachmodell** in the sidebar."
       }
     },
     "abort": {
       "already_configured": "Already set up."
-    }
-  },
-  "options": {
-    "step": {
-      "init": {
-        "title": "Settings",
-        "data": {
-          "personen": "People (comma separated)",
-          "nachts": "Train at night when there are new answers",
-          "uhrzeit": "Time",
-          "automatisch_einspielen": "Roll out a better version by itself",
-          "erinnerung_tage": "Remind when recordings wait this many days (0 = never)",
-          "unbewertet_tage": "Delete unreviewed recordings after this many days",
-          "nur_wort_1": "Only collect recordings of wake word 1"
-        },
-        "data_description": {
-          "personen": "Empty = all people in Home Assistant."
-        }
-      }
     }
   },
   "entity": {
@@ -68,6 +37,14 @@
       },
       "fehlausloeser": {
         "name": "False wakes"
+      },
+      "trainer": {
+        "name": "Trainer",
+        "state": {
+          "getrennt": "Not connected",
+          "bereit": "Ready",
+          "trainiert": "Training"
+        }
       }
     },
     "button": {

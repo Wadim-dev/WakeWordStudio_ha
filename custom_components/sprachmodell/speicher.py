@@ -1,6 +1,6 @@
 """Datenablage: Aufnahmen, Urteile, Modell-Versionen und Trainingslaeufe.
 
-Alles liegt in einem Ordner (Standard /share/sprachmodell):
+Jedes Wort hat einen eigenen Ordner (<ablage>/woerter/<wort-id>):
 
     daten.json              Verzeichnis aller Aufnahmen, Versionen, Laeufe
     aufnahmen/<id>.wav      16 kHz, mono, 16 bit
@@ -156,6 +156,7 @@ class Speicher:
                 "id": aid,
                 "quelle": meta.get("quelle", "echo"),
                 "echo": meta.get("echo"),
+                "knoten": meta.get("knoten"),
                 "art": meta.get("art"),
                 "zeit": meta.get("zeit") or jetzt(),
                 "score": meta.get("score"),
@@ -173,7 +174,10 @@ class Speicher:
             return eintrag
 
     def vorschlaege(self) -> None:
-        """Vorschlag je offener Echo-Aufnahme, wie bei VisionState: Claude/HA raet, du bestaetigst."""
+        """Vorschlag je offener Geraete-Aufnahme: die Zentrale raet, man bestaetigt.
+
+        grund ist ein Code, den die Seite in die eingestellte Sprache uebersetzt.
+        """
         nach_echo: dict[str, list[dict[str, Any]]] = {}
         for a in self.daten["aufnahmen"].values():
             if a["quelle"] == "echo":
@@ -186,9 +190,9 @@ class Speicher:
                 art = a.get("art")
                 vorschlag, grund = None, None
                 if art == "wake":
-                    vorschlag, grund = WORT, "Der Echo ist aufgewacht"
+                    vorschlag, grund = WORT, "aufgewacht"
                 elif art == "mistake":
-                    vorschlag, grund = KEIN_WORT, "Nach dem Aufwachen abgebrochen"
+                    vorschlag, grund = KEIN_WORT, "abgebrochen"
                 elif art == "nearmiss":
                     t = _zeit(a["zeit"])
                     danach = [
@@ -196,11 +200,11 @@ class Speicher:
                         if b.get("art") == "wake" and 0 < _zeit(b["zeit"]) - t <= VERPASST_S
                     ]
                     if danach:
-                        vorschlag, grund = WORT, "Kurz danach hat es geklappt – vermutlich verpasst"
+                        vorschlag, grund = WORT, "verpasst"
                     else:
-                        vorschlag, grund = KEIN_WORT, "Knapp nicht erkannt, danach nichts"
+                        vorschlag, grund = KEIN_WORT, "knapp"
                 elif art == "noise":
-                    vorschlag, grund = KEIN_WORT, "Geräusch"
+                    vorschlag, grund = KEIN_WORT, "geraeusch"
                 a["vorschlag"], a["grund"] = vorschlag, grund
 
     def urteilen(self, ids: list[str], urteil: str | None, person: str | None) -> int:
@@ -246,19 +250,19 @@ class Speicher:
         return n
 
     def aufraeumen(self, tage_unbewertet: int) -> int:
-        """Unbewertete Echo-Aufnahmen nach N Tagen, verworfene sofort aus der Platte."""
+        """Unbewertete Geraete-Aufnahmen nach N Tagen, verworfene sofort von der Platte."""
         grenze = time.time() - tage_unbewertet * 86400
         weg = [
             a["id"] for a in self.daten["aufnahmen"].values()
             if a.get("urteil") == VERWORFEN
             or (a["quelle"] == "echo" and not a.get("urteil") and _zeit(a["zeit"]) < grenze)
         ]
-        # "gesehen" klein halten: nur so viele, wie ein Echo hoechstens vorhaelt
+        # "gesehen" klein halten: nur so viele, wie ein Geraet hoechstens vorhaelt
         self.daten["gesehen"] = self.daten["gesehen"][-5000:]
         return self.loeschen(weg) if weg else 0
 
     def zip_einlesen(self, inhalt: bytes, person: str | None) -> dict[str, int]:
-        """Zip von der Setup-Seite (Ordner word/ und not_word/) oder lose WAVs.
+        """Zip (z. B. von der Setup-Seite eines Geraets: Ordner word/ und not_word/).
 
         Ordner- oder Dateinamen mit not_/nicht/gegen gelten als Gegenbeispiele,
         alles andere als das Wort.
@@ -297,6 +301,26 @@ class Speicher:
                 ergebnis[urteil] += 1
             self.speichern()
         return ergebnis
+
+    def browser_aufnahme(self, roh: bytes, urteil: str, person: str | None,
+                         notiz: str | None) -> dict[str, Any]:
+        """Eine in der App aufgenommene Aufnahme (WAV) ablegen."""
+        if urteil not in (WORT, KEIN_WORT):
+            raise ValueError("Unbekanntes Urteil")
+        wav = wav_16k(roh)
+        if wav_dauer(wav) < 0.3:
+            raise ValueError("Zu kurz")
+        aid = "br_" + hashlib.sha1(wav).hexdigest()[:16]
+        with self._sperre:
+            if self.bekannt(aid):
+                return self.daten["aufnahmen"].get(aid) or {"id": aid}
+            eintrag = self.aufnahme_neu(
+                {"id": aid, "quelle": "browser", "art": "aufnahme", "urteil": urteil,
+                 "person": person, "notiz": notiz},
+                wav,
+            )
+            self.speichern()
+            return eintrag
 
     # --- Auswertung -------------------------------------------------------
 
@@ -429,7 +453,7 @@ class Speicher:
         return self.pfad("modelle", f"v{nr}", "modell.tflite")
 
     def einspielen_dateien(self, nr: int, ziel: str, modell_id: str, anzeige: str,
-                           cutoff: float) -> None:
+                           cutoff: float, sprache: str) -> None:
         """Modell und Beschreibung nach /config/custom_wake_words schreiben."""
         os.makedirs(ziel, exist_ok=True)
         tmp = os.path.join(ziel, modell_id + ".tflite.tmp")
@@ -441,7 +465,7 @@ class Speicher:
             "author": f"Sprachmodell v{nr}",
             "website": "https://github.com/Wadim-dev/sprachmodell_ha",
             "model": modell_id + ".tflite",
-            "trained_languages": ["ru"],
+            "trained_languages": [sprache],
             "version": 2,
             "micro": {
                 "probability_cutoff": cutoff,

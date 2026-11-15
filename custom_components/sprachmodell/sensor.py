@@ -1,4 +1,4 @@
-"""Sensoren: Pruefliste (wie sensor.visionstate_review_queue), Training, Version."""
+"""Sensoren: Pruefliste und Trainer (Zentrale); Training, Version, Qualitaet (je Wort)."""
 
 from __future__ import annotations
 
@@ -8,21 +8,23 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, Sen
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .entity import SprachEntitaet
-
-PHASEN = ["bereit", "wartet", "vorbereiten", "daten", "merkmale", "training", "test", "fertig", "fehler"]
+from .const import PHASEN
+from .entity import SprachEntitaet, plattform_anmelden
 
 
 async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities: AddEntitiesCallback) -> None:
     z = entry.runtime_data
-    async_add_entities([Pruefliste(z), Training(z), Version(z), Trefferquote(z), Fehlausloeser(z)])
+    plattform_anmelden(
+        z, "sensor", [Pruefliste(z), Trainer(z)],
+        lambda w: [WortPruefliste(z, w), Training(z, w), Version(z, w), Trefferquote(z, w), Fehlausloeser(z, w)],
+        async_add_entities,
+    )
 
 
 class Pruefliste(SprachEntitaet, SensorEntity):
-    """Wie viele Aufnahmen auf Pruefung warten."""
+    """Wie viele Aufnahmen aller Woerter auf Pruefung warten."""
 
     _attr_icon = "mdi:playlist-check"
-    _attr_native_unit_of_measurement = "Aufnahmen"
     _attr_state_class = SensorStateClass.MEASUREMENT
 
     def __init__(self, z) -> None:
@@ -30,67 +32,106 @@ class Pruefliste(SprachEntitaet, SensorEntity):
 
     @property
     def native_value(self) -> int:
-        return len(self.z.speicher.offen())
+        return self.z.offen_gesamt()
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        stat = self.z.speicher.statistik()
+        return {"je_wort": {w.wort: len(w.speicher.offen()) for w in self.z.woerter.values()}}
+
+
+class Trainer(SprachEntitaet, SensorEntity):
+    """Ist ein Trainer verbunden, und was macht er?"""
+
+    _attr_icon = "mdi:school-outline"
+    _attr_device_class = SensorDeviceClass.ENUM
+    _attr_options = ["getrennt", "bereit", "trainiert"]
+
+    def __init__(self, z) -> None:
+        super().__init__(z, "trainer")
+
+    @property
+    def native_value(self) -> str:
+        if not self.z.trainer_online:
+            return "getrennt"
+        laeuft = any(w.speicher.daten["training"].get("phase") in PHASEN[2:7] for w in self.z.woerter.values())
+        return "trainiert" if laeuft else "bereit"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
         return {
-            "je_echo": stat["offen_je_echo"],
+            "kontakt": self.z.trainer_kontakt.isoformat() if self.z.trainer_kontakt else None,
+            "warteschlange": [self.z.woerter[w].wort for w in self.z.reihe()],
+            **{k: v for k, v in (self.z.trainer_info or {}).items() if k in ("version", "cpu", "ram_gb", "gpu", "name")},
+        }
+
+
+class WortPruefliste(SprachEntitaet, SensorEntity):
+    _attr_icon = "mdi:playlist-check"
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, z, w) -> None:
+        super().__init__(z, "pruefliste", w)
+
+    @property
+    def native_value(self) -> int:
+        return len(self.w.speicher.offen())
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        stat = self.w.speicher.statistik()
+        return {
+            "je_geraet": stat["offen_je_echo"],
             "oldest_waiting_since": stat["aeltestes_offen"],
             "bewertet": stat["bewertet"],
-            "stand": self.z.speicher.stand,
         }
 
 
 class Training(SprachEntitaet, SensorEntity):
-    """Was der Trainer gerade macht, mit Fortschritt."""
+    """Was der Trainer fuer dieses Wort gerade macht, mit Fortschritt."""
 
     _attr_icon = "mdi:school-outline"
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = PHASEN
 
-    def __init__(self, z) -> None:
-        super().__init__(z, "training")
+    def __init__(self, z, w) -> None:
+        super().__init__(z, "training", w)
 
     @property
     def native_value(self) -> str:
-        phase = self.z.speicher.daten["training"].get("phase") or "bereit"
+        phase = self.w.speicher.daten["training"].get("phase") or "bereit"
         return phase if phase in PHASEN else "bereit"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        t = self.z.speicher.daten["training"]
+        t = self.w.speicher.daten["training"]
         return {
             "prozent": t.get("prozent"),
             "schritt": t.get("schritt"),
             "restzeit_min": t.get("restzeit_min"),
             "seit": t.get("seit"),
-            "trainer_verbunden": self.z.trainer_online,
-            "neue_bewertungen": self.z.neue_seit_letztem_lauf(),
+            "neue_bewertungen": self.w.neue_seit_letztem_lauf(),
         }
-
-
-def _aktiv(z) -> dict[str, Any] | None:
-    nr = z.speicher.daten.get("aktiv")
-    return z.speicher.version(nr) if nr else None
 
 
 class Version(SprachEntitaet, SensorEntity):
     _attr_icon = "mdi:tag-outline"
 
-    def __init__(self, z) -> None:
-        super().__init__(z, "version")
+    def __init__(self, z, w) -> None:
+        super().__init__(z, "version", w)
 
     @property
     def native_value(self) -> str | None:
-        v = _aktiv(self.z)
+        v = self.w.aktive_version()
         return f"v{v['nr']}" if v else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        v = _aktiv(self.z) or {}
+        v = self.w.aktive_version() or {}
         return {"eingespielt": v.get("eingespielt"), "sha256": v.get("sha256")}
+
+
+def _neu(w) -> dict[str, Any]:
+    return ((w.aktive_version() or {}).get("bericht") or {}).get("neu") or {}
 
 
 class Trefferquote(SprachEntitaet, SensorEntity):
@@ -100,28 +141,26 @@ class Trefferquote(SprachEntitaet, SensorEntity):
     _attr_native_unit_of_measurement = "%"
     _attr_state_class = SensorStateClass.MEASUREMENT
 
-    def __init__(self, z) -> None:
-        super().__init__(z, "trefferquote")
+    def __init__(self, z, w) -> None:
+        super().__init__(z, "trefferquote", w)
 
     @property
     def native_value(self) -> float | None:
-        b = ((_aktiv(self.z) or {}).get("bericht") or {}).get("neu") or {}
-        wert = b.get("trefferquote")
+        wert = _neu(self.w).get("trefferquote")
         return round(wert * 100, 1) if isinstance(wert, int | float) else None
 
 
 class Fehlausloeser(SprachEntitaet, SensorEntity):
-    """Fehlausloeser pro Stunde russisches Gerede (Test des Trainers)."""
+    """Fehlausloeser pro Stunde Gerede in der Sprache des Worts (Test des Trainers)."""
 
     _attr_icon = "mdi:alarm-light-outline"
-    _attr_native_unit_of_measurement = "pro Stunde"
+    _attr_native_unit_of_measurement = "/h"
     _attr_state_class = SensorStateClass.MEASUREMENT
 
-    def __init__(self, z) -> None:
-        super().__init__(z, "fehlausloeser")
+    def __init__(self, z, w) -> None:
+        super().__init__(z, "fehlausloeser", w)
 
     @property
     def native_value(self) -> float | None:
-        b = ((_aktiv(self.z) or {}).get("bericht") or {}).get("neu") or {}
-        wert = b.get("fehlausloeser_pro_stunde")
+        wert = _neu(self.w).get("fehlausloeser_pro_stunde")
         return round(wert, 2) if isinstance(wert, int | float) else None

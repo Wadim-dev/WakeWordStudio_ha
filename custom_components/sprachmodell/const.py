@@ -5,15 +5,6 @@ from __future__ import annotations
 DOMAIN = "sprachmodell"
 NAME = "Sprachmodell"
 
-# Alle Daten (Aufnahmen, Versionen, Trainingsverlauf) liegen hier, damit sie
-# im HA-Backup sind und der Trainer sie ueber die Schnittstelle holen kann.
-ORDNER_STANDARD = "/share/sprachmodell"
-
-# Eigenes Aktivierungswort in /config/custom_wake_words/<MODELL_ID>.tflite/.json
-MODELL_ID_STANDARD = "alisa_wadim"
-WORT_STANDARD = "Алиса"
-ANZEIGE_STANDARD = "Алиса (eigenes)"
-
 # Seitenleiste
 PANEL_URL = "sprachmodell"
 PANEL_TITEL = "Sprachmodell"
@@ -27,26 +18,37 @@ KEIN_WORT = "kein_wort"  # das Wort wurde nicht gesagt
 VERWORFEN = "verworfen"  # unbrauchbar (zu leise, kaputt, unklar)
 URTEILE = (WORT, KEIN_WORT, VERWORFEN)
 
-# Arten, die der Echo liefert
+# Arten, die ein Geraet liefert (TECHO-Firmware, Schalter "Keep wake clips")
 ARTEN = ("wake", "mistake", "noise", "nearmiss")
 
-# Einstellungen (Optionen des Eintrags)
-OPT_PERSONEN = "personen"
-OPT_NACHTS = "nachts"
-OPT_UHRZEIT = "uhrzeit"
-OPT_AUTO = "automatisch_einspielen"
-OPT_ERINNERUNG = "erinnerung_tage"
-OPT_NUR_WORT1 = "nur_wort_1"
-OPT_AUFBEWAHREN = "unbewertet_tage"
+# Quellen einer Aufnahme
+QUELLE_GERAET = "echo"         # vom Geraet geholt (Name bleibt fuer alte Daten)
+QUELLE_HOCHGELADEN = "hochgeladen"
+QUELLE_BROWSER = "browser"     # in der App aufgenommen
 
-STANDARD_OPTIONEN = {
-    OPT_PERSONEN: [],
-    OPT_NACHTS: True,
-    OPT_UHRZEIT: "02:00",
-    OPT_AUTO: True,
-    OPT_ERINNERUNG: 7,
-    OPT_NUR_WORT1: True,
-    OPT_AUFBEWAHREN: 60,
+# Sprachen, fuer die der Trainer Grunddaten (fremde Stimmen, Gerede) mitbringt
+SPRACHEN = ("de", "en", "ru", "fr", "es", "it", "nl", "pl", "uk", "tr", "pt", "cs", "sv")
+
+# Einstellungen eines Worts
+STANDARD_WORT = {
+    "wort": "",
+    "anzeige": "",
+    "modell_id": "",
+    "sprache": "en",
+    # Knotenname -> Platz ("1" oder "2"); leer = noch keinem Geraet zugeordnet
+    "geraete": {},
+    "automatisch_einspielen": True,
+    "nachts": True,
+    "farbe": "",
+}
+
+# Einstellungen der ganzen Zentrale
+STANDARD_ZENTRALE = {
+    "uhrzeit": "02:00",
+    "erinnerung_tage": 7,
+    "unbewertet_tage": 60,
+    "personen": [],
+    "alle_plaetze": False,  # auch Aufnahmen von Plaetzen sammeln, die keinem Wort gehoeren
 }
 
 # Signal an Entitaeten und Seite: Daten haben sich geaendert
@@ -54,3 +56,7 @@ SIGNAL_NEU = f"{DOMAIN}_neu"
 
 # Trainer gilt als verbunden, wenn er sich in dieser Zeit gemeldet hat
 TRAINER_ONLINE_S = 180
+
+# Phasen des Trainings
+PHASEN = ["bereit", "wartet", "vorbereiten", "daten", "merkmale", "training", "test", "fertig", "fehler"]
+LAEUFT = ("vorbereiten", "daten", "merkmale", "training", "test")
