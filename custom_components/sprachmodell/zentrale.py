@@ -428,6 +428,7 @@ class Zentrale:
     async def _takt(self, _now: Any = None) -> None:
         self._sammeln_spaeter = None
         self._zaehler_beobachten()
+        self._verlorene_laeufe()
         try:
             neu = await self.sammler.holen()
         except Exception:  # noqa: BLE001 - Sammeln darf nie die Integration stoppen
@@ -448,6 +449,17 @@ class Zentrale:
         if weg:
             self.geaendert()
         self.erinnern()
+
+    @callback
+    def _verlorene_laeufe(self) -> None:
+        """Trainer meldet sich bei laufendem Training nicht mehr (Neustart, Absturz): Lauf als Fehler beenden."""
+        for wort in self.woerter.values():
+            t = wort.speicher.daten["training"]
+            if t.get("phase") not in LAEUFT or not t.get("aktualisiert"):
+                continue
+            alter = datetime.now(timezone.utc) - datetime.fromisoformat(t["aktualisiert"])
+            if alter.total_seconds() > 20 * 60:
+                self.trainer_meldet({"wort_id": wort.id, "phase": "fehler", "schritt": "trainer_getrennt"})
 
     def offen_gesamt(self) -> int:
         return sum(len(w.speicher.offen()) for w in self.woerter.values())

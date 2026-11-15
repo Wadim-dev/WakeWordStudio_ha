@@ -1,0 +1,10 @@
+configuration:
+  threads:
+    name: CPU-Kerne
+    description: 0 = alle Kerne.
+  ziel_fehlausloeser:
+    name: Ziel Fehlauslöser pro Stunde
+    description: Der Trainer wählt die Schwelle so, dass Gerede in der Sprache des Worts seltener auslöst.
+  schritte:
+    name: Trainingsschritte
+    description: 0 = automatisch (15000 für ein neues Modell, 6000 zum Nachtrainieren).

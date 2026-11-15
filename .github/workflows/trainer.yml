@@ -1,0 +1,46 @@
+# Trainer-Bild fuer Docker-Nutzer (amd64 + arm64) nach ghcr.io bauen.
+# Die Home-Assistant-App baut ihr Bild selbst aus sprachmodell_trainer/.
+name: Trainer-Bild
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - sprachmodell_trainer/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  bild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Version lesen
+        id: v
+        run: echo "version=$(grep -E '^version:' sprachmodell_trainer/config.yaml | tr -d '\" ' | cut -d: -f2)" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Name in Kleinbuchstaben
+        id: n
+        run: echo "bild=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/sprachmodell-trainer" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        with:
+          context: sprachmodell_trainer
+          platforms: linux/amd64,linux/arm64
+          push: true
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.description=Sprachmodell Trainer: own wake words for TECHO5 / microWakeWord
+          tags: |
+            ${{ steps.n.outputs.bild }}:latest
+            ${{ steps.n.outputs.bild }}:${{ steps.v.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

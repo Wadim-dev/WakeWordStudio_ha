@@ -1,0 +1,20 @@
+name: Sprachmodell Trainer
+version: "0.2.0"
+slug: sprachmodell_trainer
+description: Trains your own wake words for the Sprachmodell integration (microWakeWord, any language).
+url: https://github.com/Wadim-dev/sprachmodell_ha
+arch:
+  - amd64
+  - aarch64
+init: false
+startup: application
+boot: auto
+homeassistant_api: true
+options:
+  threads: 0
+  ziel_fehlausloeser: 1.0
+  schritte: 0
+schema:
+  threads: int(0,64)
+  ziel_fehlausloeser: float(0.1,10)
+  schritte: int(0,100000)

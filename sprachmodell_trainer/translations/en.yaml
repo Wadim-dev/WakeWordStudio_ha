@@ -1,0 +1,10 @@
+configuration:
+  threads:
+    name: CPU threads
+    description: 0 = all cores.
+  ziel_fehlausloeser:
+    name: Target false wakes per hour
+    description: The trainer picks the threshold that stays below this on speech in the word's language.
+  schritte:
+    name: Training steps
+    description: 0 = automatic (15000 for a new model, 6000 for fine-tuning).
