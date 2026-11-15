@@ -1,0 +1,95 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sprachmodell einrichten",
+        "description": "Eigenes Aktivierungswort prüfen, trainieren und an allen Echos einspielen. Die Standardwerte passen.",
+        "data": {
+          "wort": "Wort",
+          "anzeige": "Name in der Auswahl am Echo",
+          "modell_id": "Dateiname des Modells",
+          "ordner": "Ordner für Aufnahmen und Versionen"
+        },
+        "data_description": {
+          "wort": "So wie es gesprochen wird.",
+          "anzeige": "Erscheint unter „Aktivierungswort“ der Echos.",
+          "modell_id": "In /config/custom_wake_words.",
+          "ordner": "Liegt im HA-Backup."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Ist schon eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Einstellungen",
+        "data": {
+          "personen": "Personen (mit Komma getrennt)",
+          "nachts": "Nachts trainieren, wenn es neue Bewertungen gibt",
+          "uhrzeit": "Uhrzeit",
+          "automatisch_einspielen": "Bessere Version selbst einspielen",
+          "erinnerung_tage": "Erinnern, wenn Aufnahmen so viele Tage warten (0 = nie)",
+          "unbewertet_tage": "Unbewertete Aufnahmen nach so vielen Tagen löschen",
+          "nur_wort_1": "Nur Aufnahmen von Wort 1 sammeln"
+        },
+        "data_description": {
+          "personen": "Leer = alle Personen aus Home Assistant."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "pruefliste": {
+        "name": "Prüfliste"
+      },
+      "training": {
+        "name": "Training",
+        "state": {
+          "bereit": "Bereit",
+          "wartet": "Wartet auf Trainer",
+          "vorbereiten": "Vorbereiten",
+          "daten": "Daten holen",
+          "merkmale": "Merkmale berechnen",
+          "training": "Trainiert",
+          "test": "Testet",
+          "fertig": "Fertig",
+          "fehler": "Fehler"
+        }
+      },
+      "version": {
+        "name": "Aktive Version"
+      },
+      "trefferquote": {
+        "name": "Trefferquote"
+      },
+      "fehlausloeser": {
+        "name": "Fehlauslöser"
+      }
+    },
+    "button": {
+      "training_starten": {
+        "name": "Training starten"
+      },
+      "jetzt_holen": {
+        "name": "Aufnahmen jetzt holen"
+      }
+    },
+    "switch": {
+      "nachts_trainieren": {
+        "name": "Nachts trainieren"
+      },
+      "automatisch_einspielen": {
+        "name": "Bessere Version selbst einspielen"
+      }
+    },
+    "update": {
+      "integration": {
+        "name": "Integration"
+      }
+    }
+  }
+}

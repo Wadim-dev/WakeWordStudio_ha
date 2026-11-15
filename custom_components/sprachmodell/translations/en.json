@@ -1,0 +1,95 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Sprachmodell",
+        "description": "Review, train and roll out your own wake word to all Echos. The defaults are fine.",
+        "data": {
+          "wort": "Word",
+          "anzeige": "Name in the Echo's selection",
+          "modell_id": "Model file name",
+          "ordner": "Folder for recordings and versions"
+        },
+        "data_description": {
+          "wort": "As spoken.",
+          "anzeige": "Shown under the Echos' wake word.",
+          "modell_id": "In /config/custom_wake_words.",
+          "ordner": "Included in HA backups."
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Settings",
+        "data": {
+          "personen": "People (comma separated)",
+          "nachts": "Train at night when there are new answers",
+          "uhrzeit": "Time",
+          "automatisch_einspielen": "Roll out a better version by itself",
+          "erinnerung_tage": "Remind when recordings wait this many days (0 = never)",
+          "unbewertet_tage": "Delete unreviewed recordings after this many days",
+          "nur_wort_1": "Only collect recordings of wake word 1"
+        },
+        "data_description": {
+          "personen": "Empty = all people in Home Assistant."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "pruefliste": {
+        "name": "Review queue"
+      },
+      "training": {
+        "name": "Training",
+        "state": {
+          "bereit": "Ready",
+          "wartet": "Waiting for trainer",
+          "vorbereiten": "Preparing",
+          "daten": "Fetching data",
+          "merkmale": "Computing features",
+          "training": "Training",
+          "test": "Testing",
+          "fertig": "Done",
+          "fehler": "Error"
+        }
+      },
+      "version": {
+        "name": "Active version"
+      },
+      "trefferquote": {
+        "name": "Recall"
+      },
+      "fehlausloeser": {
+        "name": "False wakes"
+      }
+    },
+    "button": {
+      "training_starten": {
+        "name": "Start training"
+      },
+      "jetzt_holen": {
+        "name": "Fetch recordings now"
+      }
+    },
+    "switch": {
+      "nachts_trainieren": {
+        "name": "Train at night"
+      },
+      "automatisch_einspielen": {
+        "name": "Roll out better version"
+      }
+    },
+    "update": {
+      "integration": {
+        "name": "Integration"
+      }
+    }
+  }
+}
