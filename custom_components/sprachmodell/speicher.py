@@ -469,7 +469,16 @@ class Speicher:
             return None
         with open(datei, "rb") as f:
             roh = f.read()
-        eintrag = self.version_neu(roh, {"herkunft": "vor der Integration eingespielt"})
+        bericht = {"herkunft": "vor der Integration eingespielt"}
+        # Optional: Testergebnisse zur vorhandenen Datei (<modell>.bericht.json daneben)
+        zusatz = datei[: -len(".tflite")] + ".bericht.json"
+        try:
+            with open(zusatz, encoding="utf-8") as f:
+                bericht.update(json.load(f))
+            os.remove(zusatz)
+        except (OSError, ValueError):
+            pass
+        eintrag = self.version_neu(roh, bericht)
         with self._sperre:
             eintrag["status"] = "aktiv"
             eintrag["eingespielt"] = jetzt()
