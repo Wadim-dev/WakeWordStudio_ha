@@ -15,6 +15,15 @@ from typing import Any
 import requests
 
 _LOG = logging.getLogger("trainer.ha")
+WARTEN_S = 30 * 60  # how long to wait for Home Assistant (restart, update, backup)
+
+
+def _ha_startet(r: requests.Response) -> bool:
+    """True while Home Assistant restarts: proxy/server errors, or HA's own 404 because the
+    integration's API is not registered yet (the integration answers 404 with a JSON body)."""
+    if r.status_code in (502, 503, 504):
+        return True
+    return r.status_code == 404 and "json" not in r.headers.get("Content-Type", "")
 
 
 class HA:
@@ -37,17 +46,30 @@ class HA:
     def _url(self, pfad: str) -> str:
         return f"{self.basis}/{pfad}"
 
-    def _get(self, pfad: str, **kw: Any) -> requests.Response:
-        for versuch in range(5):
+    def _anfrage(self, art: str, pfad: str, **kw: Any) -> requests.Response:
+        """Request that waits for Home Assistant: a restart or update of Home Assistant
+        must not end a training run. Retries for up to WARTEN_S on connection errors,
+        5xx answers and HA's own 404 while the integration is still starting."""
+        ende = time.monotonic() + WARTEN_S
+        pause = 5.0
+        while True:
             try:
-                r = self.sitzung.get(self._url(pfad), timeout=60, **kw)
+                r = self.sitzung.request(art, self._url(pfad), **kw)
                 if r.status_code == 401:
                     raise SystemExit("Wrong key - see Wake Word Studio -> Settings -> Trainer.")
-                return r
+                if not _ha_startet(r):
+                    return r
+                grund = f"HTTP {r.status_code}"
             except requests.RequestException as err:
-                _LOG.warning("Home Assistant not reachable (%s), trying again", err)
-                time.sleep(5 * (versuch + 1))
-        raise ConnectionError("Home Assistant not reachable")
+                grund = str(err)
+            if time.monotonic() > ende:
+                raise ConnectionError(f"Home Assistant not reachable: {grund}")
+            _LOG.warning("Home Assistant not reachable (%s), trying again in %d s", grund, pause)
+            time.sleep(pause)
+            pause = min(pause * 1.5, 30.0)
+
+    def _get(self, pfad: str, **kw: Any) -> requests.Response:
+        return self._anfrage("GET", pfad, timeout=60, **kw)
 
     def auftrag(self) -> dict[str, Any]:
         r = self._get("auftrag")
@@ -75,8 +97,8 @@ class HA:
             _LOG.warning("Status not sent: %s", err)
 
     def ergebnis(self, wort: str, tflite: bytes, bericht: dict[str, Any]) -> dict[str, Any]:
-        r = self.sitzung.post(
-            self._url("ergebnis"), params={"wort": wort}, timeout=120,
+        r = self._anfrage(
+            "POST", "ergebnis", params={"wort": wort}, timeout=120,
             files={"modell": ("modell.tflite", tflite, "application/octet-stream"),
                    "bericht": ("bericht.json", json.dumps(bericht), "application/json")},
         )

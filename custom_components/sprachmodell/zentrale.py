@@ -381,7 +381,9 @@ class Zentrale:
         for wort in self.woerter.values():
             t = wort.speicher.daten["training"]
             if t.get("phase") in LAEUFT:
-                wort.speicher.daten["training"] = {"phase": "bereit", "hinweis": "neustart"}
+                # Home Assistant restarted during a run: the trainer keeps working and reports again.
+                # Only if it stays silent for 20 minutes is the run treated as lost (_verlorene_laeufe).
+                t["aktualisiert"] = jetzt()
         self._weg.append(async_track_time_interval(self.hass, self._takt, SAMMELN_TAKT))
         self._weg.append(async_track_time_interval(self.hass, self._stuendlich, timedelta(hours=1)))
         self.nachts_planen()

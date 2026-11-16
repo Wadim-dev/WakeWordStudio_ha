@@ -118,6 +118,26 @@ async def test_verlorener_lauf(hass: HomeAssistant, geladen) -> None:
     await hass.async_block_till_done()
 
 
+async def test_ha_neustart_waehrend_training(hass: HomeAssistant, geladen) -> None:
+    """A Home Assistant restart must not end a run: the trainer keeps working and reports again."""
+    z = geladen.runtime_data
+    w = await z.wort_neu({"wort": "Hey Lumi"})
+    alt = (datetime.now(UTC) - timedelta(minutes=30)).isoformat()
+    w.speicher.daten["training"] = {"phase": "training", "prozent": 40, "start": alt, "aktualisiert": alt}
+    await hass.async_add_executor_job(w.speicher.speichern)
+    assert await hass.config_entries.async_reload(geladen.entry_id)
+    await hass.async_block_till_done()
+    z = geladen.runtime_data
+    t = z.woerter[w.id].speicher.daten["training"]
+    assert t["phase"] == "training" and t["prozent"] == 40 and t["start"] == alt
+    z._verlorene_laeufe()  # fresh grace period of 20 minutes
+    assert z.woerter[w.id].speicher.daten["training"]["phase"] == "training"
+    # Heartbeat with the full state keeps it going
+    z.trainer_meldet({"wort_id": w.id, "phase": "training", "prozent": 55, "schritt": "training"})
+    assert z.woerter[w.id].speicher.daten["training"]["prozent"] == 55
+    await hass.async_block_till_done()
+
+
 async def test_nachts_und_einstellungen(hass: HomeAssistant, geladen) -> None:
     z = geladen.runtime_data
     w = await z.wort_neu({"wort": "Hey Lumi"})

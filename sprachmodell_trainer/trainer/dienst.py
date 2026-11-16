@@ -69,8 +69,8 @@ def main() -> None:
             lauf.abbrechen()
         if faden is not None and not faden.is_alive():
             faden, lauf = None, None
-        if lauf is not None:  # Lebenszeichen, damit HA weiss, dass der Lauf weitergeht
-            ha.status({"wort_id": lauf.wort_id, "info": info()})
+        if lauf is not None:  # heartbeat with the full state: after a restart HA shows the run again at once
+            ha.status({**lauf.letzter, "info": info()})
         if faden is None:
             auftrag = antwort.get("auftrag")
             if auftrag:
