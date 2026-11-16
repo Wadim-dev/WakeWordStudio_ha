@@ -82,7 +82,7 @@ Say the word into your phone or PC – every take is cut by itself. Record negat
 At night (or on a tap) the trainer fetches the reviewed recordings, adds thousands of synthetic voices of your word's language, trains a new version and tests it against recordings it **never learned** (every fifth one is held back).
 Only a version that is better than the current one is rolled out – to all devices of the word, without restarting Home Assistant.
 
-While it runs, the *Training* page shows every step with its start time and duration, the trainer's processor and memory load, and a live log (also kept after an error, so you can see what went wrong).
+While it runs, the *Training* page shows every step with its start time and duration, the time left and the expected finish time, the trainer's processor, memory and disk load, and a live log, newest line first (also kept after an error, so you can see what went wrong). If the trainer is held up for a long time because it waits for memory or disk, Home Assistant shows a repair message with what to do.
 
 ## Quality
 
@@ -93,6 +93,8 @@ Recall in quiet and with music, false wakes per hour of speech, results per pers
 ## Words and devices
 
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/images/words.png" alt="All words" width="900"></p>
+
+The start page tells you at a glance what matters now – a training with its progress and finish time, recordings waiting for you, a missing trainer, or that all is set – with one button to the next step. Each word shows its recall, open reviews, active version and the recordings of the last 14 days; below are the trainer with its live load, the queue and every device with its words.
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/images/devices.png" alt="Devices and slots" width="900"></p>
 
 ## The trainer
@@ -100,6 +102,8 @@ Recall in quiet and with music, false wakes per hour of speech, results per pers
 Training needs a lot of computing power, so it runs in its own container. It adapts to its machine (cores, memory limit and free memory decide how many workers run: less memory = slower, but it finishes). 4 GB free memory minimum, 8 GB or more is much faster; the first run downloads about 8 GB of base data once. A watchdog makes sure it never hangs: a step that stops computing or runs short of memory is stopped and run again with fewer processes or smaller batches. Interrupted downloads continue, a run lost by a trainer restart is queued again with less memory, and a finished model waits on the trainer if Home Assistant is away.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/images/trainer.png" alt="Trainer setup" width="900"></p>
+
+*Settings → Trainer* shows a profile of the connected trainer – version, cores, memory, swap and free disk – each rated green, yellow or red with a tip what to change.
 
 - **Home Assistant app**: *Settings → Apps → App store → ⋮ → Repositories*, add `https://github.com/Wadim-dev/wake-word-studio_ha`, install **Wake Word Studio Trainer** and start it. It connects by itself.
 - **Proxmox VE** (own LXC container, updates itself on every restart) – in the Proxmox shell:
