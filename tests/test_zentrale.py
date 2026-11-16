@@ -102,6 +102,9 @@ async def test_training_ablauf(hass: HomeAssistant, geladen, geraet) -> None:
     await z.nach_neustart()
     assert sel[-1].data == {"entity_id": "select.kueche_wake_word", "option": "Hey Lumi (custom)"}
     assert z.daten["nach_neustart"] == [] and reg.async_get_issue(DOMAIN, "restart_to_roll_out") is None
+    # the threshold follows the tested value by itself
+    assert num[-1].data == {"entity_id": ["number.kueche_assistant_1_wake_word_threshold"], "value": 0.96}
+    assert w.speicher.daten["schwelle_auto"]["quelle"] == "test" and w.speicher.daten["aktiv_seit"]
     assert await z.schwelle_setzen(w, 0.951) == ["number.kueche_assistant_1_wake_word_threshold"]
     assert num[-1].data["value"] == 0.95
     assert z.schwellen_jetzt(w) == {"Kitchen": 0.97}
@@ -338,3 +341,37 @@ async def test_neustart_zum_einspielen(hass: HomeAssistant, geladen) -> None:
         await async_create_fix_flow(hass, "anderes", None)
     await hass.config_entries.async_unload(geladen.entry_id)
     assert reg.async_get_issue(DOMAIN, "restart_to_roll_out") is None
+
+
+async def test_schwelle_automatisch(hass: HomeAssistant, geladen, geraet) -> None:
+    """Hourly: the threshold follows your answers to recordings of the active version, not far below the tested value."""
+    z = geladen.runtime_data
+    geraet("kueche", "Kitchen")
+    w = await z.wort_neu({"wort": "Hey Lumi", "geraete": {"kueche": "1"}})
+    num = async_mock_service(hass, "number", "set_value")
+    sp = w.speicher
+    sp.daten["versionen"] = [{"nr": 1, "status": "aktiv", "eingespielt": "2026-01-01T00:00:00+00:00", "bericht": {"cutoff": 0.97}}]
+    sp.daten["aktiv_seit"] = "2026-01-02T00:00:00+00:00"
+    await z.schwelle_pruefen()
+    assert not num  # too few answers yet
+    for i in range(12):
+        sp.daten["aufnahmen"][f"w{i}"] = {"id": f"w{i}", "quelle": "echo", "art": "wake", "score": 0.80 + i * 0.01, "urteil": "wort", "zeit": "2026-01-03T00:00:00Z"}
+    for i in range(6):
+        sp.daten["aufnahmen"][f"f{i}"] = {"id": f"f{i}", "quelle": "echo", "art": "mistake", "score": 0.75, "urteil": "kein_wort", "zeit": "2026-01-03T00:00:00Z"}
+    # an old recording of the previous version does not count
+    sp.daten["aufnahmen"]["alt"] = {"id": "alt", "quelle": "echo", "art": "mistake", "score": 0.99, "urteil": "kein_wort", "zeit": "2026-01-01T12:00:00Z"}
+    st = sp.statistik()
+    assert st["schwelle_vorschlag"] == pytest.approx(0.80) and st["schwelle_basis"] == {"wort": 12, "kein_wort": 6}
+    await z.schwelle_pruefen()
+    assert num[-1].data["value"] == 0.94  # not more than 0.03 below the tested 0.97
+    assert sp.daten["schwelle_auto"]["quelle"] == "antworten" and sp.daten["schwelle_auto"]["wert"] == 0.94
+    # already there: nothing to do
+    hass.states.async_set("number.kueche_assistant_1_wake_word_threshold", "0.94")
+    anzahl = len(num)
+    await z.schwelle_pruefen()
+    assert len(num) == anzahl
+    # switched off: nothing changes
+    await z.wort_aendern(w.id, {"schwelle_automatisch": False})
+    hass.states.async_set("number.kueche_assistant_1_wake_word_threshold", "0.9")
+    await z.schwelle_pruefen()
+    assert len(num) == anzahl

@@ -49,6 +49,12 @@
         "state": {
           "off": "mdi:rocket-outline"
         }
+      },
+      "schwelle_automatisch": {
+        "default": "mdi:tune-variant",
+        "state": {
+          "off": "mdi:tune-vertical-variant"
+        }
       }
     }
   }

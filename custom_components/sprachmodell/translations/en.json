@@ -150,6 +150,9 @@
       },
       "automatisch_einspielen": {
         "name": "Roll out better version"
+      },
+      "schwelle_automatisch": {
+        "name": "Adjust threshold automatically"
       }
     }
   },

@@ -88,7 +88,7 @@ While it runs, the *Training* page shows every step with its start time and dura
 
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/quality.png" alt="Quality page" width="900"></p>
 
-Recall in quiet and with music, false wakes per hour of speech, results per person, a **table of your answers against the device's confidence** (cells where you and the model strongly disagree are outlined – tap one to listen to exactly those recordings and decide again), how the devices did in daily use – and a **threshold suggestion from your own answers** that you can apply to all devices with one tap. Every version stays available and can be rolled back.
+Recall in quiet and with music, false wakes per hour of speech, results per person, a **table of your answers against the device's confidence** (cells where you and the model strongly disagree are outlined – tap one to listen to exactly those recordings and decide again), how the devices did in daily use – and the **threshold, adjusted by itself**: on rollout the devices get the value the version was tested with, afterwards it follows your answers to recordings of that version (never more than 0.03 below the tested value). Switch it off in Training → Automatic to apply the suggestion yourself. Every version stays available and can be rolled back.
 
 ## Words and devices
 

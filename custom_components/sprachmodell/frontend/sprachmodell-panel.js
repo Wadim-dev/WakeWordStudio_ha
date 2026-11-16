@@ -834,7 +834,8 @@ ${t.phase === 'fehler' ? `<p class="rot">${esc(this._schritt(t.schritt || t.hinw
 ${this._details(w, laeuft)}
 <ha-card><h2>${esc(this.t('t_auto'))}</h2>
 <div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="nachts" ${e.nachts ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_nachts'))} · ${esc(String(d.einstellungen.uhrzeit).slice(0, 5))}</label></div>
-<div class="zeile"><label><input type="checkbox" data-wopt="automatisch_einspielen" ${e.automatisch_einspielen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_einspielen'))}</label></div>
+<div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="automatisch_einspielen" ${e.automatisch_einspielen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_einspielen'))}</label></div>
+<div class="zeile"><label><input type="checkbox" data-wopt="schwelle_automatisch" ${e.schwelle_automatisch ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_schwelle_auto'))}</label></div>
 <p class="klein">${esc(this.t('t_besser_heisst'))}</p></ha-card>
 <ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
   }
@@ -883,9 +884,17 @@ ${Object.keys(personen).length ? `<h3>${esc(this.t('q_je_person'))}</h3><table><
 ${this._tabelle()}
 <ha-card><h2>${esc(this.t('q_alltag'))}</h2>${this._alltag()}</ha-card>
 <ha-card><h2>${esc(this.t('q_schwelle'))}</h2>${this._verteilung(sj, s.schwelle_vorschlag)}
-${s.schwelle_vorschlag != null ? `<div class="zeile weit" style="margin-top:10px"><span>${this.t('q_vorschlag', { w: this._zahl(s.schwelle_vorschlag) })} ${sj != null ? esc(this.t('q_jetzt', { w: this._zahl(sj) })) : ''}</span><button class="k haupt" data-a="schwelle" data-wert="${s.schwelle_vorschlag}" ${!this._admin || (sj != null && Math.abs(sj - s.schwelle_vorschlag) < 0.005) ? 'disabled' : ''}>${esc(this.t('q_uebernehmen'))}</button></div>` : `<div class="klein">${esc(this.t('q_vorschlag_spaeter'))}</div>`}
-<div class="klein" style="margin-top:8px">${esc(this.t('q_legende'))}</div></ha-card>
+${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.schwelle_vorschlag != null ? `<div class="zeile weit" style="margin-top:10px"><span>${this.t('q_vorschlag', { w: this._zahl(s.schwelle_vorschlag) })} ${sj != null ? esc(this.t('q_jetzt', { w: this._zahl(sj) })) : ''}</span><button class="k haupt" data-a="schwelle" data-wert="${s.schwelle_vorschlag}" ${!this._admin || (sj != null && Math.abs(sj - s.schwelle_vorschlag) < 0.005) ? 'disabled' : ''}>${esc(this.t('q_uebernehmen'))}</button></div>` : `<div class="klein">${esc(this.t('q_vorschlag_spaeter'))}</div>`}
+<div class="klein" style="margin-top:8px">${esc(this.t('q_legende'))}${(w.einstellungen || {}).schwelle_automatisch ? '' : ' ' + esc(this.t('q_legende_hand'))}</div></ha-card>
 <ha-card><h2>${esc(this.t('q_versionen'))}</h2>${w.versionen.length ? `<table><tr><th>${esc(this.t('q_version'))}</th><th>${esc(this.t('q_erkannt'))}</th><th>${esc(this.t('q_fehl'))}</th><th>${esc(this.t('q_stand'))}</th><th></th></tr>${w.versionen.map((x) => { const n = (x.bericht && x.bericht.neu) || {}; return `<tr><td>v${x.nr}<div class="klein">${this._datum(x.zeit)}</div></td><td>${this._pct(n.trefferquote)}</td><td>${this._zahl(n.fehlausloeser_pro_stunde, 1)}/${esc(this.t('std'))}</td><td class="${x.status === 'aktiv' ? 'gruen' : ''}">${esc(this.t('s_' + x.status))}</td><td class="z">${x.status !== 'aktiv' && this._admin ? `<button class="k" data-a="einspielen" data-nr="${x.nr}">${esc(this.t('q_einspielen'))}</button>` : ''}</td></tr>`; }).join('')}</table>` : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>`;
+  }
+
+  _schwelleAuto(s, sj) {
+    const a = s.schwelle_auto, b = s.schwelle_basis || { wort: 0, kein_wort: 0 };
+    const woher = a ? this.t(a.quelle === 'antworten' ? 'q_auto_antworten' : 'q_auto_test', { z: this._datum(a.zeit) }) : '';
+    const weiter = s.schwelle_vorschlag != null ? this.t('q_auto_folgt') : this.t('q_auto_spaeter', { a: b.wort, b: b.kein_wort });
+    return `<div style="margin-top:10px"><div class="zeile" style="gap:8px"><ha-icon icon="mdi:tune-variant" style="--mdc-icon-size:18px;color:var(--primary-color)"></ha-icon><span>${this.t('q_auto_jetzt', { w: sj != null ? this._zahl(sj) : '–' })}</span></div>
+<div class="klein" style="margin-top:4px;line-height:1.5">${esc([woher, weiter].filter(Boolean).join(' '))}</div></div>`;
   }
 
   _verteilung(jetzt, vorschlag) {

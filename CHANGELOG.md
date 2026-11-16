@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.16
+- The threshold adjusts itself (new switch "Adjust threshold automatically", on by default): when a version is rolled out the devices get the threshold it was tested with; afterwards it follows your answers to recordings of that version once 10 correct and 5 false wake-ups are reviewed, never more than 0.03 below the tested value. The quality page shows the current value and why it was set.
+- The threshold suggestion only counts recordings scored by the version that is on the devices now (older recordings were scored by a different model).
+- Trainer profile: swap shows what the trainer itself uses (from its control group); inside a container the system file could show the host's swap.
+
 ## 1.0.15
 - Fix: after an update the browser could keep the old text file and show placeholders like `h_bereit` on the start page. The texts are now loaded with the same version as the panel.
 - Fix: tapping a cell or a device button in the quality table did nothing.

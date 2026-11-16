@@ -126,6 +126,16 @@ def auslastung(platz_pfad: str | None = None) -> dict:
     return aus
 
 
+def _cgroup_zahl(name: str, ordner: str = "/sys/fs/cgroup") -> int | None:
+    """A number from the trainer's control group (None when missing or unlimited)."""
+    try:
+        with open(os.path.join(ordner, name), encoding="utf-8") as datei:
+            text = datei.read().strip()
+    except OSError:
+        return None
+    return int(text) if text.isdigit() else None
+
+
 def steckbrief(platz_pfad: str) -> dict:
     """Swap and free disk space for the trainer profile in Home Assistant (shown with a green/yellow/red rating)."""
     import shutil
@@ -143,6 +153,14 @@ def steckbrief(platz_pfad: str) -> dict:
     if "SwapTotal" in werte:
         aus["swap_gb"] = round(werte["SwapTotal"] / 1024 ** 2, 1)
         aus["swap_belegt_gb"] = round((werte["SwapTotal"] - werte.get("SwapFree", werte["SwapTotal"])) / 1024 ** 2, 1)
+    # In a container /proc/meminfo can show the host's swap. The trainer's own control group knows
+    # how much swap the trainer itself uses, so that value wins when it is there.
+    eigen = _cgroup_zahl("memory.swap.current")
+    if eigen is not None:
+        aus["swap_belegt_gb"] = round(eigen / 1024 ** 3, 1)
+        grenze = _cgroup_zahl("memory.swap.max")
+        if grenze is not None:
+            aus["swap_gb"] = round(grenze / 1024 ** 3, 1) if "swap_gb" not in aus else min(aus["swap_gb"], round(grenze / 1024 ** 3, 1))
     try:
         nutzung = shutil.disk_usage(platz_pfad)
         aus["platz_frei_gb"] = round(nutzung.free / 1024 ** 3, 1)
