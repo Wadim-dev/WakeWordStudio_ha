@@ -187,9 +187,15 @@ class ListeAnsicht(HomeAssistantView):
         z = _zentrale(request)
         q = request.query
         wort = _wort(z, q.get("wort"))
+        zelle = None
+        if q.get("zeile"):
+            try:
+                zelle = (str(q["zeile"]), float(q.get("von", 0)), float(q.get("bis", 2)))
+            except ValueError:
+                return self.json_message("ungueltig", HTTPStatus.BAD_REQUEST)
         return self.json(wort.speicher.liste(
             q.get("filter", "offen"), q.get("echo") or None, q.get("art") or None,
-            max(0, int(q.get("seite", 0) or 0)),
+            max(0, int(q.get("seite", 0) or 0)), zelle=zelle,
         ))
 
 

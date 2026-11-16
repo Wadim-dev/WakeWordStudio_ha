@@ -231,3 +231,26 @@ async def test_vorhandene_modelle_und_adresse(hass: HomeAssistant, admin, api) -
         d = await (await admin.get("/api/sprachmodell/daten?modelle=1")).json()
     assert d["vorhandene_modelle"] == [{"modell_id": "alisa", "anzeige": "Алиса", "sprache": "ru"}]
     assert d["trainer"]["adresse"] is None
+
+
+async def test_tabelle_und_zelle(admin, api) -> None:
+    w = api.woerter["hey_lumi"]
+    sp = w.speicher
+    sp.daten["aufnahmen"]["a1"]["score"] = 0.98
+    sp.daten["aufnahmen"]["a2"]["score"] = 0.4
+    sp.urteilen(["a1"], "kein_wort", None)
+    t = sp.tabelle()
+    assert t["zeilen"][""]["kein_wort"][8] == 1 and t["zeilen"][""]["offen"][0] == 1
+    assert t["zeilen"]["Kitchen"]["kein_wort"][8] == 1
+    d = await (await admin.get("/api/sprachmodell/liste?wort=hey_lumi&filter=alle&zeile=kein_wort&von=0.97&bis=0.99")).json()
+    assert [a["id"] for a in d["eintraege"]] == ["a1"]
+    d = await (await admin.get("/api/sprachmodell/liste?wort=hey_lumi&filter=alle&zeile=offen&von=0&bis=0.5")).json()
+    assert [a["id"] for a in d["eintraege"]] == ["a2"]
+    assert (await admin.get("/api/sprachmodell/liste?wort=hey_lumi&zeile=wort&von=x")).status == 400
+    sp.daten["aufnahmen"]["a2"]["urteil"] = "wort"
+    sp.daten["aufnahmen"]["a2"]["art"] = "nearmiss"
+    sp.daten["aufnahmen"]["a3"] = {"id": "a3", "quelle": "echo", "urteil": "wort", "art": "wake", "score": 1.5, "zeit": "x"}
+    sp.daten["aufnahmen"]["a4"] = {"id": "a4", "quelle": "echo", "urteil": "verworfen", "score": 0.9, "zeit": "x"}
+    sp.daten["aufnahmen"]["a5"] = {"id": "a5", "quelle": "hochgeladen", "urteil": "wort", "score": 0.9, "zeit": "x"}
+    t = sp.tabelle()
+    assert t["zeilen"][""]["verpasst"][0] == 1 and sum(t["zeilen"][""]["wort"]) == 0

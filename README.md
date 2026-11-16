@@ -88,7 +88,7 @@ While it runs, the *Training* page shows every step with its start time and dura
 
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/quality.png" alt="Quality page" width="900"></p>
 
-Recall in quiet and with music, false wakes per hour of speech, results per person, how the devices did in daily use – and a **threshold suggestion from your own answers** that you can apply to all devices with one tap. Every version stays available and can be rolled back.
+Recall in quiet and with music, false wakes per hour of speech, results per person, a **table of your answers against the device's confidence** (cells where you and the model strongly disagree are outlined – tap one to listen to exactly those recordings and decide again), how the devices did in daily use – and a **threshold suggestion from your own answers** that you can apply to all devices with one tap. Every version stays available and can be rolled back.
 
 ## Words and devices
 
@@ -211,6 +211,8 @@ Diagnostics (*Settings → Devices & services → Wake Word Studio → ⋮ → D
 1. Über den Marketplace installieren und Home Assistant neu starten.
 2. *Einstellungen → Geräte & Dienste → Integration hinzufügen → Wake Word Studio*, Ablageordner bestätigen (später änderbar über *Neu konfigurieren*, die Daten ziehen mit um).
 3. **Wake Word Studio** in der Seitenleiste öffnen, Wort anlegen, Geräte wählen, Trainer starten (App, Docker oder Proxmox – Befehle unter *Einstellungen → Trainer*).
+
+Die Seite *Qualität* zeigt eine Tabelle aus deinen Antworten und der Sicherheit des Geräts; auffällige Zellen (du und das Modell seid euch sehr uneinig) sind orange umrandet, ein Tipp öffnet genau diese Aufnahmen zum Nachhören.
 
 Die Startseite zeigt oben, was gerade zählt (Training mit „fertig ca. HH:MM“, wartende Aufnahmen, Trainer fehlt, neue Version bereit), mit einem Knopf zum nächsten Schritt; darunter jedes Wort mit Erkennungsquote und den Aufnahmen der letzten 14 Tage, den Trainer mit Auslastung, die Warteschlange und die Geräte.
 
