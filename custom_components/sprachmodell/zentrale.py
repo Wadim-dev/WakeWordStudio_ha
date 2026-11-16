@@ -50,6 +50,7 @@ from .sammler import WAHL_ENDUNGEN, Sammler, alle_geraete, esphome_eintraege, ge
 from .speicher import Speicher, jetzt, sichere_id
 
 _LOGGER = logging.getLogger(__name__)
+MAX_NEUSTARTS = 2  # a run lost by a trainer restart is started again this often (with less memory)
 
 SAMMELN_TAKT = timedelta(minutes=2)
 HINWEIS_ID = f"{DOMAIN}_pruefen"
@@ -510,7 +511,19 @@ class Zentrale:
                 continue
             alter = datetime.now(UTC) - datetime.fromisoformat(t["aktualisiert"])
             if alter.total_seconds() > 20 * 60:
-                self.trainer_meldet({"wort_id": wort.id, "phase": "fehler", "schritt": "trainer_getrennt"})
+                self._lauf_verloren(wort)
+
+    def _lauf_verloren(self, wort: Wort) -> None:
+        """The trainer restarted or went silent during a run (usually memory): queue the run again, the trainer then
+        needs less memory. Only after MAX_NEUSTARTS such restarts the run ends with an error."""
+        n = int(wort.speicher.daten["training"].get("neustarts") or 0) + 1
+        if n > MAX_NEUSTARTS:
+            self.trainer_meldet({"wort_id": wort.id, "phase": "fehler", "schritt": "trainer_getrennt"})
+            return
+        _LOGGER.warning("Trainer lost the run for %s, starting it again with less memory (%s/%s)",
+                        wort.wort, n, MAX_NEUSTARTS)
+        wort.speicher.daten["training"] = {"phase": "bereit"}
+        self.auftrag(wort.id, "fortsetzen", sparsam=n)
 
     @callback
     def reparaturen_pruefen(self) -> None:
@@ -584,11 +597,13 @@ class Zentrale:
         return [wid for wid in self.daten.get("reihe", []) if wid in self.woerter]
 
     @callback
-    def auftrag(self, wid: str, grund: str) -> None:
+    def auftrag(self, wid: str, grund: str, sparsam: int = 0) -> None:
+        """Queue a run. sparsam > 0: resumed after the trainer restarted mid-run, the trainer uses less memory."""
         wort = self.woerter[wid]
-        wort.speicher.daten["auftrag"] = {"grund": grund, "zeit": jetzt()}
+        wort.speicher.daten["auftrag"] = {"grund": grund, "zeit": jetzt(), **({"sparsam": sparsam} if sparsam else {})}
         if wort.speicher.daten["training"].get("phase") in ("bereit", "fertig", "fehler", None):
-            wort.speicher.daten["training"] = {"phase": "wartet", "grund": grund, "seit": jetzt()}
+            wort.speicher.daten["training"] = {"phase": "wartet", "grund": grund, "seit": jetzt(),
+                                               **({"neustarts": sparsam} if sparsam else {})}
         if wid not in self.daten["reihe"]:
             self.daten["reihe"].append(wid)
         self.hass.async_add_executor_job(wort.speicher.speichern)
@@ -621,7 +636,7 @@ class Zentrale:
             # Trainer ist neu gestartet (Absturz, Speicher voll, Update): Laeufe, die noch als aktiv gelten, sind verloren
             for anderes in self.woerter.values():
                 if anderes.speicher.daten["training"].get("phase") in LAEUFT:
-                    self.trainer_meldet({"wort_id": anderes.id, "phase": "fehler", "schritt": "trainer_getrennt"})
+                    self._lauf_verloren(anderes)
         wid = status.get("wort_id")
         wort = self.woerter.get(str(wid)) if wid else None
         if wort is None:

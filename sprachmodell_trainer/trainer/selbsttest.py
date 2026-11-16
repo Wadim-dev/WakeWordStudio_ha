@@ -74,8 +74,12 @@ def main() -> None:
         merkmale = {"pos": {"dir": str(m / "pos"), "wort": True, "gewicht": 1.0, "strafe": 1.0},
                     "neg": {"dir": str(m / "neg"), "wort": False, "gewicht": 1.0, "strafe": 1.0}}
         lang_dir = m / "lang"
-        tflite = lauf._training(merkmale, {"speech": lang_dir, "dinner_party": lang_dir, "no_speech": lang_dir,
-                                           "dinner_party_eval": lang_dir})
+        # evaluation sets are cut down to fit the memory, like in a real run
+        neg = lauf._schlanke_negative({"speech": lang_dir, "dinner_party": lang_dir, "no_speech": lang_dir,
+                                       "dinner_party_eval": lang_dir})
+        assert (neg["speech"] / "training").is_symlink() and (neg["speech"] / "validation_ambient").is_dir()
+        print(f"SELBSTTEST evaluation data ok ({time.time() - t0:.0f} s)", flush=True)
+        tflite = lauf._training(merkmale, neg)
         assert tflite.exists() and tflite.stat().st_size > 1000, "no model"
         print(f"SELBSTTEST training ok ({time.time() - t0:.0f} s, model {tflite.stat().st_size} bytes)", flush=True)
 

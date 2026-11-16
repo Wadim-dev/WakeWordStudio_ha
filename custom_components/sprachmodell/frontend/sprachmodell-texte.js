@@ -17,7 +17,7 @@ export const TEXTE = {
     s_grunddaten: 'Grunddaten prüfen', s_laden: 'Lade {d}', s_aufnahmen: 'Bewertete Aufnahmen holen', s_stimmen: 'Künstliche Stimmen erzeugen', s_merkmale: 'Merkmale berechnen', s_merkmale_gerede: 'Merkmale für Gerede berechnen', s_training: 'Training', s_weitertrainieren: 'Weitertrainieren', s_test_neu: 'Neues Modell testen', s_test_alt: 'Bisheriges Modell testen', s_senden: 'Ergebnis senden', s_abgebrochen: 'Abgebrochen', s_trainer_getrennt: 'Trainer hat sich nicht mehr gemeldet',
     g_aufgewacht: 'Das Gerät ist aufgewacht', g_abgebrochen: 'Nach dem Aufwachen abgebrochen',
     g_verpasst: 'Kurz danach hat es geklappt – vermutlich verpasst', g_knapp: 'Knapp nicht erkannt, danach nichts', g_geraeusch: 'Geräusch',
-    grund_von_hand: 'von Hand', grund_nachts: 'nachts',
+    grund_von_hand: 'von Hand', grund_nachts: 'nachts', grund_fortsetzen: 'Fortsetzung nach Trainer-Neustart, mit weniger Speicher', s_auswahl: 'Prüfdaten passend zum Speicher auswählen',
     // Zeit
     gerade: 'gerade eben', vor_min: 'vor {n} Min.', vor_std: 'vor {n} Std.', std: 'Std.', min: 'Min.',
     // Zentrale
@@ -146,7 +146,7 @@ export const TEXTE = {
     s_grunddaten: 'Checking base data', s_laden: 'Downloading {d}', s_aufnahmen: 'Fetching rated clips', s_stimmen: 'Generating synthetic voices', s_merkmale: 'Computing features', s_merkmale_gerede: 'Computing speech features', s_training: 'Training', s_weitertrainieren: 'Fine-tuning', s_test_neu: 'Testing new model', s_test_alt: 'Testing current model', s_senden: 'Sending result', s_abgebrochen: 'Cancelled', s_trainer_getrennt: 'Trainer stopped reporting',
     g_aufgewacht: 'The device woke up', g_abgebrochen: 'Cancelled after waking up',
     g_verpasst: 'Worked shortly after – probably missed', g_knapp: 'Near miss, nothing afterwards', g_geraeusch: 'Noise',
-    grund_von_hand: 'manual', grund_nachts: 'nightly',
+    grund_von_hand: 'manual', grund_nachts: 'nightly', grund_fortsetzen: 'resumed after a trainer restart, using less memory', s_auswahl: 'Choosing evaluation data that fits the memory',
     gerade: 'just now', vor_min: '{n} min ago', vor_std: '{n} h ago', std: 'h', min: 'min',
     z_leer_titel: 'Your first own wake word',
     z_leer_text: 'Create a word, choose the devices and collect recordings: the devices keep every wake-up, you listen and say whether it was right. A trainer turns that into a better model at night and rolls it out by itself.',

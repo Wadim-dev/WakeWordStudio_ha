@@ -68,6 +68,16 @@ ANTEILE = {"vorbereiten": (0, 8), "daten": (8, 12), "stimmen": (12, 35), "merkma
            "training": (50, 92), "test": (92, 100)}
 
 
+def _zuerst_opfern() -> None:
+    """Runs in each step process before it starts: if memory runs out, the system should stop this step (which is
+    then repeated with less memory) and not the trainer service itself."""
+    try:
+        with open("/proc/self/oom_score_adj", "w", encoding="ascii") as datei:
+            datei.write("1000")
+    except OSError:
+        pass
+
+
 def _cpu_gruppe(gruppe: int) -> float:
     """CPU seconds used so far by all processes of a process group (incl. finished children)."""
     takt = os.sysconf("SC_CLK_TCK") or 100
@@ -243,7 +253,8 @@ class Lauf:
         self.notiz("Running " + " ".join(Path(a).name if "/" in a else a for a in args[1:4]))
         # own process group: the watchdog and cancelling stop the step together with all its workers
         self._prozess = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                                         bufsize=1, cwd=cwd, env=umgebung, start_new_session=True)
+                                         bufsize=1, cwd=cwd, env=umgebung, start_new_session=True,
+                                         preexec_fn=_zuerst_opfern)
         self._ausgabe_zeit = time.monotonic()
         self._grund: str | None = None
         waechter = threading.Thread(target=self._waechter, args=(self._prozess,), daemon=True)
@@ -321,7 +332,9 @@ class Lauf:
     def _wiederholen(self, name: str, versuch: Any) -> Any:
         """Run a step; if it hung or ran out of memory, run it again with fewer processes (slower, but it finishes).
         versuch(stufe) gets 0, 1, 2: normal, half the processes, one process."""
-        for stufe in range(VERSUCHE):
+        # a run resumed after a trainer restart (auftrag "sparsam") starts right away with less memory
+        start = min(int(self.auftrag.get("sparsam") or 0), VERSUCHE - 1)
+        for stufe in range(start, VERSUCHE):
             try:
                 return versuch(stufe)
             except RuntimeError as err:
@@ -376,7 +389,7 @@ class Lauf:
         echt = self._echte_aufnahmen()
         tts = self._stimmen(stimmen, gerede)
         merkmale = self._merkmale(echt, tts, bg, rir, gerede, g)
-        tflite = self._training(merkmale, neg)
+        tflite = self._training(merkmale, self._schlanke_negative(neg))
         bericht = self._test(tflite, echt, tts, bg, gerede)
         self._abschnitt("test", 1, "senden", True)
         self.ha.ergebnis(self.wort_id, tflite.read_bytes(), bericht)
@@ -562,6 +575,30 @@ class Lauf:
         return sorted(str(p) for p in Path(ordner).glob("*.wav"))
 
     # --- Training -----------------------------------------------------------
+
+    def _schlanke_negative(self, neg: dict[str, Path]) -> dict[str, Path]:
+        """microWakeWord loads validation and test sets completely into memory at every evaluation. The full base
+        sets need far more than small machines have (the container was killed at the first evaluation), so
+        evaluation uses evenly chosen samples that fit the memory: more memory, more samples."""
+        from .grenzen import ram_gb
+
+        ram = ram_gb() or 4.0
+        stufe = int(self.auftrag.get("sparsam") or 0)
+        faktor = 1 / (2 ** stufe)
+        max_proben = max(500, int(ram * 800 * faktor))
+        max_frames = max(30000, int(ram * 50000 * faktor))
+        ziel = Path(self.daten) / "schlank" / f"{max_proben}_{max_frames}"
+        aus = {}
+        for name, pfad in neg.items():
+            z = ziel / name
+            if not (z / "fertig").exists():
+                shutil.rmtree(z, ignore_errors=True)
+                self._werkzeug_sicher("schlank", {"quelle": str(pfad), "ziel": str(z), "max_proben": max_proben,
+                                                  "max_frames": max_frames}, "training", 0, 0, "auswahl")
+                (z / "fertig").touch()
+            aus[name] = z
+        self.notiz(f"Evaluation uses up to {max_proben} samples per set and {max_frames // 6000} min of ambient audio")
+        return aus
 
     def _training(self, merkmale: dict[str, dict], neg: dict[str, Path]) -> Path:
         train = self.ordner / "train"

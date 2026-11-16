@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.7
+- Fix: on machines with little memory (about 5 GB) training was killed at its first evaluation (step 500), because microWakeWord loads the complete validation sets of the base data into memory. Evaluation now uses evenly chosen samples that fit the memory (about 800 per GB per set, ambient audio about 8 minutes per GB); training still uses all data.
+- If memory runs out anyway, the system stops the computing step first, not the trainer service.
+- A run lost because the trainer restarted is no longer an error: Home Assistant queues it again and the trainer starts it with less memory (up to 2 times).
+- The self-test also covers choosing the evaluation data.
+
 ## 1.0.6
 - Fix: training stopped at its first evaluation because TensorBoard was missing in the trainer image.
 - Every trainer image now runs a complete tiny training before it is published (features with worker pool and augmentation, training with evaluation, model conversion, model test).
