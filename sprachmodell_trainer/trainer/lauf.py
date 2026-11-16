@@ -58,7 +58,8 @@ PROTOKOLL_ZEILEN = 80
 # unless it stays silent for STUMM_MAX_S.
 STILL_S = int(os.environ.get("STILL_S", "600"))
 STUMM_MAX_S = int(os.environ.get("STUMM_MAX_S", str(3 * 3600)))
-SPEICHER_REST_GB = 0.25  # less free memory than this for 30 s: stop the step ourselves before the OOM killer picks
+SPEICHER_REST_GB = 0.25
+PLATZ_REST_GB = 0.5  # below this the step stops instead of writing broken files  # less free memory than this for 30 s: stop the step ourselves before the OOM killer picks
 VERSUCHE = 3  # attempts per step: normal, then half the processes, then a single process
 SCHRITTE_MAX = 40
 _BALKEN = re.compile(r"\d+%\||it/s|s/it|\d+/\d+ \[")
@@ -66,6 +67,16 @@ _BALKEN = re.compile(r"\d+%\||it/s|s/it|\d+/\d+ \[")
 # Anteil am Gesamtfortschritt je Abschnitt
 ANTEILE = {"vorbereiten": (0, 8), "daten": (8, 12), "stimmen": (12, 35), "merkmale": (35, 50),
            "training": (50, 92), "test": (92, 100)}
+
+
+def _zuerst_opfern() -> None:
+    """Runs in each step process before it starts: if memory runs out, the system should stop this step (which is
+    then repeated with less memory) and not the trainer service itself."""
+    try:
+        with open("/proc/self/oom_score_adj", "w", encoding="ascii") as datei:
+            datei.write("1000")
+    except OSError:
+        pass
 
 
 def _cpu_gruppe(gruppe: int) -> float:
@@ -243,7 +254,8 @@ class Lauf:
         self.notiz("Running " + " ".join(Path(a).name if "/" in a else a for a in args[1:4]))
         # own process group: the watchdog and cancelling stop the step together with all its workers
         self._prozess = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                                         bufsize=1, cwd=cwd, env=umgebung, start_new_session=True)
+                                         bufsize=1, cwd=cwd, env=umgebung, start_new_session=True,
+                                         preexec_fn=_zuerst_opfern)
         self._ausgabe_zeit = time.monotonic()
         self._grund: str | None = None
         waechter = threading.Thread(target=self._waechter, args=(self._prozess,), daemon=True)
@@ -304,6 +316,10 @@ class Lauf:
                     break
             else:
                 knapp_seit = None
+            if platz_frei(self.daten) < PLATZ_REST_GB:
+                self._grund = (f"PLATZ Disk almost full ({platz_frei(self.daten):.1f} GB left), step stopped. "
+                               "Free space on the trainer and start again")
+                break
             if jetzt - cpu_zeit >= STILL_S:
                 cpu = _cpu_gruppe(prozess.pid)
                 still = jetzt - self._ausgabe_zeit
@@ -321,12 +337,18 @@ class Lauf:
     def _wiederholen(self, name: str, versuch: Any) -> Any:
         """Run a step; if it hung or ran out of memory, run it again with fewer processes (slower, but it finishes).
         versuch(stufe) gets 0, 1, 2: normal, half the processes, one process."""
-        for stufe in range(VERSUCHE):
+        # a run resumed after a trainer restart (auftrag "sparsam") starts right away with less memory
+        start = min(int(self.auftrag.get("sparsam") or 0), VERSUCHE - 1)
+        for stufe in range(start, VERSUCHE):
             try:
                 return versuch(stufe)
             except RuntimeError as err:
                 text = str(err)
-                if stufe == VERSUCHE - 1 or not text.startswith(("SPEICHER", "HAENGT")):
+                art, _, rest = text.partition(" ")
+                if art in ("SPEICHER", "HAENGT", "PLATZ"):
+                    if stufe == VERSUCHE - 1 or art == "PLATZ":  # fewer processes do not help against a full disk
+                        raise RuntimeError(rest) from err
+                else:
                     raise
                 self.notiz(f"{name}: {text.split(' ', 1)[1]} - trying again with fewer processes "
                            f"({stufe + 2}/{VERSUCHE})", "warnung")
@@ -376,10 +398,20 @@ class Lauf:
         echt = self._echte_aufnahmen()
         tts = self._stimmen(stimmen, gerede)
         merkmale = self._merkmale(echt, tts, bg, rir, gerede, g)
-        tflite = self._training(merkmale, neg)
+        tflite = self._training(merkmale, self._schlanke_negative(neg))
         bericht = self._test(tflite, echt, tts, bg, gerede)
         self._abschnitt("test", 1, "senden", True)
-        self.ha.ergebnis(self.wort_id, tflite.read_bytes(), bericht)
+        try:
+            self.ha.ergebnis(self.wort_id, tflite.read_bytes(), bericht)
+        except Exception as err:  # noqa: BLE001 - Home Assistant gone for longer than 30 minutes
+            ablage = Path(self.daten) / "ausstehend" / self.wort_id
+            ablage.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(tflite, ablage / "modell.tflite")
+            (ablage / "bericht.json").write_text(json.dumps(bericht), encoding="utf-8")
+            self.notiz(f"Home Assistant not reachable ({err}); the result is kept and sent as soon as it is back",
+                       "warnung")
+            self.letzter = {"wort_id": self.wort_id}
+            return
         self.letzter = {"wort_id": self.wort_id}  # HA now shows the result; the heartbeat must not report "testing" again
         _LOG.info("Done: %s", json.dumps(bericht, ensure_ascii=False))
         self.notiz("Done, result sent to Home Assistant")
@@ -562,6 +594,33 @@ class Lauf:
         return sorted(str(p) for p in Path(ordner).glob("*.wav"))
 
     # --- Training -----------------------------------------------------------
+
+    def _schlanke_negative(self, neg: dict[str, Path]) -> dict[str, Path]:
+        """microWakeWord loads validation and test sets completely into memory at every evaluation. The full base
+        sets need far more than small machines have (the container was killed at the first evaluation), so
+        evaluation uses evenly chosen samples that fit the memory: more memory, more samples."""
+        from .grenzen import ram_gb
+
+        ram = ram_gb() or 4.0
+        stufe = int(self.auftrag.get("sparsam") or 0)
+        faktor = 1 / (2 ** stufe)
+        max_proben = max(500, int(ram * 800 * faktor))
+        max_frames = max(30000, int(ram * 50000 * faktor))
+        ziel = Path(self.daten) / "schlank" / f"{max_proben}_{max_frames}"
+        for alt in (Path(self.daten) / "schlank").glob("*"):  # other sizes (other memory) are no longer needed
+            if alt != ziel:
+                shutil.rmtree(alt, ignore_errors=True)
+        aus = {}
+        for name, pfad in neg.items():
+            z = ziel / name
+            if not (z / "fertig").exists():
+                shutil.rmtree(z, ignore_errors=True)
+                self._werkzeug_sicher("schlank", {"quelle": str(pfad), "ziel": str(z), "max_proben": max_proben,
+                                                  "max_frames": max_frames}, "training", 0, 0, "auswahl")
+                (z / "fertig").touch()
+            aus[name] = z
+        self.notiz(f"Evaluation uses up to {max_proben} samples per set and {max_frames // 6000} min of ambient audio")
+        return aus
 
     def _training(self, merkmale: dict[str, dict], neg: dict[str, Path]) -> Path:
         train = self.ordner / "train"

@@ -44,6 +44,29 @@ def info() -> dict:
     }
 
 
+def ausstehende_senden(ha: HA, daten: str) -> None:
+    """Results that could not be delivered (Home Assistant was away for long) are sent once it is back."""
+    import shutil
+    from pathlib import Path
+
+    import requests
+
+    for ordner in sorted((Path(daten) / "ausstehend").glob("*")):
+        try:
+            bericht = json.loads((ordner / "bericht.json").read_text(encoding="utf-8"))
+            ha.ergebnis(ordner.name, (ordner / "modell.tflite").read_bytes(), bericht)
+        except requests.HTTPError as err:
+            if err.response is not None and 400 <= err.response.status_code < 500:  # word deleted meanwhile
+                _LOG.warning("Kept result for %s not accepted (%s), dropped", ordner.name, err)
+                shutil.rmtree(ordner, ignore_errors=True)
+            continue
+        except Exception as err:  # noqa: BLE001
+            _LOG.warning("Kept result for %s not sent yet: %s", ordner.name, err)
+            continue
+        _LOG.info("Kept result for %s delivered", ordner.name)
+        shutil.rmtree(ordner, ignore_errors=True)
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     ha = HA()
@@ -58,6 +81,8 @@ def main() -> None:
     # Erste Meldung nach dem Start: ein Lauf, den HA noch fuer aktiv haelt, ist verloren (Absturz, Neustart)
     ha.status({"neustart": True, "info": info()})
     while True:
+        if faden is None and os.path.isdir(os.path.join(daten, "ausstehend")):
+            ausstehende_senden(ha, daten)
         try:
             antwort = ha.auftrag()
         except Exception as err:  # noqa: BLE001

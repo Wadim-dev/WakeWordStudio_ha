@@ -8,14 +8,16 @@
 
 from __future__ import annotations
 
+import gzip
 import io
 import json
 import logging
-import os
 import shutil
 import subprocess
 import tarfile
+import time
 import zipfile
+import zlib
 from pathlib import Path
 from typing import Callable
 
@@ -34,16 +36,54 @@ FLEURS = {
 FREMD = ("en", "de", "ru", "es", "fr")
 
 
+LADEN_VERSUCHE = 6
+
+
 def _laden(url: str, ziel: Path) -> Path:
+    """Download with resume: a broken connection (internet gone, server busy) continues where it stopped, up to
+    LADEN_VERSUCHE times with growing pauses; an incomplete file is never used."""
     ziel.parent.mkdir(parents=True, exist_ok=True)
     tmp = ziel.with_suffix(ziel.suffix + ".tmp")
-    with requests.get(url, stream=True, timeout=120) as r:
-        r.raise_for_status()
-        with open(tmp, "wb") as datei:
-            for stueck in r.iter_content(1 << 20):
-                datei.write(stueck)
+    for versuch in range(1, LADEN_VERSUCHE + 1):
+        try:
+            schon = tmp.stat().st_size if tmp.exists() else 0
+            kopf = {"Range": f"bytes={schon}-"} if schon else {}
+            with requests.get(url, stream=True, timeout=120, headers=kopf) as r:
+                if r.status_code == 416:  # already complete
+                    break
+                r.raise_for_status()
+                if schon and r.status_code != 206:  # server ignores Range: start again
+                    schon = 0
+                gesamt = schon + int(r.headers.get("Content-Length") or 0)
+                with open(tmp, "ab" if schon else "wb") as datei:
+                    for stueck in r.iter_content(1 << 20):
+                        datei.write(stueck)
+            if r.headers.get("Content-Length") and tmp.stat().st_size < gesamt:
+                raise OSError(f"incomplete: {tmp.stat().st_size} of {gesamt} bytes")
+            break
+        except (requests.RequestException, OSError) as err:
+            if versuch == LADEN_VERSUCHE:
+                raise RuntimeError(f"Download failed after {versuch} attempts: {url.rsplit('/', 1)[-1]}: {err}") from err
+            pause = min(300, 10 * 2 ** versuch)
+            _LOG.warning("Download of %s interrupted (%s), continuing in %s s", url.rsplit("/", 1)[-1], err, pause)
+            time.sleep(pause)
     tmp.replace(ziel)
     return ziel
+
+
+def _geladen(url: str, datei: Path, arbeit: Callable[[Path], None]) -> None:
+    """Download and process a file; a damaged download (broken archive) is deleted and fetched once more."""
+    for versuch in (1, 2):
+        _laden(url, datei)
+        try:
+            arbeit(datei)
+            return
+        except (zipfile.BadZipFile, tarfile.TarError, gzip.BadGzipFile, EOFError, zlib.error) as err:
+            if versuch == 2:
+                raise RuntimeError(f"Downloaded file {datei.name} is damaged: {err}") from err
+            _LOG.warning("File %s is damaged (%s), downloading it again", datei.name, err)
+        finally:
+            datei.unlink(missing_ok=True)
 
 
 def _wav16(daten: bytes | str, ziel: Path) -> None:
@@ -70,11 +110,14 @@ class Grunddaten:
             ziel = self.o / "neg" / name
             if not (ziel / "fertig").exists():
                 self.melden(f"laden:{name}")
-                z = _laden(f"{HF}/datasets/kahrendt/microwakeword/resolve/main/{name}.zip", self.o / "tmp" / f"{name}.zip")
                 shutil.rmtree(ziel, ignore_errors=True)
-                with zipfile.ZipFile(z) as archiv:
-                    archiv.extractall(self.o / "neg")
-                z.unlink()
+
+                def auspacken(z: Path) -> None:
+                    with zipfile.ZipFile(z) as archiv:
+                        archiv.extractall(self.o / "neg")
+
+                _geladen(f"{HF}/datasets/kahrendt/microwakeword/resolve/main/{name}.zip", self.o / "tmp" / f"{name}.zip",
+                         auspacken)
                 (ziel / "fertig").touch()
             aus[name] = ziel
         return aus
@@ -85,14 +128,18 @@ class Grunddaten:
         if not (fma / "fertig").exists():
             self.melden("laden:music")
             fma.mkdir(parents=True, exist_ok=True)
-            z = _laden(f"{HF}/datasets/mchl914/fma_xsmall/resolve/main/fma_xs.zip", self.o / "tmp" / "fma.zip")
-            with zipfile.ZipFile(z) as archiv:
-                for i, info in enumerate(n for n in archiv.infolist() if n.filename.lower().endswith((".mp3", ".wav"))):
-                    try:
-                        _wav16(archiv.read(info), fma / f"fma{i:05d}.wav")
-                    except Exception:  # noqa: BLE001
-                        continue
-            z.unlink()
+
+            def musik(z: Path) -> None:
+                with zipfile.ZipFile(z) as archiv:
+                    for i, info in enumerate(n for n in archiv.infolist() if n.filename.lower().endswith((".mp3", ".wav"))):
+                        try:
+                            _wav16(archiv.read(info), fma / f"fma{i:05d}.wav")
+                        except (zipfile.BadZipFile, zlib.error, EOFError):
+                            raise
+                        except Exception:  # noqa: BLE001 - one bad song is skipped
+                            continue
+
+            _geladen(f"{HF}/datasets/mchl914/fma_xsmall/resolve/main/fma_xs.zip", self.o / "tmp" / "fma.zip", musik)
             (fma / "fertig").touch()
         ziele.append(fma)
         aset = self.o / "bg" / "audioset"
@@ -138,16 +185,21 @@ class Grunddaten:
             if not (ziel / "fertig").exists():
                 self.melden(f"laden:fleurs {sprache} {teil}")
                 ziel.mkdir(parents=True, exist_ok=True)
-                t = _laden(f"{HF}/datasets/google/fleurs/resolve/main/data/{code}/audio/{teil}.tar.gz", self.o / "tmp" / f"{code}_{teil}.tar.gz")
-                with tarfile.open(t) as archiv:
-                    for m in archiv:
-                        if m.isfile() and m.name.endswith(".wav"):
-                            daten = archiv.extractfile(m).read()
+
+                def saetze_audio(t: Path, ziel: Path = ziel) -> None:
+                    with tarfile.open(t) as archiv:
+                        for m in archiv:
+                            datei = archiv.extractfile(m) if m.isfile() and m.name.endswith(".wav") else None
+                            if datei is None:
+                                continue
+                            daten = datei.read()
                             try:
                                 _wav16(daten, ziel / Path(m.name).name)
-                            except Exception:  # noqa: BLE001
+                            except Exception:  # noqa: BLE001 - one bad recording is skipped
                                 continue
-                t.unlink()
+
+                _geladen(f"{HF}/datasets/google/fleurs/resolve/main/data/{code}/audio/{teil}.tar.gz",
+                         self.o / "tmp" / f"{code}_{teil}.tar.gz", saetze_audio)
                 try:
                     tsv = requests.get(f"{HF}/datasets/google/fleurs/resolve/main/data/{code}/{teil}.tsv", timeout=60).text
                     saetze = sorted({z.split("\t")[2] for z in tsv.splitlines() if z.count("\t") >= 3})

@@ -62,6 +62,9 @@ async def test_training_ablauf(hass: HomeAssistant, geladen, geraet) -> None:
     w.cfg["anzeige"] = "Hey Lumi (custom)"
     z.auftrag(w.id, "von_hand")
     assert z.reihe() == [w.id] and z.naechster_auftrag() is w
+    assert z.naechster_auftrag() is None  # just handed out: a second trainer does not get it as well
+    z._abgeholt[w.id] -= 1000
+    assert z.naechster_auftrag() is w  # the trainer never confirmed: offered again
     assert w.speicher.daten["training"]["phase"] == "wartet"
     z.trainer_meldet({"info": {"name": "PC"}})
     assert z.trainer_online and z.trainer_info == {"name": "PC"}
@@ -70,7 +73,15 @@ async def test_training_ablauf(hass: HomeAssistant, geladen, geraet) -> None:
     z.trainer_meldet({"wort_id": w.id, "phase": "daten", "prozent": 9})
     assert w.speicher.daten["training"]["prozent"] == 9
     z.trainer_meldet({"wort_id": "gibtsnicht"})
-    # Trainer startet neu: laufender Lauf ist verloren
+    # Trainer restarts mid-run (memory): the run is queued again and the trainer is asked to use less memory
+    for n in (1, 2):
+        z.trainer_meldet({"neustart": True})
+        t = w.speicher.daten["training"]
+        assert t["phase"] == "wartet" and t["grund"] == "fortsetzen" and t["neustarts"] == n
+        assert z.reihe() == [w.id] and w.speicher.daten["auftrag"]["sparsam"] == n
+        z.trainer_meldet({"wort_id": w.id, "phase": "training", "prozent": 50})
+        assert w.speicher.daten["training"]["neustarts"] == n
+    # third time: the run ends with an error
     z.trainer_meldet({"neustart": True})
     assert w.speicher.daten["training"]["phase"] == "fehler"
     assert w.speicher.daten["laeufe"][-1]["hinweis"] == "trainer_getrennt"
@@ -113,7 +124,11 @@ async def test_verlorener_lauf(hass: HomeAssistant, geladen) -> None:
     z = geladen.runtime_data
     w = await z.wort_neu({"wort": "Hey Lumi"})
     w.speicher.daten["training"] = {"phase": "training", "aktualisiert": (datetime.now(UTC) - timedelta(minutes=30)).isoformat()}
-    z._verlorene_laeufe()
+    z._verlorene_laeufe()  # silent for 30 min: queued again with less memory
+    assert w.speicher.daten["training"]["phase"] == "wartet" and w.speicher.daten["auftrag"]["sparsam"] == 1
+    w.speicher.daten["training"].update({"phase": "training", "neustarts": 2,
+                                         "aktualisiert": (datetime.now(UTC) - timedelta(minutes=30)).isoformat()})
+    z._verlorene_laeufe()  # already restarted twice: error
     assert w.speicher.daten["training"]["phase"] == "fehler"
     await hass.async_block_till_done()
 

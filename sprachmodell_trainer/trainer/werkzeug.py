@@ -262,7 +262,45 @@ def pruefen(a: dict) -> dict:
     return {"stunden": round(stunden, 2), "positiv": len(ruhig), "negativ": len(gegen), "je_schwelle": je}
 
 
-BEFEHLE = {"tts": tts, "merkmale": merkmale, "pruefen": pruefen}
+def schlank(a: dict) -> dict:
+    """Small copy of a feature set for evaluation during training (microWakeWord loads validation and test sets
+    completely into memory). a: quelle, ziel, max_proben (per validation/testing set), max_frames (per *_ambient set).
+    training/ stays a link to the original (it is read lazily)."""
+    from pathlib import Path
+
+    from mmap_ninja.ragged import RaggedMmap
+
+    quelle, ziel = Path(a["quelle"]), Path(a["ziel"])
+    ziel.mkdir(parents=True, exist_ok=True)
+    aus: dict[str, int] = {}
+    for teil in sorted(p for p in quelle.iterdir() if p.is_dir()):
+        neu = ziel / teil.name
+        if teil.name == "training":
+            if not neu.exists():
+                neu.symlink_to(teil.resolve(), target_is_directory=True)
+            continue
+        for m in sorted(teil.glob("**/*_mmap")):
+            alt = RaggedMmap(str(m))
+            n = len(alt)
+            if teil.name.endswith("ambient"):
+                frames, k = 0, 0
+                while k < n and frames < a["max_frames"]:
+                    frames += len(alt[k])
+                    k += 1
+                auswahl = list(range(k))
+            else:
+                k = min(n, int(a["max_proben"]))
+                auswahl = sorted({int(i) for i in np.linspace(0, n - 1, k)}) if n else []
+            out = neu / m.relative_to(teil)
+            out.parent.mkdir(parents=True, exist_ok=True)
+            RaggedMmap.from_generator(out_dir=str(out), sample_generator=(alt[i] for i in auswahl),
+                                      batch_size=500, verbose=False)
+            aus[f"{teil.name}/{m.name}"] = len(auswahl)
+            print(f"{quelle.name}/{teil.name}/{m.name}: {len(auswahl)} of {n}", flush=True)
+    return aus
+
+
+BEFEHLE = {"tts": tts, "merkmale": merkmale, "pruefen": pruefen, "schlank": schlank}
 
 if __name__ == "__main__":
     with open(sys.argv[2], encoding="utf-8") as datei:
