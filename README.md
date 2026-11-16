@@ -19,7 +19,7 @@
 <p align="center">
   <a href="https://github.com/Wadim-dev/wake-word-studio_ha/releases"><img src="https://img.shields.io/github/v/release/Wadim-dev/wake-word-studio_ha?style=flat-square&color=7c5cff" alt="Release"></a>
   <a href="https://github.com/Wadim-dev/wake-word-studio_ha/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/Wadim-dev/wake-word-studio_ha/validate.yml?branch=main&label=checks&style=flat-square" alt="Checks"></a>
-  <a href="custom_components/sprachmodell/quality_scale.yaml"><img src="https://img.shields.io/badge/quality%20scale-gold-ffd700?style=flat-square" alt="Quality scale: Gold"></a>
+  <a href="custom_components/sprachmodell/quality_scale.yaml"><img src="https://img.shields.io/badge/quality%20scale-platinum-e5e4e2?style=flat-square" alt="Quality scale: Platinum"></a>
   <img src="https://img.shields.io/badge/100%25-local-00a37a?style=flat-square" alt="100 % local">
   <img src="https://img.shields.io/badge/languages-EN%20%7C%20DE-blue?style=flat-square" alt="English and German">
   <a href="LICENSE"><img src="https://img.shields.io/github/license/Wadim-dev/wake-word-studio_ha?style=flat-square" alt="License"></a>

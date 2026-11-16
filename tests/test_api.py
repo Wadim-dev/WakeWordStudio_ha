@@ -55,7 +55,8 @@ async def test_liste_audio_urteil(admin, gast, api) -> None:
     assert (await gast.get("/api/sprachmodell/liste?wort=nix")).status == 404
     r = await gast.get("/api/sprachmodell/audio/hey_lumi/a1")
     assert r.status == 200 and (await r.read())[:4] == b"RIFF"
-    assert (await gast.get("/api/sprachmodell/audio/hey_lumi/zz")).status == 404
+    r = await gast.get("/api/sprachmodell/audio/hey_lumi/zz")
+    assert r.status == 404 and await r.json() == {"message": "aufnahme_nicht_gefunden"}
     r = await gast.post("/api/sprachmodell/urteil", json={"wort": "hey_lumi", "ids": ["a1"], "urteil": "wort", "person": "Anna"})
     assert (await r.json())["geaendert"] == 1
     r = await gast.post("/api/sprachmodell/urteil", json={"wort": "hey_lumi", "ids": ["a1"], "urteil": "falsch"})
@@ -161,7 +162,8 @@ async def test_trainer(hass: HomeAssistant, hass_client_no_auth, admin, api) -> 
     d = await (await client.get("/api/sprachmodell/trainer/liste?wort=hey_lumi", headers=kopf)).json()
     assert [a["id"] for a in d["aufnahmen"]] == ["a1"]
     assert (await client.get("/api/sprachmodell/trainer/audio/hey_lumi/a1", headers=kopf)).status == 200
-    assert (await client.get("/api/sprachmodell/trainer/modell?wort=hey_lumi", headers=kopf)).status == 404
+    r = await client.get("/api/sprachmodell/trainer/modell?wort=hey_lumi", headers=kopf)
+    assert r.status == 404 and await r.json() == {"message": "modell_nicht_gefunden"}
     r = await client.post("/api/sprachmodell/trainer/status", headers=kopf, json={"wort_id": "hey_lumi", "phase": "training", "prozent": 50})
     assert r.status == 200 and w.speicher.daten["training"]["prozent"] == 50
     r = await client.post("/api/sprachmodell/trainer/status", headers=kopf, json="text")

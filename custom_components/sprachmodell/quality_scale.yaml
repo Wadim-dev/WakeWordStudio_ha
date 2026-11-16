@@ -79,4 +79,6 @@ rules:
   inject-websession:
     status: exempt
     comment: The integration makes no HTTP requests of its own.
-  strict-typing: todo
+  strict-typing:
+    status: done
+    comment: mypy --strict runs in CI (pyproject.toml).

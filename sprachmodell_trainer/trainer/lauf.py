@@ -219,9 +219,14 @@ class Lauf:
             ziel = basis / art / f"{a['id']}.wav"
             behalten.add(ziel)
             if not ziel.exists():
+                inhalt = self.ha.audio(self.wort_id, a["id"])
+                if inhalt is None:  # deleted in the meantime
+                    _LOG.info("Recording %s no longer exists, skipped", a["id"])
+                    behalten.discard(ziel)
+                    continue
                 ziel.parent.mkdir(parents=True, exist_ok=True)
                 tmp = ziel.with_suffix(".tmp")
-                tmp.write_bytes(self.ha.audio(self.wort_id, a["id"]))
+                tmp.write_bytes(inhalt)
                 tmp.replace(ziel)
             aus[art].append({"datei": str(ziel), "person": a.get("person") or ""})
             if i % 20 == 0:
