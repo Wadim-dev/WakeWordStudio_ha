@@ -3,7 +3,7 @@
 ## 0.2.1
 - Trainer adapts to its machine: CPU quota, memory limit and currently free memory decide how many worker processes run (less memory = slower, but it finishes).
 - A trainer restart (crash, out of memory, update) now ends a lost run immediately instead of after 20 minutes.
-- Proxmox script: `update` mode pulls the newest trainer image and keeps settings and data.
+- Proxmox script: the trainer updates itself every time its container starts (restart = update, also from the Proxmox integration in Home Assistant). `update` switches an existing container over.
 
 ## 0.2.0
 - Wake word hub: any number of words, any language, devices and wake word slot freely selectable per word.
