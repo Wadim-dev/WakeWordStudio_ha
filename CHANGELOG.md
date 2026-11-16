@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.9
+- The training view shows how much of the time the trainer waits for its disk, with a hint when a faster disk would help.
+- Fix: the queue position text showed "Free space" instead of the position.
+
 ## 1.0.8
 - Training log shows the newest line at the top, so it no longer has to be scrolled down. It stays where you scrolled while new lines arrive.
 - Training batches are shown as one updating progress line instead of filling the log, and progress lines no longer overlap the next line.
