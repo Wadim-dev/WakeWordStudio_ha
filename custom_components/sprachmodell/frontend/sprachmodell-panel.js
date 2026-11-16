@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.17';
+const VERSION = '1.0.18';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -33,11 +33,11 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 
 const STIL = `
 :host{display:block;min-height:100vh;background:var(--primary-background-color);color:var(--primary-text-color);font-family:var(--paper-font-body1_-_font-family,inherit)}
-.kopf{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:4px;height:var(--header-height,56px);padding:0 8px 0 4px;background:var(--app-header-background-color,var(--primary-background-color));color:var(--app-header-text-color,var(--primary-text-color));border-bottom:1px solid var(--divider-color)}
+.kopf{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:4px;height:var(--header-height,56px);padding:0 8px 0 4px;background:linear-gradient(var(--app-header-background-color,transparent),var(--app-header-background-color,transparent)),var(--primary-background-color);color:var(--app-header-text-color,var(--primary-text-color));border-bottom:1px solid var(--divider-color)}
 .kopf h1{font-size:20px;font-weight:400;margin:0 0 0 8px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kopf .ikon{width:40px;height:40px;border-radius:50%;border:0;background:none;color:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .kopf .ikon.an{color:var(--primary-color);background:rgba(var(--rgb-primary-color,3,169,244),.14)}
-.leisten{position:sticky;top:var(--header-height,56px);z-index:2;background:var(--app-header-background-color,var(--primary-background-color));border-bottom:1px solid var(--divider-color)}
+.leisten{position:sticky;top:var(--header-height,56px);z-index:2;background:linear-gradient(var(--app-header-background-color,transparent),var(--app-header-background-color,transparent)),var(--primary-background-color);border-bottom:1px solid var(--divider-color)}
 .woerter,.reiter{display:flex;gap:6px;overflow-x:auto;padding:8px 12px;scrollbar-width:none}
 .reiter{padding-top:0}
 .woerter::-webkit-scrollbar,.reiter::-webkit-scrollbar{display:none}

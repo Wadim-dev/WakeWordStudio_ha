@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.18
+- Fix: with a theme whose header is see-through (e.g. glass themes) the page content showed through the Wake Word Studio header and tabs while scrolling. The header now always has a solid base.
+- Fix: the new training steps showed their internal names ("aehnlich_pruefen"); they are now "Listening to similar words" and "Generating more voices (OmniVoice)".
+- Trainer: the speech synthesis no longer fills the log with harmless onnxruntime messages about pinning threads in a container ("pthread_setaffinity_np failed").
+
 ## 1.0.17
 - Fix: the first time Wake Word Studio was opened after Home Assistant loaded, the page could stay black (opening it again worked). The panel is now ready as soon as its script has run.
 - More and better training data: about 50,000 synthetic clips per word instead of 17,000, plus up to 9,000 clips from **OmniVoice**, a modern voice model with many different voices (men, women, children, old, high, low, whispering). Every OmniVoice clip is checked by speech recognition (faster-whisper) before it is used: the word must be heard in a positive clip and must not be heard in a negative one. Without a graphics card the stock grows by at most 90 minutes per run, so the first runs after this update take longer.

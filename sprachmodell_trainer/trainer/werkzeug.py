@@ -36,9 +36,13 @@ _TTS: dict = {}
 
 
 def _tts_init(a: dict) -> None:
+    import onnxruntime
     from piper import PiperVoice
 
     warnings.filterwarnings("ignore")
+    # in a container limited to some cores onnxruntime cannot pin its threads and reports it as an error for every
+    # voice ("pthread_setaffinity_np failed"); harmless, it only hid the real log lines. Real errors still raise.
+    onnxruntime.set_default_logger_severity(4)
     _TTS["a"] = a
     _TTS["stimmen"] = [PiperVoice.load(v) for v in a["stimmen"]]
     texte = list(a["texte"])
