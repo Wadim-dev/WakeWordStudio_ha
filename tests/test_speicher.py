@@ -176,3 +176,20 @@ def test_zeit_und_id() -> None:
     assert sp._zeit(None) == 0.0 and sp._zeit("2026-01-01T00:00:00Z") > 0
     assert sp.sichere_id("a/b c") == "a_b_c"
     assert abs(time.time() - sp._zeit(sp.jetzt())) < 5
+
+
+def test_namen_angleichen(s: Speicher) -> None:
+    """A renamed device is one device: old recordings take its current name."""
+    a = s.daten["aufnahmen"]
+    a["k1"] = {"id": "k1", "quelle": "echo", "echo": "Kueche", "knoten": "kueche"}
+    a["k2"] = {"id": "kueche-7", "quelle": "echo", "echo": "Kueche"}
+    a["k3"] = {"id": "echo2nd-3", "quelle": "echo", "echo": "Echo2nd"}
+    a["k4"] = {"id": "echo-1", "quelle": "echo", "echo": "Alt"}
+    a["h1"] = {"id": "h1", "quelle": "hochgeladen", "echo": None}
+    namen = {"kueche": "Küche", "echo2nd": "Wohnzimmer Echo", "echo": "Flur"}
+    assert s.namen_angleichen(namen) is True
+    assert [a[k]["echo"] for k in ("k1", "k2", "k3", "k4")] == ["Küche", "Küche", "Wohnzimmer Echo", "Flur"]
+    assert a["k2"]["knoten"] == "kueche" and a["k3"]["knoten"] == "echo2nd" and a["k4"]["knoten"] == "echo"
+    assert a["h1"]["echo"] is None
+    assert s.namen_angleichen(namen) is False
+    assert s.namen_angleichen({}) is False

@@ -155,6 +155,9 @@ class Sammler:
         async with self._sperre:
             info = geraete_info(self.hass)
             namen = {k: v["name"] for k, v in info.items()}
+            for wort in self.z.woerter.values():
+                if await self.hass.async_add_executor_job(wort.speicher.namen_angleichen, namen):
+                    await self.hass.async_add_executor_job(wort.speicher.speichern)
             neu: dict[str, int] = {}
             for knoten in sorted(self.z.benutzte_geraete()):
                 if knoten not in info:
