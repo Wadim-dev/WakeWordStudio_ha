@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.15
+- Fix: after an update the browser could keep the old text file and show placeholders like `h_bereit` on the start page. The texts are now loaded with the same version as the panel.
+- Fix: tapping a cell or a device button in the quality table did nothing.
+- A renamed device is now one device everywhere: older recordings take the device's current name (before, the table and filters could list the same device twice, e.g. under its old and new name).
+
 ## 1.0.14
 - Quality page: table of your answers (word, missed, not the word, not reviewed) against the device's confidence, for all devices or one. Cells where you and the model strongly disagree are outlined; tap a cell to listen to exactly those recordings in History and decide again.
 - Rollout follows Home Assistant's rules: a better version is saved to `custom_wake_words` and a repair message offers a restart with one tap (Home Assistant reads new wake word models when it starts); after the restart the word is selected on its devices by itself. Wake Word Studio no longer touches ESPHome's internal wake word cache or its runtime data.

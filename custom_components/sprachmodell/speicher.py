@@ -189,6 +189,23 @@ class Speicher:
             self.daten["aufnahmen"][aid] = eintrag
             return eintrag
 
+    def namen_angleichen(self, namen: dict[str, str]) -> bool:
+        """Give every device recording the device's current name (node -> name).
+
+        A renamed device then shows up once everywhere (table, filters, history)
+        instead of once per name it ever had. Returns True when something changed."""
+        geaendert = False
+        with self._sperre:
+            for a in self.daten["aufnahmen"].values():
+                if a.get("quelle") != "echo":
+                    continue
+                knoten = a.get("knoten") or next(
+                    (k for k in namen if str(a.get("id", "")).startswith(sichere_id(k) + "-")), None)
+                if knoten in namen and (a.get("echo") != namen[knoten] or a.get("knoten") != knoten):
+                    a["echo"], a["knoten"] = namen[knoten], knoten
+                    geaendert = True
+        return geaendert
+
     def vorschlaege(self) -> None:
         """Vorschlag je offener Geraete-Aufnahme: die Zentrale raet, man bestaetigt.
 

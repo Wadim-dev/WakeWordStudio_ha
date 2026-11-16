@@ -2,7 +2,8 @@
 // Everything is set here (words, devices, slots, trainer). Changing the setup needs an administrator.
 // Addresses: /wake-word-studio/<tab>?wort=<id>   tabs without a word: zentrale, geraete, einstellungen, neu
 // No polling: the page reloads only when one of the integration's sensors changes.
-import { TEXTE, SPRACHNAMEN } from './sprachmodell-texte.js';
+// Texts are loaded with the panel's own ?v= so a browser never mixes a new panel with old cached texts.
+const { TEXTE, SPRACHNAMEN } = await import(`./sprachmodell-texte.js${new URL(import.meta.url).search}`);
 
 const VERSION = '1.0.14';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
@@ -1004,7 +1005,7 @@ ${this._steckbrief()}</ha-card>
 
   // ---------- Ereignisse ----------
   async _klick(e) {
-    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe]');
+    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe],[data-zelle],[data-tbecho]');
     if (!t) return;
     if (t.dataset.reiter) { if (t.dataset.reiter === 'neu') this._entwurf = null; this._gehe(t.dataset.reiter, t.dataset.wort); return; }
     if (t.dataset.spielen) { const zeile = t.closest('.eintrag'); if (zeile) { const alle = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')]; this._aktiv = Math.max(0, alle.indexOf(zeile)); this._markieren(false); } this._spielen(t.dataset.spielen); return; }
