@@ -1,11 +1,11 @@
-"""Holt die Aufwach-Aufnahmen von den Sprachgeraeten (ESPHome, Schalter "Keep wake clips").
+"""Finds the voice devices and collects their wake clips.
 
-Jedes passende ESPHome-Geraet bietet die Aktionen esphome.<knoten>_wake_clips und
-esphome.<knoten>_wake_clip_audio. Die Integration fragt alle zwei Minuten und
-sofort, wenn sich der Zaehler "Wake clips" eines Geraets aendert. Neue
-Aufnahmen werden geholt und auf der Platte abgelegt; was schon bekannt ist,
-wird nicht noch einmal geholt. Auf dem Geraet bleibt alles, wie es ist.
-Welche Geraete (und welcher Platz) zu welchem Wort gehoeren, stellt man in der App ein.
+Every ESPHome voice device with a "Wake word" select is found, whatever it is called;
+a trained model can be rolled out to it. Firmware that keeps wake clips (for example
+with the switch "Keep wake clips") also offers the actions esphome.<node>_wake_clips and
+esphome.<node>_wake_clip_audio. Those devices are asked every two minutes and right away
+when their "Wake clips" counter changes. New clips are stored once; nothing is changed on
+the device. Which device slot belongs to which word is set in the panel.
 """
 
 from __future__ import annotations
@@ -15,8 +15,10 @@ import base64
 import logging
 from typing import Any
 
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .speicher import sichere_id
 
@@ -26,32 +28,63 @@ LISTE = "_wake_clips"
 AUDIO = "_wake_clip_audio"
 
 
-def esphome_eintraege(hass: HomeAssistant) -> dict[str, Any]:
-    """Knotenname -> ESPHome-Eintrag."""
-    eintraege: dict[str, Any] = {}
+# Unique id endings of the ESPHome "Wake word" selects (slot 1 and slot 2)
+WAHL_ENDUNGEN = {"1": "-wake_word", "2": "-wake_word_2"}
+
+
+def esphome_eintraege(hass: HomeAssistant) -> dict[str, ConfigEntry]:
+    """Node name -> loaded ESPHome config entry."""
+    eintraege: dict[str, ConfigEntry] = {}
     for eintrag in hass.config_entries.async_entries("esphome"):
         info = getattr(getattr(eintrag, "runtime_data", None), "device_info", None)
-        if info is not None:
+        if info is not None and getattr(info, "name", None):
             eintraege[str(info.name).replace("-", "_")] = eintrag
     return eintraege
 
 
-def alle_geraete(hass: HomeAssistant) -> dict[str, str]:
-    """Knotenname -> Anzeigename aller Geraete mit Aufwach-Aufnahmen."""
-    dienste = hass.services.async_services().get("esphome", {})
-    knoten = sorted(n[: -len(LISTE)] for n in dienste if n.endswith(LISTE))
-    eintraege = esphome_eintraege(hass)
-    namen: dict[str, str] = {}
-    for k in knoten:
-        eintrag = eintraege.get(k)
+def _name(hass: HomeAssistant, knoten: str, eintrag: ConfigEntry | None) -> str:
+    """Name as the user sees it in Home Assistant (renamed devices keep their new name)."""
+    if eintrag is not None:
+        for geraet in dr.async_entries_for_config_entry(dr.async_get(hass), eintrag.entry_id):
+            if geraet.name_by_user or geraet.name:
+                return str(geraet.name_by_user or geraet.name)
         info = getattr(getattr(eintrag, "runtime_data", None), "device_info", None)
-        namen[k] = (
-            getattr(info, "friendly_name", None) or getattr(eintrag, "title", None)
-            or k.replace("_", " ").title()
-        )
-    return namen
+        if getattr(info, "friendly_name", None):
+            return str(info.friendly_name)
+        if eintrag.title:
+            return str(eintrag.title)
+    return knoten.replace("_", " ").title()
 
 
+def geraete_info(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
+    """Every ESPHome voice device, whatever it is called.
+
+    A device counts when it has a "Wake word" select (a model can be rolled out to it)
+    or offers wake clips (recordings can be collected from it).
+    Node name -> {"name", "clips", "plaetze"}.
+    """
+    dienste = hass.services.async_services().get("esphome", {})
+    mit_clips = {n[: -len(LISTE)] for n in dienste if n.endswith(LISTE)}
+    eintraege = esphome_eintraege(hass)
+    reg = er.async_get(hass)
+    aus: dict[str, dict[str, Any]] = {}
+    for knoten in sorted(set(eintraege) | mit_clips):
+        eintrag = eintraege.get(knoten)
+        selects = [
+            str(e.unique_id) for e in (er.async_entries_for_config_entry(reg, eintrag.entry_id) if eintrag else [])
+            if e.domain == "select" and not e.disabled_by
+        ]
+        plaetze = [p for p, endung in WAHL_ENDUNGEN.items() if any(u.endswith(endung) for u in selects)]
+        clips = knoten in mit_clips
+        if not plaetze and not clips:
+            continue
+        aus[knoten] = {"name": _name(hass, knoten, eintrag), "clips": clips, "plaetze": plaetze or ["1"]}
+    return aus
+
+
+def alle_geraete(hass: HomeAssistant) -> dict[str, str]:
+    """Node name -> display name of every voice device."""
+    return {k: v["name"] for k, v in geraete_info(hass).items()}
 
 
 def _audio_aus_antwort(antwort: Any) -> tuple[bytes, int]:
@@ -100,7 +133,7 @@ class Sammler:
             if not isinstance(antwort, dict):
                 break
             seiten = int(antwort.get("pages") or 1)
-            neu = [c for c in antwort.get("clips") or [] if isinstance(c, dict)]
+            neu = [c for c in antwort.get("clips") or [] if isinstance(c, dict) and c.get("id")]
             clips.extend(neu)
             # Neueste zuerst: kennen wir schon alles auf dieser Seite, reicht es
             if neu and all(self._bekannt(sichere_id(f"{knoten}-{c.get('id')}")) for c in neu):
@@ -123,12 +156,16 @@ class Sammler:
         if self._sperre.locked():
             return 0
         async with self._sperre:
-            namen = alle_geraete(self.hass)
-            benutzt = self.z.benutzte_geraete()
+            info = geraete_info(self.hass)
+            namen = {k: v["name"] for k, v in info.items()}
             neu: dict[str, int] = {}
-            for knoten in benutzt:
-                if knoten not in namen:
+            for knoten in sorted(self.z.benutzte_geraete()):
+                if knoten not in info:
                     self.fehler[knoten] = "nicht_gefunden"
+                    continue
+                if not info[knoten]["clips"]:
+                    # Firmware without wake clips: the model can be rolled out, nothing to collect
+                    self.fehler.pop(knoten, None)
                     continue
                 try:
                     clips = await self._liste(knoten)

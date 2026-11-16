@@ -1,13 +1,15 @@
-"""Feste Werte der Integration Sprachmodell."""
+"""Constants of Wake Word Studio (domain "sprachmodell")."""
 
 from __future__ import annotations
 
 DOMAIN = "sprachmodell"
-NAME = "Sprachmodell"
+NAME = "Wake Word Studio"
+REPO = "https://github.com/Wadim-dev/wake-word-studio_ha"
+CONF_ORDNER = "ordner"  # storage folder
 
 # Seitenleiste
-PANEL_URL = "sprachmodell"
-PANEL_TITEL = "Sprachmodell"
+PANEL_URL = "wake-word-studio"
+PANEL_TITEL = NAME
 PANEL_ICON = "mdi:waveform"
 PANEL_ELEMENT = "sprachmodell-panel"
 STATIC_URL = f"/{DOMAIN}_static"
@@ -57,6 +59,22 @@ SIGNAL_NEU = f"{DOMAIN}_neu"
 # Trainer gilt als verbunden, wenn er sich in dieser Zeit gemeldet hat
 TRAINER_ONLINE_S = 180
 
+# Repairs: a device of a word missing this long, trainings waiting without trainer this long
+GERAET_FEHLT_S = 15 * 60
+TRAINER_FEHLT_S = 24 * 3600
+
 # Phasen des Trainings
 PHASEN = ["bereit", "wartet", "vorbereiten", "daten", "merkmale", "training", "test", "fertig", "fehler"]
 LAEUFT = ("vorbereiten", "daten", "merkmale", "training", "test")
+# Training phase as shown by the sensor (stable English state keys)
+PHASE_ZUSTAND = {
+    "bereit": "ready",
+    "wartet": "waiting",
+    "vorbereiten": "preparing",
+    "daten": "fetching_data",
+    "merkmale": "features",
+    "training": "training",
+    "test": "testing",
+    "fertig": "done",
+    "fehler": "error",
+}

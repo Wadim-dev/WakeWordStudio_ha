@@ -1,4 +1,4 @@
-"""Datenablage: Aufnahmen, Urteile, Modell-Versionen und Trainingslaeufe.
+"""Storage of one word: recordings, verdicts, model versions and training runs.
 
 Jedes Wort hat einen eigenen Ordner (<ablage>/woerter/<wort-id>):
 
@@ -13,6 +13,7 @@ hier sind blockierend und laufen im Executor.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import hashlib
 import io
 import json
@@ -21,12 +22,11 @@ import re
 import shutil
 import threading
 import time
+from typing import Any
 import wave
 import zipfile
-from datetime import datetime, timezone
-from typing import Any
 
-from .const import KEIN_WORT, URTEILE, VERWORFEN, WORT
+from .const import KEIN_WORT, NAME, REPO, URTEILE, VERWORFEN, WORT
 
 DATEI = "daten.json"
 VERSION = 1
@@ -37,7 +37,7 @@ VERPASST_S = 20
 
 
 def jetzt() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def _zeit(text: str | None) -> float:
@@ -83,7 +83,7 @@ def wav_16k(daten: bytes) -> bytes:
         w32.frombytes(roh)
         werte.extend(v >> 16 for v in w32)
     else:
-        raise ValueError("Unbekanntes WAV-Format")
+        raise ValueError("wav_format")
     if kanaele > 1:
         werte = array.array("h", (
             sum(werte[i:i + kanaele]) // kanaele for i in range(0, len(werte), kanaele)
@@ -209,7 +209,7 @@ class Speicher:
 
     def urteilen(self, ids: list[str], urteil: str | None, person: str | None) -> int:
         if urteil is not None and urteil not in URTEILE:
-            raise ValueError("Unbekanntes Urteil")
+            raise ValueError("urteil_unbekannt")
         n = 0
         with self._sperre:
             for aid in ids:
@@ -271,7 +271,7 @@ class Speicher:
         try:
             archiv = zipfile.ZipFile(io.BytesIO(inhalt))
         except zipfile.BadZipFile as err:
-            raise ValueError("Das ist keine Zip-Datei") from err
+            raise ValueError("keine_zip") from err
         with self._sperre:
             for info in archiv.infolist():
                 name = info.filename
@@ -306,10 +306,13 @@ class Speicher:
                          notiz: str | None) -> dict[str, Any]:
         """Eine in der App aufgenommene Aufnahme (WAV) ablegen."""
         if urteil not in (WORT, KEIN_WORT):
-            raise ValueError("Unbekanntes Urteil")
-        wav = wav_16k(roh)
+            raise ValueError("urteil_unbekannt")
+        try:
+            wav = wav_16k(roh)
+        except (wave.Error, EOFError) as err:
+            raise ValueError("wav_format") from err
         if wav_dauer(wav) < 0.3:
-            raise ValueError("Zu kurz")
+            raise ValueError("zu_kurz")
         aid = "br_" + hashlib.sha1(wav).hexdigest()[:16]
         with self._sperre:
             if self.bekannt(aid):
@@ -394,7 +397,7 @@ class Speicher:
             "bewertet": len(bewertet),
             "offen": len(offen),
             "offen_je_echo": je_echo,
-            "aeltestes_offen": datetime.fromtimestamp(aeltestes, timezone.utc).isoformat(timespec="seconds") if aeltestes else None,
+            "aeltestes_offen": datetime.fromtimestamp(aeltestes, UTC).isoformat(timespec="seconds") if aeltestes else None,
             "wort": sum(1 for a in bewertet if a["urteil"] == WORT),
             "kein_wort": sum(1 for a in bewertet if a["urteil"] == KEIN_WORT),
             "test": sum(1 for a in bewertet if a.get("test")),
@@ -462,8 +465,8 @@ class Speicher:
         beschreibung = {
             "type": "micro",
             "wake_word": anzeige,
-            "author": f"Sprachmodell v{nr}",
-            "website": "https://github.com/Wadim-dev/sprachmodell_ha",
+            "author": f"{NAME} v{nr}",
+            "website": REPO,
             "model": modell_id + ".tflite",
             "trained_languages": [sprache],
             "version": 2,

@@ -1,15 +1,23 @@
 {
   "domain": "sprachmodell",
-  "name": "Sprachmodell",
-  "after_dependencies": ["esphome"],
-  "codeowners": ["@Wadim-dev"],
+  "name": "Wake Word Studio",
+  "after_dependencies": [
+    "esphome",
+    "frontend",
+    "http",
+    "panel_custom"
+  ],
+  "codeowners": [
+    "@Wadim-dev"
+  ],
   "config_flow": true,
-  "dependencies": ["frontend", "http", "panel_custom", "persistent_notification"],
-  "documentation": "https://github.com/Wadim-dev/sprachmodell_ha",
+  "dependencies": [],
+  "documentation": "https://github.com/Wadim-dev/wake-word-studio_ha",
   "integration_type": "service",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/Wadim-dev/sprachmodell_ha/issues",
+  "issue_tracker": "https://github.com/Wadim-dev/wake-word-studio_ha/issues",
+  "loggers": [],
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.2.1"
+  "version": "1.0.0"
 }

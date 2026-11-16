@@ -2,35 +2,101 @@
   "config": {
     "step": {
       "user": {
-        "title": "Sprachmodell einrichten",
-        "description": "Eigene Aktivierungswörter für Sprachgeräte prüfen, trainieren und einspielen. Nach dem Einrichten findest du alles unter **Sprachmodell** in der Seitenleiste."
+        "title": "Wake Word Studio einrichten",
+        "description": "Eigene Aktivierungswörter für ESPHome-Sprachgeräte prüfen, trainieren und einspielen. Danach findest du alles unter **Wake Word Studio** in der Seitenleiste.",
+        "data": {
+          "ordner": "Ablageordner"
+        },
+        "data_description": {
+          "ordner": "Ordner für Aufnahmen, Versionen und Einstellungen. /share ist in den Home-Assistant-Backups enthalten. Er wird angelegt, falls es ihn nicht gibt."
+        }
+      },
+      "reconfigure": {
+        "title": "Ablageordner ändern",
+        "description": "Bisher: `{current}`. Alle Aufnahmen und Versionen ziehen in den neuen Ordner um, der alte wird danach gelöscht. Liegen im neuen Ordner schon Daten von Wake Word Studio, werden diese benutzt.",
+        "data": {
+          "ordner": "Ablageordner"
+        },
+        "data_description": {
+          "ordner": "Ordner für Aufnahmen, Versionen und Einstellungen. /share ist in den Home-Assistant-Backups enthalten. Er wird angelegt, falls es ihn nicht gibt."
+        }
       }
     },
+    "error": {
+      "not_absolute": "Bitte einen vollständigen Pfad angeben, der mit / beginnt.",
+      "not_allowed": "Dieser Ordner ist nicht erlaubt (eigene Ordner von Home Assistant, z. B. custom_components oder www).",
+      "not_writable": "Home Assistant kann in diesen Ordner nicht schreiben.",
+      "not_empty": "Im Ordner liegen schon andere Dateien. Bitte einen leeren Ordner oder einen mit Daten von Wake Word Studio wählen.",
+      "nested": "Der neue Ordner darf nicht im bisherigen liegen (und umgekehrt).",
+      "move_failed": "Umziehen der Daten ging nicht; alles bleibt im bisherigen Ordner. Einzelheiten stehen im Protokoll."
+    },
     "abort": {
-      "already_configured": "Ist schon eingerichtet."
+      "already_configured": "Wake Word Studio ist schon eingerichtet.",
+      "single_instance_allowed": "Wake Word Studio ist schon eingerichtet.",
+      "reconfigure_successful": "Der Ablageordner wurde geändert.",
+      "unchanged": "Das ist schon der Ablageordner."
     }
   },
   "entity": {
     "sensor": {
       "pruefliste": {
-        "name": "Prüfliste"
+        "name": "Prüfliste",
+        "state_attributes": {
+          "per_word": {
+            "name": "Je Wort"
+          },
+          "per_device": {
+            "name": "Je Gerät"
+          },
+          "oldest_waiting_since": {
+            "name": "Älteste wartet seit"
+          },
+          "reviewed": {
+            "name": "Bewertet"
+          }
+        }
       },
       "training": {
         "name": "Training",
         "state": {
-          "bereit": "Bereit",
-          "wartet": "Wartet auf Trainer",
-          "vorbereiten": "Vorbereiten",
-          "daten": "Daten holen",
-          "merkmale": "Merkmale berechnen",
+          "ready": "Bereit",
+          "waiting": "Wartet auf den Trainer",
+          "preparing": "Bereitet vor",
+          "fetching_data": "Holt Daten",
+          "features": "Berechnet Merkmale",
           "training": "Trainiert",
-          "test": "Testet",
-          "fertig": "Fertig",
-          "fehler": "Fehler"
+          "testing": "Testet",
+          "done": "Fertig",
+          "error": "Fehler"
+        },
+        "state_attributes": {
+          "progress": {
+            "name": "Fortschritt"
+          },
+          "step": {
+            "name": "Schritt"
+          },
+          "minutes_left": {
+            "name": "Minuten übrig"
+          },
+          "since": {
+            "name": "Seit"
+          },
+          "new_reviews": {
+            "name": "Neue Bewertungen"
+          }
         }
       },
       "version": {
-        "name": "Aktive Version"
+        "name": "Aktive Version",
+        "state_attributes": {
+          "rolled_out": {
+            "name": "Eingespielt"
+          },
+          "sha256": {
+            "name": "SHA-256"
+          }
+        }
       },
       "trefferquote": {
         "name": "Trefferquote"
@@ -41,9 +107,32 @@
       "trainer": {
         "name": "Trainer",
         "state": {
-          "getrennt": "Nicht verbunden",
-          "bereit": "Bereit",
-          "trainiert": "Trainiert"
+          "disconnected": "Nicht verbunden",
+          "ready": "Bereit",
+          "training": "Trainiert"
+        },
+        "state_attributes": {
+          "last_contact": {
+            "name": "Letzter Kontakt"
+          },
+          "queue": {
+            "name": "Warteschlange"
+          },
+          "name": {
+            "name": "Name"
+          },
+          "version": {
+            "name": "Version"
+          },
+          "cpu": {
+            "name": "CPU-Kerne"
+          },
+          "ram_gb": {
+            "name": "Speicher (GB)"
+          },
+          "gpu": {
+            "name": "GPU"
+          }
         }
       }
     },
@@ -60,13 +149,29 @@
         "name": "Nachts trainieren"
       },
       "automatisch_einspielen": {
-        "name": "Bessere Version selbst einspielen"
+        "name": "Bessere Version einspielen"
       }
+    }
+  },
+  "exceptions": {
+    "storage_unavailable": {
+      "message": "Ablageordner {folder} ist nicht erreichbar: {error}"
     },
-    "update": {
-      "integration": {
-        "name": "Integration"
-      }
+    "word_deleted": {
+      "message": "Dieses Aktivierungswort wurde gelöscht."
+    },
+    "fetch_failed": {
+      "message": "Aufnahmen holen ging nicht. Einzelheiten stehen im Protokoll."
+    }
+  },
+  "issues": {
+    "device_missing": {
+      "title": "Gerät {device} nicht gefunden",
+      "description": "Das Aktivierungswort **{word}** ist dem Gerät `{device}` zugeordnet, aber Home Assistant sieht dieses ESPHome-Gerät seit einer Weile nicht. Wurde es umbenannt oder ersetzt, in Wake Word Studio → Wort → Wort → Geräte und Platz das Gerät neu wählen. Ist es nur aus, verschwindet dieser Hinweis, sobald es wieder da ist."
+    },
+    "trainer_missing": {
+      "title": "Kein Trainer verbunden",
+      "description": "Ein Training wartet seit über einem Tag, aber kein Trainer ist verbunden. Die Trainer-App oder den Docker-Container starten; die Anleitung steht in Wake Word Studio → [Einstellungen]({panel}) → Trainer."
     }
   }
 }

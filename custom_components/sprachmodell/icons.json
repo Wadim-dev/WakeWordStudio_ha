@@ -1,0 +1,55 @@
+{
+  "entity": {
+    "sensor": {
+      "pruefliste": {
+        "default": "mdi:playlist-check"
+      },
+      "trainer": {
+        "default": "mdi:school-outline",
+        "state": {
+          "disconnected": "mdi:lan-disconnect",
+          "training": "mdi:progress-clock"
+        }
+      },
+      "training": {
+        "default": "mdi:school-outline",
+        "state": {
+          "waiting": "mdi:timer-sand",
+          "done": "mdi:check-circle-outline",
+          "error": "mdi:alert-circle-outline"
+        }
+      },
+      "version": {
+        "default": "mdi:tag-outline"
+      },
+      "trefferquote": {
+        "default": "mdi:bullseye-arrow"
+      },
+      "fehlausloeser": {
+        "default": "mdi:alarm-light-outline"
+      }
+    },
+    "button": {
+      "training_starten": {
+        "default": "mdi:play-circle-outline"
+      },
+      "jetzt_holen": {
+        "default": "mdi:download-outline"
+      }
+    },
+    "switch": {
+      "nachts_trainieren": {
+        "default": "mdi:weather-night",
+        "state": {
+          "off": "mdi:weather-night-partly-cloudy"
+        }
+      },
+      "automatisch_einspielen": {
+        "default": "mdi:rocket-launch-outline",
+        "state": {
+          "off": "mdi:rocket-outline"
+        }
+      }
+    }
+  }
+}

@@ -1,6 +1,7 @@
-"""Schnittstellen fuer die App in der Seitenleiste und fuer den Trainer.
+"""HTTP API for the panel and for the trainer.
 
-App (HA-Anmeldung noetig), "wort" = ID des Worts:
+Panel (Home Assistant login; changing words, settings, the trainer key, rolling out and
+deleting need an administrator). "wort" = id of the word:
     GET  /api/sprachmodell/daten?wort=           Zentrale + Einzelheiten eines Worts
     GET  /api/sprachmodell/liste?wort=           Aufnahmen (filter, echo, art, seite)
     GET  /api/sprachmodell/audio/<wort>/<id>     WAV einer Aufnahme
@@ -9,8 +10,8 @@ App (HA-Anmeldung noetig), "wort" = ID des Worts:
     POST /api/sprachmodell/aufnahme              multipart: wort, urteil, person, notiz, datei (WAV)
     POST /api/sprachmodell/aktion                {aktion, wort?, ...}
 
-Trainer (Kopf "X-Sprachmodell-Schluessel" oder HA-Zugang eines Admins,
-z. B. das Token, das eine HA-App vom Supervisor bekommt):
+Trainer (header "X-Sprachmodell-Schluessel" with the trainer key, or the Home Assistant
+token of an administrator, e.g. the one a Home Assistant app gets from the Supervisor):
     GET  /api/sprachmodell/trainer/auftrag       naechster Auftrag, Abbruch, Woerter
     GET  /api/sprachmodell/trainer/liste?wort=
     GET  /api/sprachmodell/trainer/audio/<wort>/<id>
@@ -21,16 +22,15 @@ z. B. das Token, das eine HA-App vom Supervisor bekommt):
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import hmac
+from http import HTTPStatus
 import json
 import os
 import secrets
-from datetime import datetime, timezone
-from http import HTTPStatus
 from typing import Any
 
 from aiohttp import web
-
 from homeassistant.components.http import KEY_AUTHENTICATED, KEY_HASS, KEY_HASS_USER, HomeAssistantView
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.network import NoURLAvailableError, get_url
@@ -43,20 +43,35 @@ GROESSTE_ZIP = 200 * 1024 * 1024
 GROESSTE_AUFNAHME = 10 * 1024 * 1024
 GROESSTES_MODELL = 2 * 1024 * 1024
 _ANGEMELDET = f"{DOMAIN}_ansichten"
+# Actions that change the setup or reach the devices: administrators only
+NUR_ADMIN = {
+    "einstellungen", "schluessel_neu", "reihe", "wort_neu", "wort_aendern", "wort_loeschen",
+    "einspielen", "auswaehlen", "schwelle",
+}
+
+
+def _fehler(art: type[web.HTTPException], code: str) -> web.HTTPException:
+    """HTTP error with a JSON body {"message": code}; the panel translates the code."""
+    return art(text=json.dumps({"message": code}), content_type="application/json")
+
+
+def _admin(request: web.Request) -> bool:
+    benutzer = request.get(KEY_HASS_USER)
+    return benutzer is not None and benutzer.is_admin
 
 
 def _zentrale(request: web.Request):
     hass: HomeAssistant = request.app[KEY_HASS]
     zentrale = zentrale_holen(hass)
     if zentrale is None:
-        raise web.HTTPServiceUnavailable(text="Sprachmodell ist nicht eingerichtet")
+        raise _fehler(web.HTTPServiceUnavailable, "nicht_eingerichtet")
     return zentrale
 
 
 def _wort(z, wid: str | None):
     wort = z.woerter.get(str(wid or ""))
     if wort is None:
-        raise web.HTTPNotFound(text="Wort nicht gefunden")
+        raise _fehler(web.HTTPNotFound, "wort_nicht_gefunden")
     return wort
 
 
@@ -100,8 +115,9 @@ def _vorhandene_modelle(ordner: str) -> list[dict[str, Any]]:
     return aus
 
 
-def _zentrale_daten(z) -> dict[str, Any]:
+def _zentrale_daten(z, admin: bool) -> dict[str, Any]:
     return {
+        "admin": admin,
         "version_integration": z.version,
         "woerter": [w.kurz() for w in z.woerter.values()],
         "geraete": z.geraete_zustand(),
@@ -115,7 +131,7 @@ def _zentrale_daten(z) -> dict[str, Any]:
             "online": z.trainer_online,
             "kontakt": z.trainer_kontakt.isoformat() if z.trainer_kontakt else None,
             "info": z.trainer_info,
-            "schluessel": z.schluessel,
+            "schluessel": z.schluessel if admin else None,
             "adresse": _interne_adresse(z.hass),
         },
     }
@@ -146,7 +162,7 @@ class DatenAnsicht(HomeAssistantView):
     async def get(self, request: web.Request) -> web.Response:
         z = _zentrale(request)
         hass = request.app[KEY_HASS]
-        aus = _zentrale_daten(z)
+        aus = _zentrale_daten(z, _admin(request))
         wid = request.query.get("wort")
         if wid and wid in z.woerter:
             aus["wort"] = _wort_daten(z, z.woerter[wid])
@@ -185,12 +201,14 @@ class UrteilAnsicht(HomeAssistantView):
 
     async def post(self, request: web.Request) -> web.Response:
         z = _zentrale(request)
-        daten = await request.json()
+        daten = await _json(request)
         wort = _wort(z, daten.get("wort"))
         sp = wort.speicher
         ids = [str(i) for i in daten.get("ids") or []]
         hass = request.app[KEY_HASS]
         if daten.get("loeschen"):
+            if not _admin(request):
+                return self.json_message("nur_admin", HTTPStatus.FORBIDDEN)
             n = await hass.async_add_executor_job(sp.loeschen, ids)
         elif "urteil" in daten:
             try:
@@ -204,9 +222,21 @@ class UrteilAnsicht(HomeAssistantView):
         return self.json({"geaendert": n, "stand": sp.stand})
 
 
+async def _json(request: web.Request) -> dict[str, Any]:
+    try:
+        daten = await request.json()
+    except ValueError as err:
+        raise _fehler(web.HTTPBadRequest, "json_erwartet") from err
+    if not isinstance(daten, dict):
+        raise _fehler(web.HTTPBadRequest, "json_erwartet")
+    return daten
+
+
 async def _multipart(request: web.Request, grenze: int) -> tuple[dict[str, str], bytes]:
     felder: dict[str, str] = {}
     inhalt = b""
+    if not request.content_type.startswith("multipart/"):
+        raise _fehler(web.HTTPBadRequest, "keine_datei")
     async for teil in await request.multipart():
         if teil.name == "datei":
             stuecke, groesse = [], 0
@@ -271,13 +301,15 @@ class AktionAnsicht(HomeAssistantView):
     async def post(self, request: web.Request) -> web.Response:
         z = _zentrale(request)
         hass = request.app[KEY_HASS]
-        daten = await request.json()
+        daten = await _json(request)
+        aktion = str(daten.get("aktion"))
+        if aktion in NUR_ADMIN and not _admin(request):
+            return self.json_message("nur_admin", HTTPStatus.FORBIDDEN)
         try:
-            antwort = await self._ausfuehren(z, hass, str(daten.get("aktion")), daten)
-        except KeyError:
-            return self.json_message("wort_fehlt", HTTPStatus.NOT_FOUND)
-        except ValueError as err:
-            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+            antwort = await self._ausfuehren(z, hass, aktion, daten)
+        except (KeyError, TypeError, ValueError) as err:
+            code = str(err) if isinstance(err, ValueError) and str(err).isidentifier() else "ungueltig"
+            return self.json_message(code, HTTPStatus.BAD_REQUEST)
         z.geaendert()
         return self.json(antwort or {"ok": True})
 
@@ -303,7 +335,9 @@ class AktionAnsicht(HomeAssistantView):
             await hass.async_add_executor_job(z.speichern)
             return None
         # --- mit Wort ---
-        wort = z.woerter[str(daten.get("wort") or "")]
+        wort = z.woerter.get(str(daten.get("wort") or ""))
+        if wort is None:
+            raise _fehler(web.HTTPNotFound, "wort_nicht_gefunden")
         if aktion == "wort_aendern":
             await z.wort_aendern(wort.id, daten.get("einstellungen") or {})
         elif aktion == "wort_loeschen":
@@ -346,8 +380,8 @@ class _TrainerAnsicht(HomeAssistantView):
         benutzer = request.get(KEY_HASS_USER)
         mit_ha = bool(request.get(KEY_AUTHENTICATED)) and benutzer is not None and benutzer.is_admin
         if not (mit_schluessel or mit_ha):
-            raise web.HTTPUnauthorized(text="Falscher Schlüssel")
-        z.trainer_kontakt = datetime.now(timezone.utc)
+            raise _fehler(web.HTTPUnauthorized, "falscher_schluessel")
+        z.trainer_kontakt = datetime.now(UTC)
         return z
 
 
@@ -416,10 +450,7 @@ class TrainerStatus(_TrainerAnsicht):
 
     async def post(self, request: web.Request) -> web.Response:
         z = self._pruefen(request)
-        daten = await request.json()
-        if not isinstance(daten, dict):
-            return self.json_message("JSON-Objekt erwartet", HTTPStatus.BAD_REQUEST)
-        z.trainer_meldet(daten)
+        z.trainer_meldet(await _json(request))
         return self.json({"ok": True})
 
 
@@ -435,11 +466,14 @@ class TrainerErgebnis(_TrainerAnsicht):
             if teil.name == "modell":
                 modell = await teil.read()
                 if len(modell) > GROESSTES_MODELL:
-                    return self.json_message("Modell zu groß", HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+                    return self.json_message("modell_zu_gross", HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
             elif teil.name == "bericht":
-                bericht = json.loads(await teil.text())
+                try:
+                    bericht = json.loads(await teil.text())
+                except ValueError:
+                    bericht = {}
         if b"TFL3" not in modell[:16]:
-            return self.json_message("Kein TFLite-Modell", HTTPStatus.BAD_REQUEST)
+            return self.json_message("kein_tflite", HTTPStatus.BAD_REQUEST)
         eintrag = await z.ergebnis(wort, modell, bericht if isinstance(bericht, dict) else {})
         return self.json({"version": eintrag["nr"], "status": eintrag["status"]})
 

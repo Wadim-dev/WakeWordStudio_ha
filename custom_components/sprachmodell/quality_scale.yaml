@@ -1,0 +1,82 @@
+rules:
+  # Bronze
+  action-setup:
+    status: exempt
+    comment: The integration registers no actions; everything is done in its panel, buttons and switches.
+  appropriate-polling:
+    status: done
+    comment: >
+      No entity polls. The devices are asked for new wake clips every two minutes and right away
+      when their "Wake clips" counter changes; entities are updated by dispatcher signal.
+  brands: done
+  common-modules: done
+  config-flow-test-coverage: done
+  config-flow: done
+  dependency-transparency:
+    status: exempt
+    comment: No external Python requirements.
+  docs-actions:
+    status: exempt
+    comment: The integration registers no actions.
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  entity-event-setup: done
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry: done
+
+  # Silver
+  action-exceptions: done
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable:
+    status: done
+    comment: Failed collection is logged once per run; unreachable devices are shown in the panel and as repair issue.
+  parallel-updates: done
+  reauthentication-flow:
+    status: exempt
+    comment: The integration has no account or credentials to re-authenticate.
+  test-coverage: done
+
+  # Gold
+  devices: done
+  diagnostics: done
+  discovery:
+    status: exempt
+    comment: A service integration without a device of its own; the voice devices it works with are found automatically.
+  discovery-update-info:
+    status: exempt
+    comment: No discovery of the integration itself (see discovery).
+  docs-data-update: done
+  docs-examples: done
+  docs-known-limitations: done
+  docs-supported-devices: done
+  docs-supported-functions: done
+  docs-troubleshooting: done
+  docs-use-cases: done
+  dynamic-devices: done
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default: done
+  entity-translations: done
+  exception-translations: done
+  icon-translations: done
+  reconfiguration-flow: done
+  repair-issues: done
+  stale-devices: done
+
+  # Platinum
+  async-dependency:
+    status: exempt
+    comment: No external library.
+  inject-websession:
+    status: exempt
+    comment: The integration makes no HTTP requests of its own.
+  strict-typing: todo

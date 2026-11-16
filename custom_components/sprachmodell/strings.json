@@ -1,0 +1,177 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Set up Wake Word Studio",
+        "description": "Review, train and roll out your own wake words for ESPHome voice devices. Afterwards everything is under **Wake Word Studio** in the sidebar.",
+        "data": {
+          "ordner": "Storage folder"
+        },
+        "data_description": {
+          "ordner": "Folder for recordings, versions and settings. /share is included in Home Assistant backups. It is created if it does not exist."
+        }
+      },
+      "reconfigure": {
+        "title": "Change storage folder",
+        "description": "Currently: `{current}`. All recordings and versions move to the new folder; the old folder is deleted afterwards. If the new folder already holds Wake Word Studio data, that data is used instead.",
+        "data": {
+          "ordner": "Storage folder"
+        },
+        "data_description": {
+          "ordner": "Folder for recordings, versions and settings. /share is included in Home Assistant backups. It is created if it does not exist."
+        }
+      }
+    },
+    "error": {
+      "not_absolute": "Please enter a full path starting with /.",
+      "not_allowed": "This folder is not allowed (Home Assistant's own folders, for example custom_components or www).",
+      "not_writable": "Home Assistant cannot write to this folder.",
+      "not_empty": "The folder already contains other files. Choose an empty folder or one with Wake Word Studio data.",
+      "nested": "The new folder must not be inside the current one (or the other way round).",
+      "move_failed": "Moving the data failed; everything stays in the current folder. Details are in the log."
+    },
+    "abort": {
+      "already_configured": "Wake Word Studio is already set up.",
+      "single_instance_allowed": "Wake Word Studio is already set up.",
+      "reconfigure_successful": "The storage folder was changed.",
+      "unchanged": "That is already the storage folder."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "pruefliste": {
+        "name": "Review queue",
+        "state_attributes": {
+          "per_word": {
+            "name": "Per word"
+          },
+          "per_device": {
+            "name": "Per device"
+          },
+          "oldest_waiting_since": {
+            "name": "Oldest waiting since"
+          },
+          "reviewed": {
+            "name": "Reviewed"
+          }
+        }
+      },
+      "training": {
+        "name": "Training",
+        "state": {
+          "ready": "Ready",
+          "waiting": "Waiting for trainer",
+          "preparing": "Preparing",
+          "fetching_data": "Fetching data",
+          "features": "Computing features",
+          "training": "Training",
+          "testing": "Testing",
+          "done": "Done",
+          "error": "Error"
+        },
+        "state_attributes": {
+          "progress": {
+            "name": "Progress"
+          },
+          "step": {
+            "name": "Step"
+          },
+          "minutes_left": {
+            "name": "Minutes left"
+          },
+          "since": {
+            "name": "Since"
+          },
+          "new_reviews": {
+            "name": "New reviews"
+          }
+        }
+      },
+      "version": {
+        "name": "Active version",
+        "state_attributes": {
+          "rolled_out": {
+            "name": "Rolled out"
+          },
+          "sha256": {
+            "name": "SHA-256"
+          }
+        }
+      },
+      "trefferquote": {
+        "name": "Recall"
+      },
+      "fehlausloeser": {
+        "name": "False wakes"
+      },
+      "trainer": {
+        "name": "Trainer",
+        "state": {
+          "disconnected": "Not connected",
+          "ready": "Ready",
+          "training": "Training"
+        },
+        "state_attributes": {
+          "last_contact": {
+            "name": "Last contact"
+          },
+          "queue": {
+            "name": "Queue"
+          },
+          "name": {
+            "name": "Name"
+          },
+          "version": {
+            "name": "Version"
+          },
+          "cpu": {
+            "name": "CPU cores"
+          },
+          "ram_gb": {
+            "name": "Memory (GB)"
+          },
+          "gpu": {
+            "name": "GPU"
+          }
+        }
+      }
+    },
+    "button": {
+      "training_starten": {
+        "name": "Start training"
+      },
+      "jetzt_holen": {
+        "name": "Fetch recordings now"
+      }
+    },
+    "switch": {
+      "nachts_trainieren": {
+        "name": "Train at night"
+      },
+      "automatisch_einspielen": {
+        "name": "Roll out better version"
+      }
+    }
+  },
+  "exceptions": {
+    "storage_unavailable": {
+      "message": "Storage folder {folder} is not available: {error}"
+    },
+    "word_deleted": {
+      "message": "This wake word was deleted."
+    },
+    "fetch_failed": {
+      "message": "Fetching recordings from the devices failed. Details are in the log."
+    }
+  },
+  "issues": {
+    "device_missing": {
+      "title": "Device {device} not found",
+      "description": "The wake word **{word}** is assigned to the device `{device}`, but Home Assistant has not seen this ESPHome device for a while. If it was renamed or replaced, open Wake Word Studio → the word → Word → Devices and slot and choose the device again. If it is only switched off, this message disappears as soon as it is back."
+    },
+    "trainer_missing": {
+      "title": "No trainer connected",
+      "description": "A training has been waiting for more than a day, but no trainer is connected. Start the trainer app or the Docker container; the instructions are in Wake Word Studio → [Settings]({panel}) → Trainer."
+    }
+  }
+}

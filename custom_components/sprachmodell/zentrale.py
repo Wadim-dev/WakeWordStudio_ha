@@ -1,11 +1,11 @@
-"""Die Sprachmodell-Zentrale: beliebig viele eigene Aktivierungswoerter.
+"""The hub of Wake Word Studio: any number of own wake words.
 
 Jedes Wort hat eigene Einstellungen (Sprache, Name am Geraet, welche Geraete
 auf welchem Platz), eigene Aufnahmen, eigene Versionen und eigene Trainings.
 Die Zentrale selbst kennt die Geraete, die gemeinsamen Einstellungen und die
 Warteschlange fuer den Trainer. Alles wird in der App eingestellt.
 
-Ablage (Standard /share/sprachmodell, sonst /config/sprachmodell):
+Storage (chosen when setting up; default /share/sprachmodell, without /share /config/sprachmodell):
 
     zentrale.json                Woerter, gemeinsame Einstellungen, Warteschlange
     woerter/<id>/daten.json      Aufnahmen, Versionen, Laeufe eines Worts
@@ -15,39 +15,38 @@ Ablage (Standard /share/sprachmodell, sonst /config/sprachmodell):
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 import json
 import logging
 import os
 import secrets
 import shutil
 import threading
-from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import Event, HomeAssistant, callback
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
-from homeassistant.helpers.event import (
-    async_call_later,
-    async_track_state_change_event,
-    async_track_time_change,
-    async_track_time_interval,
-)
+from homeassistant.helpers.event import async_call_later, async_track_state_change_event, async_track_time_change, async_track_time_interval
 from homeassistant.util import slugify
 
 from .const import (
+    CONF_ORDNER,
     DOMAIN,
+    GERAET_FEHLT_S,
     LAEUFT,
+    NAME,
     PANEL_URL,
     SIGNAL_NEU,
     SPRACHEN,
     STANDARD_WORT,
     STANDARD_ZENTRALE,
+    TRAINER_FEHLT_S,
     TRAINER_ONLINE_S,
 )
-from .sammler import Sammler, alle_geraete, esphome_eintraege
+from .sammler import WAHL_ENDUNGEN, Sammler, alle_geraete, esphome_eintraege, geraete_info
 from .speicher import Speicher, jetzt, sichere_id
 
 _LOGGER = logging.getLogger(__name__)
@@ -110,7 +109,7 @@ class Wort:
 
     def neue_seit_letztem_lauf(self) -> int:
         stat = self.speicher.statistik()
-        letzte = next((l for l in reversed(self.speicher.daten["laeufe"]) if l.get("bewertet") is not None), None)
+        letzte = next((lauf for lauf in reversed(self.speicher.daten["laeufe"]) if lauf.get("bewertet") is not None), None)
         return stat["bewertet"] - (letzte["bewertet"] if letzte else 0)
 
     def kurz(self) -> dict[str, Any]:
@@ -140,7 +139,7 @@ class Zentrale:
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
-        self.ablage: str = entry.data.get("ordner") or ablage_standard(hass)
+        self.ablage: str = entry.data.get(CONF_ORDNER) or ablage_standard(hass)
         self.daten: dict[str, Any] = {}
         self.woerter: dict[str, Wort] = {}
         self.sammler = Sammler(hass, self)
@@ -155,6 +154,9 @@ class Zentrale:
         self._nachts_weg: Any = None
         # Plattform -> Funktion, die die Entitaeten eines neuen Worts anlegt
         self.anleger: dict[str, Any] = {}
+        # Repairs: (word, node) -> first time the device was missing; issue ids raised now
+        self._fehlt_seit: dict[tuple[str, str], datetime] = {}
+        self._meldungen: set[str] = set()
 
     # --- Ablage -----------------------------------------------------------
 
@@ -169,6 +171,7 @@ class Zentrale:
         daten.setdefault("einstellungen", {})
         daten.setdefault("gesehen", [])
         daten.setdefault("reihe", [])
+        neu = "schluessel" not in daten
         daten.setdefault("schluessel", secrets.token_urlsafe(24))
         self.daten = daten
         for wid, cfg in daten["woerter"].items():
@@ -176,6 +179,8 @@ class Zentrale:
             wort.speicher.laden()
             wort.speicher.vorschlaege()
             self.woerter[wid] = wort
+        if neu:  # first start: keep the trainer key from now on
+            self.speichern()
 
     def speichern(self) -> None:
         with self._sperre:
@@ -209,7 +214,7 @@ class Zentrale:
     def trainer_online(self) -> bool:
         return bool(
             self.trainer_kontakt
-            and (datetime.now(timezone.utc) - self.trainer_kontakt).total_seconds() < TRAINER_ONLINE_S
+            and (datetime.now(UTC) - self.trainer_kontakt).total_seconds() < TRAINER_ONLINE_S
         )
 
     @callback
@@ -254,16 +259,16 @@ class Zentrale:
 
     def wortwahl_entitaet(self, knoten: str, platz: str) -> str | None:
         """Auswahl "Aktivierungswort" (Platz 1) bzw. "Aktivierungswort 2" am Geraet."""
-        endung = "-wake_word" if platz == "1" else f"-wake_word_{platz}"
-        treffer = self._entitaeten(knoten, "select", endung)
+        treffer = self._entitaeten(knoten, "select", WAHL_ENDUNGEN.get(platz, f"-wake_word_{platz}"))
         return treffer[0].entity_id if treffer else None
 
     def geraete_zustand(self) -> list[dict[str, Any]]:
         """Fuer die App: jedes Geraet mit Plaetzen, Wort darauf und Schwelle."""
         aus: list[dict[str, Any]] = []
-        for knoten, name in self.geraete().items():
+        for knoten, info in geraete_info(self.hass).items():
+            name = info["name"]
             plaetze = {}
-            for platz in ("1", "2"):
+            for platz in info["plaetze"]:
                 wahl = self.wortwahl_entitaet(knoten, platz)
                 schwelle = self.schwelle_entitaet(knoten, platz)
                 sw = self.hass.states.get(wahl) if wahl else None
@@ -282,7 +287,7 @@ class Zentrale:
                     "schwelle_entitaet": schwelle,
                 }
             aus.append({
-                "knoten": knoten, "name": name, "plaetze": plaetze,
+                "knoten": knoten, "name": name, "plaetze": plaetze, "clips": info["clips"],
                 "fehler": self.sammler.fehler.get(knoten),
                 "zaehler": self._zaehlerstand(knoten),
             })
@@ -333,11 +338,11 @@ class Zentrale:
 
     async def wort_aendern(self, wid: str, cfg: dict[str, Any]) -> Wort:
         wort = self.woerter[wid]
+        if "wort" in cfg and not str(cfg["wort"]).strip():
+            raise ValueError("wort_fehlt")
         for k, v in cfg.items():
             if k in STANDARD_WORT and k != "modell_id":
                 wort.cfg[k] = v
-        if "wort" in cfg and not str(cfg["wort"]).strip():
-            raise ValueError("wort_fehlt")
         self._geraete_freiraeumen(wort)
         await self.hass.async_add_executor_job(self.speichern)
         await self._nach_wortaenderung()
@@ -372,6 +377,7 @@ class Zentrale:
 
     async def starten(self) -> None:
         await self.hass.async_add_executor_job(self._laden)
+        self._alte_geraete_entfernen()
         for wort in self.woerter.values():
             t = wort.speicher.daten["training"]
             if t.get("phase") in LAEUFT:
@@ -379,8 +385,8 @@ class Zentrale:
         self._weg.append(async_track_time_interval(self.hass, self._takt, SAMMELN_TAKT))
         self._weg.append(async_track_time_interval(self.hass, self._stuendlich, timedelta(hours=1)))
         self.nachts_planen()
-        async_call_later(self.hass, 20, self._takt)
-        async_call_later(self.hass, 60, self._stuendlich)
+        self._weg.append(async_call_later(self.hass, 20, self._takt))
+        self._weg.append(async_call_later(self.hass, 60, self._stuendlich))
 
     @callback
     def nachts_planen(self) -> None:
@@ -389,14 +395,34 @@ class Zentrale:
         stunde, minute = (int(x) for x in str(self.opt("uhrzeit")).split(":")[:2])
         self._nachts_weg = async_track_time_change(self.hass, self._nachts, hour=stunde, minute=minute, second=0)
 
+    @callback
+    def _alte_geraete_entfernen(self) -> None:
+        """Devices of words that no longer exist (deleted while Home Assistant was off)."""
+        reg = dr.async_get(self.hass)
+        for geraet in dr.async_entries_for_config_entry(reg, self.entry.entry_id):
+            if not self.geraet_gehoert(geraet):
+                reg.async_update_device(geraet.id, remove_config_entry_id=self.entry.entry_id)
+
+    def geraet_gehoert(self, geraet: dr.DeviceEntry) -> bool:
+        """Is this device the hub itself or one of the current words?"""
+        for domain, ident in geraet.identifiers:
+            if domain != DOMAIN:
+                continue
+            if ident == DOMAIN or (ident.startswith("wort_") and ident[5:] in self.woerter):
+                return True
+        return False
+
     async def stoppen(self) -> None:
+        for issue in self._meldungen:
+            ir.async_delete_issue(self.hass, DOMAIN, issue)
+        self._meldungen.clear()
         for weg in self._weg:
             weg()
         self._weg.clear()
-        for weg in (self._zaehler_weg, self._nachts_weg):
+        for weg in (self._zaehler_weg, self._nachts_weg, self._sammeln_spaeter):
             if weg:
                 weg()
-        self._zaehler_weg = self._nachts_weg = None
+        self._zaehler_weg = self._nachts_weg = self._sammeln_spaeter = None
         await self.hass.async_add_executor_job(self.speichern)
         for wort in self.woerter.values():
             await self.hass.async_add_executor_job(wort.speicher.speichern)
@@ -429,16 +455,19 @@ class Zentrale:
         self._sammeln_spaeter = None
         self._zaehler_beobachten()
         self._verlorene_laeufe()
+        self.reparaturen_pruefen()
+        await self.jetzt_holen()
+
+    async def jetzt_holen(self) -> bool:
+        """Ask the devices for new recordings. False if that failed."""
         try:
             neu = await self.sammler.holen()
-        except Exception:  # noqa: BLE001 - Sammeln darf nie die Integration stoppen
-            _LOGGER.exception("Aufnahmen holen fehlgeschlagen")
-            return
+        except Exception:
+            _LOGGER.exception("Fetching recordings failed")
+            return False
         if neu:
             self.geaendert()
-
-    async def jetzt_holen(self) -> None:
-        await self._takt()
+        return True
 
     async def _stuendlich(self, _now: Any = None) -> None:
         weg = 0
@@ -457,9 +486,42 @@ class Zentrale:
             t = wort.speicher.daten["training"]
             if t.get("phase") not in LAEUFT or not t.get("aktualisiert"):
                 continue
-            alter = datetime.now(timezone.utc) - datetime.fromisoformat(t["aktualisiert"])
+            alter = datetime.now(UTC) - datetime.fromisoformat(t["aktualisiert"])
             if alter.total_seconds() > 20 * 60:
                 self.trainer_meldet({"wort_id": wort.id, "phase": "fehler", "schritt": "trainer_getrennt"})
+
+    @callback
+    def reparaturen_pruefen(self) -> None:
+        """Raise a repair issue for things only the user can fix, remove it once fixed."""
+        jetzt_ = datetime.now(UTC)
+        vorhanden = set(geraete_info(self.hass))
+        gewollt: dict[str, tuple[str, dict[str, str]]] = {}
+        for wort in self.woerter.values():
+            for knoten in wort.geraete:
+                schluessel = (wort.id, knoten)
+                if knoten in vorhanden:
+                    self._fehlt_seit.pop(schluessel, None)
+                    continue
+                seit = self._fehlt_seit.setdefault(schluessel, jetzt_)
+                if (jetzt_ - seit).total_seconds() >= GERAET_FEHLT_S:
+                    gewollt[f"device_missing_{wort.id}_{knoten}"] = (
+                        "device_missing", {"word": wort.wort, "device": knoten},
+                    )
+        wartet_seit = [
+            datetime.fromisoformat(w.speicher.daten["training"]["seit"])
+            for w in self.woerter.values()
+            if w.speicher.daten["training"].get("phase") == "wartet" and w.speicher.daten["training"].get("seit")
+        ]
+        if not self.trainer_online and wartet_seit and (jetzt_ - min(wartet_seit)).total_seconds() >= TRAINER_FEHLT_S:
+            gewollt["trainer_missing"] = ("trainer_missing", {"panel": f"/{PANEL_URL}/einstellungen"})
+        for issue_id, (schluessel_, platzhalter) in gewollt.items():
+            ir.async_create_issue(
+                self.hass, DOMAIN, issue_id, is_fixable=False, severity=ir.IssueSeverity.WARNING,
+                translation_key=schluessel_, translation_placeholders=platzhalter,
+            )
+        for issue_id in self._meldungen - set(gewollt):
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+        self._meldungen = set(gewollt)
 
     def offen_gesamt(self) -> int:
         return sum(len(w.speicher.offen()) for w in self.woerter.values())
@@ -476,7 +538,7 @@ class Zentrale:
         if tage <= 0 or not aeltestes:
             persistent_notification.async_dismiss(self.hass, HINWEIS_ID)
             return
-        alter = datetime.now(timezone.utc) - datetime.fromisoformat(aeltestes)
+        alter = datetime.now(UTC) - datetime.fromisoformat(aeltestes)
         if alter.days < tage:
             persistent_notification.async_dismiss(self.hass, HINWEIS_ID)
             return
@@ -487,7 +549,7 @@ class Zentrale:
             if de else
             f"{n} recordings are waiting for review, the oldest for {alter.days} days. [Review now](/{PANEL_URL}/pruefen)"
         )
-        persistent_notification.async_create(self.hass, text, title="Sprachmodell", notification_id=HINWEIS_ID)
+        persistent_notification.async_create(self.hass, text, title=NAME, notification_id=HINWEIS_ID)
 
     async def _nachts(self, _now: Any = None) -> None:
         for wort in self.woerter.values():
@@ -530,7 +592,7 @@ class Zentrale:
 
     @callback
     def trainer_meldet(self, status: dict[str, Any]) -> None:
-        self.trainer_kontakt = datetime.now(timezone.utc)
+        self.trainer_kontakt = datetime.now(UTC)
         if isinstance(status.get("info"), dict):
             self.trainer_info = status["info"]
         if status.get("neustart"):
@@ -616,8 +678,15 @@ class Zentrale:
             if (eintrag := eintraege.get(knoten)) is not None:
                 self.hass.async_create_task(self.hass.config_entries.async_reload(eintrag.entry_id))
         # Nach dem Neuladen das Wort an den Plaetzen auswaehlen
-        async_call_later(self.hass, 30, lambda _n: self.hass.async_create_task(self.auswaehlen(wort)))
+        self._weg.append(async_call_later(self.hass, 30, self._spaeter_auswaehlen(wort)))
         self.geaendert()
+
+    def _spaeter_auswaehlen(self, wort: Wort) -> Any:
+        async def auswaehlen(_now: Any) -> None:
+            if wort.id in self.woerter:
+                await self.auswaehlen(wort)
+
+        return auswaehlen
 
     async def auswaehlen(self, wort: Wort) -> list[str]:
         """Das Wort an seinen Plaetzen in der Auswahl "Aktivierungswort" setzen."""
