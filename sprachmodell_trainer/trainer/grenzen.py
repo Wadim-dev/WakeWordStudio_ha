@@ -39,10 +39,36 @@ def ram_gb() -> float | None:
     return round(gesamt, 1) if gesamt else None
 
 
+def frei_gb() -> float | None:
+    """Jetzt wirklich freier Speicher: MemAvailable, im Container hoechstens Grenze minus Belegung."""
+    frei = None
+    try:
+        with open("/proc/meminfo", encoding="utf-8") as datei:
+            for zeile in datei:
+                if zeile.startswith("MemAvailable:"):
+                    frei = int(zeile.split()[1]) / 1024 / 1024
+    except OSError:
+        pass
+    try:
+        grenze = open("/sys/fs/cgroup/memory.max", encoding="utf-8").read().strip()
+        if grenze != "max":
+            belegt = int(open("/sys/fs/cgroup/memory.current", encoding="utf-8").read())
+            cache = 0
+            for zeile in open("/sys/fs/cgroup/memory.stat", encoding="utf-8"):
+                if zeile.startswith("inactive_file "):
+                    cache = int(zeile.split()[1])
+            rest = (int(grenze) - belegt + cache) / 1024 ** 3
+            frei = rest if frei is None else min(frei, rest)
+    except (OSError, ValueError):
+        pass
+    return frei
+
+
 def prozesse(gewuenscht: int | None = None) -> int:
-    """Parallele Arbeitsprozesse: nicht mehr als Kerne und nicht mehr, als in den Speicher passen."""
+    """Parallele Arbeitsprozesse: nicht mehr als Kerne und nicht mehr, als jetzt in den freien Speicher passen.
+    Wenig Speicher = weniger Prozesse = langsamer, aber es laeuft durch."""
     n = gewuenscht or kerne()
-    ram = ram_gb()
-    if ram:
-        n = min(n, max(1, int(ram / GB_JE_PROZESS)))
+    for gb in (ram_gb(), frei_gb()):
+        if gb:
+            n = min(n, int(gb / GB_JE_PROZESS))
     return max(1, n)
