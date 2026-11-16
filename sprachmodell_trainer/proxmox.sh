@@ -26,9 +26,12 @@ BILD="$BILD"
 for _ in \$(seq 1 30); do docker pull -q "\$BILD" >/dev/null 2>&1 && break; sleep 10; done
 NEU=\$(docker image inspect -f '{{.Id}}' "\$BILD" 2>/dev/null || true)
 LAEUFT=\$(docker inspect -f '{{.Image}}' $NAME 2>/dev/null || true)
-if [ -n "\$NEU" ] && [ "\$NEU" != "\$LAEUFT" ]; then
+GRENZE_JETZT=\$(docker inspect -f '{{.HostConfig.Memory}}' $NAME 2>/dev/null || echo 0)
+if [ -n "\$NEU" ] && { [ "\$NEU" != "\$LAEUFT" ] || [ "\$GRENZE_JETZT" = "0" ]; }; then
   docker rm -f $NAME >/dev/null 2>&1 || true
-  docker run -d --name $NAME --restart unless-stopped --env-file /etc/sprachmodell-trainer.env \\
+  # Memory limit of this LXC container also for Docker, so the trainer sees it and adapts
+  GRENZE_MB=\$(( \$(awk '/^MemTotal:/{print \$2}' /proc/meminfo) * 9 / 10 / 1024 ))
+  docker run -d --name $NAME --restart unless-stopped --memory \${GRENZE_MB}m --env-file /etc/sprachmodell-trainer.env \\
     -v sprachmodell-trainer:/data "\$BILD" >/dev/null
   docker image prune -f >/dev/null 2>&1 || true
   echo "Trainer updated"
