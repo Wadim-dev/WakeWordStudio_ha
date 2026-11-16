@@ -124,3 +124,29 @@ def auslastung(platz_pfad: str | None = None) -> dict:
         except OSError:
             pass
     return aus
+
+
+def steckbrief(platz_pfad: str) -> dict:
+    """Swap and free disk space for the trainer profile in Home Assistant (shown with a green/yellow/red rating)."""
+    import shutil
+
+    aus: dict = {}
+    werte: dict[str, int] = {}
+    try:
+        with open("/proc/meminfo", encoding="utf-8") as datei:
+            for zeile in datei:
+                name, _, rest = zeile.partition(":")
+                if name in ("SwapTotal", "SwapFree"):
+                    werte[name] = int(rest.split()[0])
+    except (OSError, ValueError, IndexError):
+        pass
+    if "SwapTotal" in werte:
+        aus["swap_gb"] = round(werte["SwapTotal"] / 1024 ** 2, 1)
+        aus["swap_belegt_gb"] = round((werte["SwapTotal"] - werte.get("SwapFree", werte["SwapTotal"])) / 1024 ** 2, 1)
+    try:
+        nutzung = shutil.disk_usage(platz_pfad)
+        aus["platz_frei_gb"] = round(nutzung.free / 1024 ** 3, 1)
+        aus["platz_gb"] = round(nutzung.total / 1024 ** 3, 1)
+    except OSError:
+        pass
+    return aus

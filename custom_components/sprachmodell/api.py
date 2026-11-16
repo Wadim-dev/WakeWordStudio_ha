@@ -133,6 +133,8 @@ def _zentrale_daten(z: Zentrale, admin: bool) -> dict[str, Any]:
             "online": z.trainer_online,
             "kontakt": z.trainer_kontakt.isoformat() if z.trainer_kontakt else None,
             "info": z.trainer_info,
+            "last": z.trainer_last(),
+            "engpass": z.engpass(),
             "schluessel": z.schluessel if admin else None,
             "adresse": _interne_adresse(z.hass),
         },

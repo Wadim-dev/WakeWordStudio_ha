@@ -12,12 +12,12 @@
   ],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/Wadim-dev/wake-word-studio_ha",
+  "documentation": "https://github.com/Wadim-dev/WakeWordStudio_ha",
   "integration_type": "service",
   "iot_class": "local_push",
-  "issue_tracker": "https://github.com/Wadim-dev/wake-word-studio_ha/issues",
+  "issue_tracker": "https://github.com/Wadim-dev/WakeWordStudio_ha/issues",
   "loggers": [],
   "requirements": [],
   "single_config_entry": true,
-  "version": "1.0.12"
+  "version": "1.0.13"
 }

@@ -36,6 +36,9 @@ from homeassistant.util import slugify
 from .const import (
     CONF_ORDNER,
     DOMAIN,
+    ENGPASS_CPU,
+    ENGPASS_S,
+    ENGPASS_WARTEN,
     GERAET_FEHLT_S,
     LAEUFT,
     NAME,
@@ -153,6 +156,8 @@ class Wort:
             "fehlausloeser": neu.get("fehlausloeser_pro_stunde"),
             "training": self.speicher.daten["training"],
             "in_reihe": self.id in self.z.reihe(),
+            "eingespielt": v.get("eingespielt"),
+            "tage": self.speicher.tage(),
         }
 
 
@@ -180,6 +185,7 @@ class Zentrale:
         self.anleger: dict[str, Any] = {}
         # Repairs: (word, node) -> first time the device was missing; issue ids raised now
         self._fehlt_seit: dict[tuple[str, str], datetime] = {}
+        self._engpass_seit: datetime | None = None
         self._meldungen: set[str] = set()
 
     # --- Ablage -----------------------------------------------------------
@@ -552,6 +558,13 @@ class Zentrale:
         ]
         if not self.trainer_online and wartet_seit and (jetzt_ - min(wartet_seit)).total_seconds() >= TRAINER_FEHLT_S:
             gewollt["trainer_missing"] = ("trainer_missing", {"panel": f"/{PANEL_URL}/einstellungen"})
+        engpass = self.engpass()
+        if engpass is None:
+            self._engpass_seit = None
+        else:
+            self._engpass_seit = self._engpass_seit or jetzt_
+            if (jetzt_ - self._engpass_seit).total_seconds() >= ENGPASS_S:
+                gewollt["trainer_slow"] = (f"trainer_slow_{engpass}", {"panel": f"/{PANEL_URL}/einstellungen"})
         for issue_id, (schluessel_, platzhalter) in gewollt.items():
             ir.async_create_issue(
                 self.hass, DOMAIN, issue_id, is_fixable=False, severity=ir.IssueSeverity.WARNING,
@@ -560,6 +573,29 @@ class Zentrale:
         for issue_id in self._meldungen - set(gewollt):
             ir.async_delete_issue(self.hass, DOMAIN, issue_id)
         self._meldungen = set(gewollt)
+
+    def trainer_last(self) -> dict[str, Any]:
+        """Current load of the trainer from the running word's live data (empty if nothing runs or it is stale)."""
+        for w in self.woerter.values():
+            if w.speicher.daten["training"].get("phase") in LAEUFT and w.live and w.live.get("system"):
+                try:
+                    alter = (datetime.now(UTC) - datetime.fromisoformat(w.live["zeit"])).total_seconds()
+                except (TypeError, ValueError):
+                    continue
+                if alter < 300:
+                    return dict(w.live["system"])
+        return {}
+
+    def engpass(self) -> str | None:
+        """'memory' or 'disk' if the trainer is held up (mostly waiting, processor hardly used), else None."""
+        last = self.trainer_last()
+        if not last or last.get("cpu", 100) >= ENGPASS_CPU:
+            return None
+        if last.get("speicher_warten", 0) >= ENGPASS_WARTEN:
+            return "memory"
+        if last.get("platte_warten", 0) >= ENGPASS_WARTEN:
+            return "disk"
+        return None
 
     def offen_gesamt(self) -> int:
         return sum(len(w.speicher.offen()) for w in self.woerter.values())

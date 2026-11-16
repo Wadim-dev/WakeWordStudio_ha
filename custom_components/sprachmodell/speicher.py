@@ -413,6 +413,21 @@ class Speicher:
             "verteilung": verteilung,
         }
 
+    def tage(self, anzahl: int = 14) -> list[int]:
+        """Device recordings per day for the last days (oldest first), for the small chart on the hub."""
+        heute = datetime.now().astimezone().date()
+        aus = [0] * anzahl
+        for a in self.daten["aufnahmen"].values():
+            if a.get("quelle") != "echo":
+                continue
+            z = _zeit(a.get("zeit"))
+            if not z:
+                continue
+            alter = (heute - datetime.fromtimestamp(z).astimezone().date()).days
+            if 0 <= alter < anzahl:
+                aus[anzahl - 1 - alter] += 1
+        return aus
+
     def trainer_liste(self) -> list[dict[str, Any]]:
         """Alles Bewertete fuer den Trainer (ohne Platzhalter)."""
         return [
