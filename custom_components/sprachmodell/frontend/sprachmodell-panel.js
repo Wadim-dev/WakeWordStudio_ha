@@ -4,7 +4,7 @@
 // No polling: the page reloads only when one of the integration's sensors changes.
 import { TEXTE, SPRACHNAMEN } from './sprachmodell-texte.js';
 
-const VERSION = '1.0.9';
+const VERSION = '1.0.10';
 const REPO = 'https://github.com/Wadim-dev/wake-word-studio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -646,9 +646,9 @@ ${l.seiten > 1 ? `<div class="zeile" style="justify-content:center;margin-top:12
     const last = laeuft && (s.cpu != null || s.ram_gb) ? `<ha-card><h2>${esc(this.t('t_last'))}</h2><div class="last">
 ${s.cpu != null ? `<span>${esc(this.t('t_cpu'))}</span>${balken(s.cpu, 100)}<span class="klein">${s.cpu} % · ${esc(this.t('t_kerne', { n: s.kerne }))}</span>` : ''}
 ${s.ram_gb ? `<span>${esc(this.t('t_ram'))}</span>${balken(s.ram_belegt_gb || 0, s.ram_gb)}<span class="klein">${this._zahl(s.ram_belegt_gb, 1)} / ${this._zahl(s.ram_gb, 1)} GB</span>` : ''}
-${s.platte_warten != null ? `<span>${esc(this.t('t_platte'))}</span>${balken(s.platte_warten, 100)}<span class="klein">${Math.round(s.platte_warten)} %</span>` : ''}
+${[['platte_warten', 't_platte'], ['speicher_warten', 't_speicher_warten'], ['cpu_warten', 't_cpu_warten']].map(([k, t]) => s[k] != null ? `<span>${esc(this.t(t))}</span>${balken(s[k], 100)}<span class="klein">${Math.round(s[k])} %</span>` : '').join('')}
 ${s.platz_frei_gb != null ? `<span>${esc(this.t('t_platz_frei'))}</span><span></span><span class="klein">${this._zahl(s.platz_frei_gb, 1)} GB</span>` : ''}
-</div>${s.platte_warten >= 50 && (s.cpu ?? 100) < 50 ? `<div class="klein" style="margin-top:8px">${esc(this.t('t_platte_hinweis'))}</div>` : ''}</ha-card>` : '';
+</div>${Math.max(s.platte_warten || 0, s.speicher_warten || 0) >= 50 && (s.cpu ?? 100) < 50 ? `<div class="klein" style="margin-top:8px">${esc(this.t('t_platte_hinweis'))}</div>` : ''}</ha-card>` : '';
     const log = (l.protokoll || []).slice().reverse().map(([z, art, text]) => `<div class="l-${esc(art)}"><span class="z">${this._uhr(z)}</span>${esc(text)}</div>`).join('');
     return `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('t_ablauf'))}</h2><span class="klein">${l.start ? esc(this.t('t_laeuft_seit', { z: this._spanne((aktuell && !laeuft && aktuell.ende ? aktuell.ende : jetzt) - l.start) })) : ''}</span></div><div class="ablauf" style="margin-top:10px">${zeilen}</div></ha-card>
 ${last}

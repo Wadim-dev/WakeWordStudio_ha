@@ -109,12 +109,15 @@ def auslastung(platz_pfad: str | None = None) -> dict:
         aus["ram_gb"] = gesamt
         if frei is not None:
             aus["ram_belegt_gb"] = round(max(0.0, gesamt - frei), 1)
-    try:  # share of the last 10 s in which work waited for the disk (Linux pressure stall information)
-        for zeile in open("/sys/fs/cgroup/io.pressure", encoding="utf-8"):
-            if zeile.startswith("some "):
-                aus["platte_warten"] = round(float(zeile.split("avg10=")[1].split()[0]))
-    except (OSError, ValueError, IndexError):
-        pass
+    # share of the last 10 s in which work had to wait (Linux pressure stall information): for the disk, for
+    # memory (pages read again because memory is short) and for the processor (limit of the container reached)
+    for datei, schluessel in (("io", "platte_warten"), ("memory", "speicher_warten"), ("cpu", "cpu_warten")):
+        try:
+            for zeile in open(f"/sys/fs/cgroup/{datei}.pressure", encoding="utf-8"):
+                if zeile.startswith("some "):
+                    aus[schluessel] = round(float(zeile.split("avg10=")[1].split()[0]))
+        except (OSError, ValueError, IndexError):
+            pass
     if platz_pfad:
         try:
             aus["platz_frei_gb"] = round(shutil.disk_usage(platz_pfad).free / 1024 ** 3, 1)
