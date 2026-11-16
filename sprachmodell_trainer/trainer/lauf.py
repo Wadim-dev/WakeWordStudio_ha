@@ -152,7 +152,7 @@ def aehnliche_woerter(wort: str) -> list[str]:
 
 
 def wort_ans_ende(wav: bytes, signalton_s: float = 0.3, nachlauf_s: float = 0.08, laenge_s: float = 1.9) -> bytes:
-    """Device recordings are a few seconds long; after waking up, the device plays its sound at the end. Training
+    """Device recordings are a few seconds long; after waking up, the device may play its sound at the end. Training
     learns best when the word ends where the clip ends: find the end of the last stretch of sound before the
     device sound, keep a little after it and laenge_s before it. Without a clear stretch the clip stays as it is."""
     import io
@@ -188,6 +188,15 @@ def wort_ans_ende(wav: bytes, signalton_s: float = 0.3, nachlauf_s: float = 0.08
         i = j - 1
     if ende is None:
         return wav
+    # the device sound comes only now and then: sound in the last part that follows the word without a pause
+    # of at least 50 ms is still the word, so the end moves on; after a pause it is the device sound and stays out
+    j, still = ende + 1, 0
+    while j < n and still < 5:
+        if pegel[j] > grenze:
+            ende, still = j, 0
+        else:
+            still += 1
+        j += 1
     stopp = min(len(x), int((ende / 100 + nachlauf_s) * rate))
     start = max(0, stopp - int(laenge_s * rate))
     aus = io.BytesIO()
