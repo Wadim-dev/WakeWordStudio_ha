@@ -11,6 +11,7 @@ import time
 import traceback
 
 from . import __version__
+from .grenzen import kerne, prozesse, ram_gb
 from .ha import HA
 from .lauf import Abgebrochen, Lauf
 
@@ -33,19 +34,12 @@ def optionen() -> dict:
 
 
 def info() -> dict:
-    ram = None
-    try:
-        with open("/proc/meminfo", encoding="utf-8") as datei:
-            for zeile in datei:
-                if zeile.startswith("MemTotal:"):
-                    ram = round(int(zeile.split()[1]) / 1024 / 1024, 1)
-    except OSError:
-        pass
     return {
         "name": os.environ.get("TRAINER_NAME") or platform.node(),
         "version": __version__,
-        "cpu": os.cpu_count(),
-        "ram_gb": ram,
+        "cpu": kerne(),
+        "ram_gb": ram_gb(),
+        "prozesse": prozesse(),
         "art": "app" if os.environ.get("SUPERVISOR_TOKEN") and not os.environ.get("HA_URL") else "docker",
     }
 
@@ -61,6 +55,8 @@ def main() -> None:
     _LOG.info("Sprachmodell Trainer %s startet, Daten in %s", __version__, daten)
     lauf: Lauf | None = None
     faden: threading.Thread | None = None
+    # Erste Meldung nach dem Start: ein Lauf, den HA noch fuer aktiv haelt, ist verloren (Absturz, Neustart)
+    ha.status({"neustart": True, "info": info()})
     while True:
         try:
             antwort = ha.auftrag()

@@ -1,5 +1,5 @@
 name: Sprachmodell Trainer
-version: "0.2.0"
+version: "0.2.1"
 slug: sprachmodell_trainer
 description: Trains your own wake words for the Sprachmodell integration (microWakeWord, any language).
 url: https://github.com/Wadim-dev/sprachmodell_ha

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+- Trainer respects container limits (CPU quota, memory limit) and runs only as many worker processes as fit in memory.
+- A trainer restart (crash, out of memory, update) now ends a lost run immediately instead of after 20 minutes.
+- Proxmox script: `update` mode pulls the newest trainer image and keeps settings and data.
+
 ## 0.2.0
 - Wake word hub: any number of words, any language, devices and wake word slot freely selectable per word.
 - New pages: all words, devices, settings, new word wizard (can take over an existing model), word settings.

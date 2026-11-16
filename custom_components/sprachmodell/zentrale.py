@@ -533,6 +533,11 @@ class Zentrale:
         self.trainer_kontakt = datetime.now(timezone.utc)
         if isinstance(status.get("info"), dict):
             self.trainer_info = status["info"]
+        if status.get("neustart"):
+            # Trainer ist neu gestartet (Absturz, Speicher voll, Update): Laeufe, die noch als aktiv gelten, sind verloren
+            for anderes in self.woerter.values():
+                if anderes.speicher.daten["training"].get("phase") in LAEUFT:
+                    self.trainer_meldet({"wort_id": anderes.id, "phase": "fehler", "schritt": "trainer_neustart"})
         wid = status.get("wort_id")
         wort = self.woerter.get(str(wid)) if wid else None
         if wort is None:

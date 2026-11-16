@@ -6,15 +6,31 @@
 # Optional environment: CT_CORES (4), CT_RAM_MB (6144), CT_DISK_GB (40), CT_STORAGE (first storage for containers), CT_BRIDGE (vmbr0)
 set -euo pipefail
 
-HA_URL="${1:-}"; KEY="${2:-}"
-if [ -z "$HA_URL" ] || [ -z "$KEY" ]; then echo "Usage: proxmox.sh <HA_URL> <KEY>"; exit 1; fi
 command -v pct >/dev/null || { echo "Run this in the Proxmox VE shell."; exit 1; }
-
-CORES="${CT_CORES:-4}"; RAM="${CT_RAM_MB:-6144}"; DISK="${CT_DISK_GB:-40}"; BRIDGE="${CT_BRIDGE:-vmbr0}"
-STORAGE="${CT_STORAGE:-$(pvesm status --content rootdir --enabled 1 | awk 'NR>1{print $1; exit}')}"
 NAME="sprachmodell-trainer"
 BILD="ghcr.io/wadim-dev/sprachmodell-trainer:latest"
 
+# Update: newest image, same settings, data stays in the volume
+#   bash -c "$(curl -fsSL .../proxmox.sh)" -- update
+if [ "${1:-}" = "update" ]; then
+  ID="$(pct list | awk -v n="$NAME" 'NR>1 && $NF==n {print $1; exit}')"
+  [ -n "$ID" ] || { echo "No container named $NAME found."; exit 1; }
+  pct exec "$ID" -- bash -c '
+    set -e
+    ENV_ARGS=$(docker inspect -f "{{range .Config.Env}}{{println .}}{{end}}" sprachmodell-trainer | grep -E "^(HA_URL|SCHLUESSEL|TRAINER_NAME|THREADS|ZIEL_FEHLAUSLOESER|SCHRITTE)=" | sed "s/^/-e /" | tr "\n" " ")
+    docker pull '"$BILD"'
+    docker rm -f sprachmodell-trainer >/dev/null
+    eval docker run -d --name sprachmodell-trainer --restart unless-stopped $ENV_ARGS -v sprachmodell-trainer:/data '"$BILD"'
+    docker image prune -f >/dev/null'
+  echo "Updated. Container $ID runs the newest trainer."
+  exit 0
+fi
+
+HA_URL="${1:-}"; KEY="${2:-}"
+if [ -z "$HA_URL" ] || [ -z "$KEY" ]; then echo "Usage: proxmox.sh <HA_URL> <KEY>   or   proxmox.sh update"; exit 1; fi
+
+CORES="${CT_CORES:-4}"; RAM="${CT_RAM_MB:-6144}"; DISK="${CT_DISK_GB:-40}"; BRIDGE="${CT_BRIDGE:-vmbr0}"
+STORAGE="${CT_STORAGE:-$(pvesm status --content rootdir --enabled 1 | awk 'NR>1{print $1; exit}')}"
 if pct list | awk 'NR>1{print $NF}' | grep -qx "$NAME"; then
   echo "A container named $NAME already exists – nothing changed."; exit 1
 fi
@@ -46,4 +62,4 @@ pct exec "$ID" -- docker run -d --name sprachmodell-trainer --restart unless-sto
 echo
 echo "Done. Container $ID runs the trainer; it shows up as connected in the Sprachmodell panel within a minute."
 echo "Logs: pct exec $ID -- docker logs -f sprachmodell-trainer"
-echo "Update: pct exec $ID -- bash -c 'docker pull $BILD && docker rm -f sprachmodell-trainer' and run the docker line again (data stays in the volume)."
+echo "Update later: run this script again with the single argument: update"

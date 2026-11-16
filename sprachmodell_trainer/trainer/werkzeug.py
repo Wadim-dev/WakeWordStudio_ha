@@ -134,6 +134,8 @@ def merkmale(a: dict) -> dict:
     bg [..], rir, snr_min, prozesse."""
     from multiprocessing import Pool
 
+    from .grenzen import prozesse
+
     from mmap_ninja.ragged import RaggedMmap
 
     dateien = a.get("dateien") or _dateien(a["ordner"])
@@ -141,7 +143,7 @@ def merkmale(a: dict) -> dict:
     zaehler = {"n": 0}
 
     def erzeugen():
-        with Pool(a.get("prozesse") or os.cpu_count() or 2, initializer=_init, initargs=(a,)) as pool:
+        with Pool(prozesse(a.get("prozesse")), initializer=_init, initargs=(a,)) as pool:
             for i, r in enumerate(pool.imap_unordered(_merkmal, dateien, chunksize=16)):
                 if i % max(1, min(200, n // 20)) == 0:
                     _fortschritt(i, n)
