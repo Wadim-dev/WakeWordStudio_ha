@@ -193,3 +193,36 @@ def test_namen_angleichen(s: Speicher) -> None:
     assert a["h1"]["echo"] is None
     assert s.namen_angleichen(namen) is False
     assert s.namen_angleichen({}) is False
+
+
+def test_testsatz_tageweise() -> None:
+    """Older recordings keep their place; from TEST_NEU_AB on whole days go to the test."""
+    from custom_components.sprachmodell.speicher import TEST_NEU_AB, ist_test
+
+    alt = [ist_test(f"id{i}", "2026-11-10T10:00:00+00:00") for i in range(200)]
+    assert alt == [ist_test(f"id{i}") for i in range(200)] and 20 < sum(alt) < 60
+    for tag in range(17, 30):
+        am_tag = {ist_test(f"id{i}", f"2026-11-{tag}T{h:02d}:00:00+00:00") for i in range(20) for h in (1, 13, 23)}
+        assert len(am_tag) == 1  # one day: all train or all test
+    tage = [ist_test("x", f"2026-12-{t:02d}T12:00:00+00:00") for t in range(1, 31)]
+    assert 4 <= sum(tage) <= 18
+    assert TEST_NEU_AB.startswith("2026-11-17")
+
+
+def test_gehoert_gleicher_ton_schnitt(tmp_path) -> None:
+    from custom_components.sprachmodell.speicher import Speicher, wort_gehoert
+
+    sp = Speicher(str(tmp_path))
+    sp.laden()
+    sp.aufnahme_neu({"id": "a", "quelle": "echo", "art": "wake"}, wav(ton=500))
+    sp.aufnahme_neu({"id": "b", "quelle": "echo", "art": "nearmiss"}, wav(ton=600))
+    assert sp.gleicher_ton(wav(ton=500)) and not sp.gleicher_ton(wav(ton=700))
+    assert sp.zum_hoeren(10) and set(sp.zum_hoeren(10)) == {"a", "b"}
+    assert sp.gehoert_setzen({"a": "Алиса!", "b": "Алина", "c": "x"}, "Алиса", True) == 1
+    assert sp.daten["aufnahmen"]["a"]["urteil"] == "wort" and sp.daten["aufnahmen"]["b"]["urteil"] is None
+    assert sp.zum_hoeren(10) == []
+    assert wort_gehoert("ну, Алиса, включи", "алиса") and wort_gehoert("Hey, Lumi!", "Hey Lumi")
+    assert wort_gehoert("ёлка", "Елка") and not wort_gehoert("", "x") and not wort_gehoert("Alexa", "Alisa")
+    assert sp.schnitt_setzen("a", 0.1, 0.9)["schnitt"] == [0.1, 0.9]
+    assert sp.schnitt_setzen("a", 0.5, None)["schnitt"] == [0.5, 1.0]  # end: the whole length
+    assert "schnitt" not in sp.schnitt_setzen("a", None, None)

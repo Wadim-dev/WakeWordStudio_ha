@@ -69,6 +69,10 @@ Home Assistant Voice PE, ESP32-S3-Box, M5Stack Atom Echo with micro wake word, a
 Every wake-up, every "woke up, then cancelled" and every near miss shows up here with the device, the score and a **suggestion**.
 Listen, then tap *said* or *not said* – or use the keyboard (**Space** play · **1** said · **2** not said · **0** unusable). Accept all suggestions at once if you trust them.
 
+**Pre-review**: while the trainer is idle, speech recognition listens to new device recordings; each one shows what was heard, and recordings in which the word was clearly heard are confirmed by themselves (marked *auto*, filter in History, you can always change the answer). Switch: word → Training → Automatic.
+
+**Trim**: *Trim* under a recording shows its waveform with start and end sliders – listen to the selection and save; training then uses only that part. Device wake-ups are trimmed by themselves for training (word at the end, the device's sound after it cut off).
+
 ## Record and upload
 
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/record.png" alt="Record in the browser" width="900"></p>
@@ -79,7 +83,7 @@ Say the word into your phone or PC – every take is cut by itself. Record negat
 
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/training.png" alt="Training progress" width="900"></p>
 
-At night (or on a tap) the trainer fetches the reviewed recordings, adds thousands of synthetic voices of your word's language, trains a new version and tests it against recordings it **never learned** (every fifth one is held back).
+At night (or on a tap) the trainer fetches the reviewed recordings, adds about 50,000 synthetic clips in your word's language – Piper voices plus up to 9,000 clips from the modern voice model **OmniVoice** (men, women, children, elderly, whispering), each checked by speech recognition before it is used – trains a new version and tests it against recordings it **never learned** (new recordings are held back by whole days, about one day in three, so the test has days the model never heard). Similar words used as negative examples are checked by ear first: one that sounds exactly like your word is left out.
 Only a version that is better than the current one is rolled out. Home Assistant reads new wake word models when it starts, so a repair message offers the restart with one tap; afterwards the word is selected on all its devices by itself.
 
 While it runs, the *Training* page shows every step with its start time and duration, the time left and the expected finish time, the trainer's processor, memory and disk load, and a live log, newest line first (also kept after an error, so you can see what went wrong). If the trainer is held up for a long time because it waits for memory or disk, Home Assistant shows a repair message with what to do.
@@ -122,6 +126,20 @@ Training needs a lot of computing power, so it runs in its own container. It ada
 
 The key is shown to administrators under *Wake Word Studio → Settings → Trainer*. Only one trainer should run at a time.
 
+Without a graphics card OmniVoice is slow, so its clips are built up over several runs (at most 90 minutes per run, `OMNI_MIN=<minutes>` changes it, `0` switches it off). Speech recognition uses faster-whisper `small` (`WHISPER_MODELL=` changes it). Both models are downloaded on first use (about 3.5 GB) and run only on the trainer. The OmniVoice model is licensed CC BY-NC (non-commercial): it is used only to create training audio on your own trainer.
+
+### Devices that send their recordings
+
+Firmware that can send every wake clip to a URL can deliver it directly instead of waiting to be asked:
+
+| | |
+|---|---|
+| URL | `http://<home assistant>:8123/api/sprachmodell/clips` (test: `GET …/clips/ping`) |
+| Header | `Authorization: Bearer <trainer key>` |
+| Body | multipart: `audio` (16 kHz mono WAV, up to 2 MB) and `meta` (JSON: `name`, `device`, `kind`, `at`, `model`, `slot`, `score`, `cutoff`) |
+
+The word is found by the device and slot (or the model name). The same audio is stored only once, even if the device is asked for its clips later.
+
 ---
 
 ## Configuration
@@ -131,7 +149,7 @@ The key is shown to administrators under *Wake Word Studio → Settings → Trai
 | Setup / *Reconfigure* | **Storage folder** for recordings, versions and settings. Changing it moves all data to the new folder (copied first, the old folder is deleted only when the copy is complete). A folder that already holds Wake Word Studio data is used as it is. |
 | Panel → Settings | Training time at night, reminder after how many days, how long unreviewed recordings are kept, list of people. |
 | Panel → word → Word | Word, language, name in the device selection, colour, devices and slot. |
-| Panel → word → Training | Train at night, roll out a better version by itself. |
+| Panel → word → Training | Train at night, roll out a better version by itself, adjust the threshold, pre-review new recordings. |
 
 Creating words, assigning devices, rolling out, changing settings and deleting are for **administrators**. Everybody else can review, record and upload.
 
@@ -147,7 +165,7 @@ Creating words, assigning devices, rolling out, changing settings and deleting a
 | `sensor.<word>_recall`, `sensor.<word>_false_wakes` | Result of the honest test of the active version |
 | `sensor.<word>_active_version` | Active model version (diagnostic, disabled by default) |
 | `button.<word>_start_training` | Queue a training run |
-| `switch.<word>_train_at_night`, `switch.<word>_roll_out_better_version` | Automatic behaviour (configuration) |
+| `switch.<word>_train_at_night`, `switch.<word>_roll_out_better_version`, `switch.<word>_adjust_threshold_automatically`, `switch.<word>_pre_review_new_recordings` | Automatic behaviour (configuration) |
 
 Each word is its own device; it is created and removed together with the word.
 
@@ -217,6 +235,8 @@ Die Seite *Qualität* zeigt eine Tabelle aus deinen Antworten und der Sicherheit
 Die Startseite zeigt oben, was gerade zählt (Training mit „fertig ca. HH:MM“, wartende Aufnahmen, Trainer fehlt, neue Version bereit), mit einem Knopf zum nächsten Schritt; darunter jedes Wort mit Erkennungsquote und den Aufnahmen der letzten 14 Tage, den Trainer mit Auslastung, die Warteschlange und die Geräte.
 
 Die Seite *Training* zeigt während eines Laufs jeden Schritt mit Startzeit und Dauer, Restzeit und voraussichtliches Ende, die Auslastung des Trainers (Prozessor, Arbeitsspeicher, Platte) und ein Live-Protokoll (neueste Zeile oben), das auch nach einem Fehler stehen bleibt. Eine bessere Version liegt danach bereit; Home Assistant liest neue Modelle beim Start, deshalb bietet eine Reparaturmeldung den Neustart mit einem Tipp an, danach wird das Wort an den Geräten von selbst ausgewählt.
+
+Für das Training kommen rund 50.000 künstliche Aufnahmen dazu, darunter bis zu 9.000 vom modernen Stimmenmodell OmniVoice (Männer, Frauen, Kinder, Ältere, Flüstern), jede vorher per Spracherkennung geprüft. Ähnliche Wörter, die genau wie dein Wort klingen, fliegen raus. Neue Aufnahmen werden tageweise für den Test zurückgehalten. *Vorprüfen* (Schalter unter Training → Automatik): Der Trainer hört neue Aufnahmen ab, zeigt was er verstanden hat und bestätigt eindeutige von selbst (Markierung *automatisch*, jederzeit änderbar). *Zuschneiden* unter jeder Aufnahme: Anfang und Ende mit Schiebern wählen, nur dieser Teil wird trainiert. Geräte, die ihre Aufnahmen selbst senden können, schicken sie an `/api/sprachmodell/clips` (Schlüssel des Trainers als Bearer).
 
 Gefunden wird jedes ESPHome-Sprachgerät mit der Auswahl „Aktivierungswort“, egal wie es heißt. Geräte mit Firmware, die Aufnahmen aufhebt (z. B. TECHO, Schalter *Keep wake clips*), liefern ihre Aufnahmen von selbst.
 

@@ -196,6 +196,9 @@ class Sammler:
                         self.z.daten["gesehen"].append(aid)
                         continue
                     art = str(clip.get("kind") or "").replace(" ", "")
+                    if wort.speicher.gleicher_ton(wav):  # already arrived by direct upload
+                        self.z.daten["gesehen"].append(aid)
+                        continue
                     await self.hass.async_add_executor_job(
                         wort.speicher.aufnahme_neu,
                         {
@@ -215,3 +218,39 @@ class Sammler:
             if neu:
                 await self.hass.async_add_executor_job(self.z.speichern)
             return sum(neu.values())
+
+    async def annehmen(self, meta: dict[str, Any], wav: bytes) -> str:
+        """A recording a device sends by itself (TECHO5 "Send wake clips to", the clip upload format also used by
+        other trainers). Same storage as the recordings HA fetches; a clip that arrives both ways is kept once.
+        Returns neu, doppelt or kein_wort (no word uses this device and slot)."""
+        knoten = str(meta.get("device") or "").replace("-", "_")
+        cid = str(meta.get("name") or "")
+        if not knoten or not cid:
+            raise ValueError("meta_unvollstaendig")
+        if len(wav) < 1000 or wav[:4] != b"RIFF":
+            raise ValueError("wav_format")
+        aid = sichere_id(f"{knoten}-{cid}")
+        async with self._sperre:
+            if self._bekannt(aid):
+                return "doppelt"
+            platz = str(meta.get("slot") or "1")
+            wort = self.z.wort_fuer(knoten, platz, meta.get("model"))
+            if wort is None:
+                return "kein_wort"
+            if wort.speicher.gleicher_ton(wav):
+                return "doppelt"
+            namen = alle_geraete(self.hass)
+            await self.hass.async_add_executor_job(
+                wort.speicher.aufnahme_neu,
+                {
+                    "id": aid, "quelle": "echo", "echo": namen.get(knoten, knoten), "knoten": knoten,
+                    "art": str(meta.get("kind") or "").replace(" ", ""), "zeit": meta.get("at"),
+                    "score": meta.get("score"), "cutoff": meta.get("cutoff"), "slot": platz,
+                    "modell": meta.get("model"),
+                },
+                wav,
+            )
+            wort.speicher.vorschlaege()
+            await self.hass.async_add_executor_job(wort.speicher.speichern)
+        self.z.geaendert()
+        return "neu"

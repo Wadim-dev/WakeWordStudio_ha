@@ -32,10 +32,15 @@ _LOG = logging.getLogger("trainer.lauf")
 
 # Mengen kuenstlicher Aufnahmen (MENGE nur zum Ausprobieren verkleinern)
 _M = float(os.environ.get("MENGE", "1"))
-POS_EIGEN = int(8000 * _M)
-POS_FREMD = int(600 * _M)  # je fremder Stimme
-NEG_AEHNLICH = int(6000 * _M)
-NEG_SAETZE = int(3000 * _M)
+POS_EIGEN = int(16000 * _M)
+POS_FREMD = int(1200 * _M)  # je fremder Stimme
+NEG_AEHNLICH = int(12000 * _M)
+NEG_SAETZE = int(8000 * _M)
+# More voices with OmniVoice (if installed): built up over several runs, at most OMNI_MIN minutes per run
+OMNI_POS = int(6000 * _M)
+OMNI_NEG = int(3000 * _M)
+OMNI_MIN = float(os.environ.get("OMNI_MIN", "90"))
+STIMMEN_PY = os.environ.get("STIMMEN_PY", "/opt/stimmen/bin/python")
 HALTE_TEST = max(10, int(200 * _M))  # von einer zurueckgehaltenen Stimme, nur zum Testen
 FRAMES = 220
 MIN_ECHT_TEST = 5
@@ -146,6 +151,81 @@ def aehnliche_woerter(wort: str) -> list[str]:
     return sorted(aus)
 
 
+def wort_ans_ende(wav: bytes, signalton_s: float = 0.3, nachlauf_s: float = 0.08, laenge_s: float = 1.9) -> bytes:
+    """Device recordings are a few seconds long; after waking up, the device may play its sound at the end. Training
+    learns best when the word ends where the clip ends: find the end of the last stretch of sound before the
+    device sound, keep a little after it and laenge_s before it. Without a clear stretch the clip stays as it is."""
+    import io
+    import wave
+
+    import numpy as np
+
+    with wave.open(io.BytesIO(wav)) as w:
+        rate, breite, kanaele = w.getframerate(), w.getsampwidth(), w.getnchannels()
+        roh = w.readframes(w.getnframes())
+    if breite != 2 or kanaele != 1:
+        return wav
+    x = np.frombuffer(roh, dtype=np.int16).astype(np.float32)
+    rahmen = rate // 100  # 10 ms
+    n = len(x) // rahmen
+    if n < 100:  # shorter than a second: nothing to cut
+        return wav
+    pegel = np.sqrt((x[: n * rahmen].reshape(n, rahmen) ** 2).mean(axis=1))
+    suche = pegel[: n - int(signalton_s * 100)] if len(x) > 2.5 * rate else pegel
+    grenze = max(float(suche.max()) * 0.12, float(np.percentile(suche, 20)) * 3)
+    laut = suche > grenze
+    ende, i = None, len(laut) - 1
+    while i >= 0 and ende is None:  # last loud stretch of at least 150 ms (gaps under 150 ms allowed)
+        if not laut[i]:
+            i -= 1
+            continue
+        j, luecke = i, 0
+        while j > 0 and luecke < 15:
+            j -= 1
+            luecke = 0 if laut[j] else luecke + 1
+        if i - j >= 15:
+            ende = i
+        i = j - 1
+    if ende is None:
+        return wav
+    # the device sound comes only now and then: sound in the last part that follows the word without a pause
+    # of at least 50 ms is still the word, so the end moves on; after a pause it is the device sound and stays out
+    j, still = ende + 1, 0
+    while j < n and still < 5:
+        if pegel[j] > grenze:
+            ende, still = j, 0
+        else:
+            still += 1
+        j += 1
+    stopp = min(len(x), int((ende / 100 + nachlauf_s) * rate))
+    start = max(0, stopp - int(laenge_s * rate))
+    aus = io.BytesIO()
+    with wave.open(aus, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(x[start:stopp].astype(np.int16).tobytes())
+    return aus.getvalue()
+
+
+def schneiden(wav: bytes, von: float, bis: float) -> bytes:
+    """Only the part from von to bis (seconds) of a WAV recording (set by hand in the app)."""
+    import io
+    import wave
+
+    with wave.open(io.BytesIO(wav)) as w:
+        rate, breite, kanaele = w.getframerate(), w.getsampwidth(), w.getnchannels()
+        w.setpos(min(w.getnframes(), int(von * rate)))
+        roh = w.readframes(max(0, int((bis - von) * rate)))
+    aus = io.BytesIO()
+    with wave.open(aus, "wb") as w:
+        w.setnchannels(kanaele)
+        w.setsampwidth(breite)
+        w.setframerate(rate)
+        w.writeframes(roh)
+    return aus.getvalue()
+
+
 class Lauf:
     def __init__(self, ha: HA, auftrag: dict[str, Any], daten: str, optionen: dict[str, Any]) -> None:
         self.ha = ha
@@ -233,11 +313,12 @@ class Lauf:
         von, bis = ANTEILE[name]
         self.melden(phase, von + (bis - von) * max(0.0, min(1.0, anteil)), schritt, sofort, **mehr)
 
-    def _werkzeug(self, befehl: str, auftrag: dict, abschnitt: str, von: float, bis: float, schritt: str) -> dict:
+    def _werkzeug(self, befehl: str, auftrag: dict, abschnitt: str, von: float, bis: float, schritt: str,
+                  python: str | None = None) -> dict:
         """Arbeitsschritt als eigenen Prozess starten, Fortschritt weitergeben, abbrechbar, vom Waechter bewacht."""
         datei = self.ordner / f"auftrag_{befehl}.json"
         datei.write_text(json.dumps(auftrag), encoding="utf-8")
-        return self._ausfuehren([sys.executable, "-m", "trainer.werkzeug", befehl, str(datei)],
+        return self._ausfuehren([python or sys.executable, "-m", "trainer.werkzeug", befehl, str(datei)],
                                 abschnitt, von, bis, schritt)
 
     def _werkzeug_sicher(self, befehl: str, auftrag: dict, abschnitt: str, von: float, bis: float,
@@ -451,7 +532,11 @@ class Lauf:
         for i, a in enumerate(liste):
             self._pruefen()
             art = ("wort" if a["urteil"] == "wort" else "kein") + ("_test" if a.get("test") else "_train")
-            ziel = basis / art / f"{a['id']}.wav"
+            schnitt = a.get("schnitt")
+            # cut by hand wins; device recordings of a wake-up get the word moved to the end (device sound off)
+            ende = not schnitt and a.get("quelle") == "echo" and a.get("art") in ("wake", "mistake")
+            name = a["id"] + (f"_{schnitt[0]:g}_{schnitt[1]:g}" if schnitt else "_e1" if ende else "")
+            ziel = basis / art / f"{name}.wav"
             behalten.add(ziel)
             if not ziel.exists():
                 inhalt = self.ha.audio(self.wort_id, a["id"])
@@ -459,6 +544,10 @@ class Lauf:
                     self.notiz(f"Recording {a['id']} no longer exists, skipped", "warnung")
                     behalten.discard(ziel)
                     continue
+                if schnitt:
+                    inhalt = schneiden(inhalt, float(schnitt[0]), float(schnitt[1]))
+                elif ende:
+                    inhalt = wort_ans_ende(inhalt)
                 ziel.parent.mkdir(parents=True, exist_ok=True)
                 tmp = ziel.with_suffix(".tmp")
                 tmp.write_bytes(inhalt)
@@ -491,7 +580,7 @@ class Lauf:
 
         w = self.wort
         pos_texte = sorted({w, w + "!", w + "?", w + ".", w.lower(), w.capitalize(), w + ", "})
-        aehnlich = aehnliche_woerter(w)
+        aehnlich = self._aehnlich_pruefen(aehnliche_woerter(w), lernen)
         saetze = self._saetze(gerede)
         aufgaben = [
             ("pos_eigen", POS_EIGEN, pos_texte, lernen, None),
@@ -507,14 +596,87 @@ class Lauf:
         for name, anzahl, texte, voices, lautschrift in aufgaben:
             ziel = basis / name
             aus[name] = ziel
-            if not (ziel / "fertig").exists():
+            if len(self._wavs(ziel)) < anzahl:  # new, or more clips wanted than last time: it resumes
                 von, bis = erledigt / gesamt, (erledigt + anzahl) / gesamt
                 self._werkzeug_sicher("tts", {"ziel": str(ziel), "anzahl": anzahl, "texte": texte, "stimmen": voices,
-                                       "lautschrift_von": lautschrift},
+                                       "lautschrift_von": lautschrift, "prozesse": 2},
                                "stimmen", von, bis, "stimmen")
-                (ziel / "fertig").touch()
             erledigt += anzahl
         (basis / "aehnlich.txt").write_text("\n".join(aehnlich), encoding="utf-8")
+        aus.update(self._omni(basis, pos_texte, aehnlich + saetze[:300]))
+        return aus
+
+    def _aehnlich_pruefen(self, aehnlich: list[str], stimmen: list[str]) -> list[str]:
+        """Listening check: a sound-alike that a synthetic voice says exactly like the word (one letter off, an
+        unstressed vowel) would teach the model to ignore its own word. Each sound-alike is spoken a few times and
+        heard by the speech recognition; those heard as the word are left out. Done once per word (the result is
+        kept); without the speech recognition all sound-alikes stay, as before."""
+        from .werkzeug import _normal
+
+        basis = self.ordner / "tts"
+        merker = basis / "aehnlich_geprueft.json"
+        try:
+            alt = json.loads(merker.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            alt = {}
+        if alt.get("texte") == aehnlich:
+            weg = set(alt.get("weg") or [])
+        elif not Path(STIMMEN_PY).exists():
+            return aehnlich
+        else:
+            probe = self.ordner / "probe"
+            shutil.rmtree(probe, ignore_errors=True)
+            try:
+                self._werkzeug("proben", {"ziel": str(probe), "texte": aehnlich, "stimmen": stimmen, "je": 3},
+                               "stimmen", 0, 0.01, "aehnlich_pruefen")
+                dateien = [{"id": f.stem, "datei": str(f)} for f in sorted(probe.glob("*.wav"))]
+                gehoert = self._werkzeug("hoeren", {"sprache": self.sprache, "dateien": dateien}, "stimmen", 0, 0.01,
+                                         "aehnlich_pruefen", python=STIMMEN_PY)
+            except Abgebrochen:
+                raise
+            except RuntimeError as err:
+                self.notiz(f"Listening check skipped this time: {err}", "warnung")
+                return aehnlich
+            finally:
+                shutil.rmtree(probe, ignore_errors=True)
+            weg = {aehnlich[int(k.split("_")[0])] for k, text in gehoert.items() if _normal(text) == _normal(self.wort)}
+            merker.write_text(json.dumps({"texte": aehnlich, "weg": sorted(weg)}, ensure_ascii=False), encoding="utf-8")
+            if weg:
+                self.notiz(f"Listening check: {len(weg)} of {len(aehnlich)} sound-alikes sound like the word and are "
+                           f"left out: {', '.join(sorted(weg))[:160]}")
+        rest = [t for t in aehnlich if t not in weg]
+        # the sound-alike clips are made again without the left-out ones (also their features)
+        ziel = basis / "neg_aehnlich"
+        stand = ziel / "texte.json"
+        if ziel.exists() and (not stand.exists() or json.loads(stand.read_text(encoding="utf-8")) != rest):
+            shutil.rmtree(ziel, ignore_errors=True)
+            shutil.rmtree(self.ordner / "merkmale" / "neg_aehnlich", ignore_errors=True)
+        ziel.mkdir(parents=True, exist_ok=True)
+        stand.write_text(json.dumps(rest, ensure_ascii=False), encoding="utf-8")
+        return rest or aehnlich
+
+    def _omni(self, basis: Path, pos_texte: list[str], neg_texte: list[str]) -> dict[str, Path]:
+        """More and different voices with OmniVoice, checked by speech recognition. Slow without a graphics card,
+        so the stock grows by at most OMNI_MIN minutes per run until it is full. Missing or failing: the run simply
+        goes on with Piper alone."""
+        ziel = basis / "omni"
+        aus = {"omni_pos": ziel / "pos", "omni_neg": ziel / "neg"}
+        if not Path(STIMMEN_PY).exists() or OMNI_MIN <= 0:
+            return aus
+        if len(self._wavs(aus["omni_pos"])) >= OMNI_POS and len(self._wavs(aus["omni_neg"])) >= OMNI_NEG:
+            return aus
+        self.notiz(f"More voices (OmniVoice): {len(self._wavs(aus['omni_pos']))} of {OMNI_POS} clips so far, "
+                   f"up to {OMNI_MIN:g} min this run")
+        try:
+            self._werkzeug("omni", {
+                "sprache": self.sprache, "wort": self.wort, "ziel_pos": str(aus["omni_pos"]),
+                "ziel_neg": str(aus["omni_neg"]), "anzahl_pos": OMNI_POS, "anzahl_neg": OMNI_NEG,
+                "texte_pos": pos_texte, "texte_neg": neg_texte, "minuten": OMNI_MIN,
+            }, "stimmen", 0.95, 1.0, "stimmen_omni", python=STIMMEN_PY)
+        except Abgebrochen:
+            raise
+        except RuntimeError as err:
+            self.notiz(f"OmniVoice not used this time: {err}", "warnung")
         return aus
 
     def _saetze(self, gerede: dict[str, Path]) -> list[str]:
@@ -549,7 +711,10 @@ class Lauf:
              1, True, False, 1.0, 1.0),
             ("neg_aehnlich", self._wavs(tts["neg_aehnlich"]), 1, False, False, 3.0, 2.0),
             ("neg_saetze", self._wavs(tts["neg_saetze"]), 1, False, False, 1.0, 1.5),
+            ("omni_pos", self._wavs(tts["omni_pos"]), 2, True, False, 2.0, 1.0),
+            ("omni_neg", self._wavs(tts["omni_neg"]), 1, False, False, 3.0, 2.0),
         ]
+        sets = [s for s in sets if s[1]]
         if echt["wort_train"]:
             d = [a["datei"] for a in echt["wort_train"]]
             sets.append(("echt_wort", d, wdh_echt(len(d)), True, True, 2.0, 1.0))
@@ -562,7 +727,9 @@ class Lauf:
         for name, dateien, wdh, ist_wort, neu, gewicht, strafe in sets:
             ziel = basis / name
             menge = len(dateien) * wdh
-            if neu or not (ziel / "fertig").exists():
+            # rebuilt when the set changed (more clips than last time) - the marker holds the number of files
+            stand = (ziel / "fertig").read_text().strip() if (ziel / "fertig").exists() else None
+            if neu or stand != str(len(dateien)):
                 shutil.rmtree(ziel, ignore_errors=True)
                 rnd = random.Random(name)
                 dateien = sorted(dateien)
@@ -580,7 +747,7 @@ class Lauf:
                     erledigt += len(auswahl) * wdh
                 if (ziel / "validation").exists():
                     shutil.copytree(ziel / "validation", ziel / "testing", dirs_exist_ok=True)
-                (ziel / "fertig").touch()
+                (ziel / "fertig").write_text(str(len(dateien)))
             else:
                 erledigt += menge
             aus[name] = {"dir": str(ziel), "wort": ist_wort, "gewicht": gewicht, "strafe": strafe}

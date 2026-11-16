@@ -68,6 +68,51 @@ def ausstehende_senden(ha: HA, daten: str) -> None:
         shutil.rmtree(ordner, ignore_errors=True)
 
 
+def vorpruefen(ha: HA, daten: str, liste: list[dict]) -> None:
+    """Pre-review while no training runs: the speech recognition listens to new device recordings and HA confirms
+    those in which the word was clearly heard. Runs in the separate voices environment; missing there: nothing."""
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    python = os.environ.get("STIMMEN_PY", "/opt/stimmen/bin/python")
+    if not Path(python).exists():
+        return
+    for eintrag in liste:
+        ordner = Path(daten) / "hoeren" / str(eintrag["wort_id"])
+        shutil.rmtree(ordner, ignore_errors=True)
+        ordner.mkdir(parents=True, exist_ok=True)
+        dateien = []
+        for aid in eintrag.get("ids", [])[:40]:
+            inhalt = ha.audio(eintrag["wort_id"], aid)
+            if inhalt is None:
+                continue
+            (ordner / f"{aid}.wav").write_bytes(inhalt)
+            dateien.append({"id": aid, "datei": str(ordner / f"{aid}.wav")})
+        if not dateien:
+            continue
+        auftrag = ordner / "auftrag.json"
+        auftrag.write_text(json.dumps({"sprache": eintrag.get("sprache"), "dateien": dateien}), encoding="utf-8")
+        umgebung = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parent.parent)}
+        try:
+            r = subprocess.run([python, "-m", "trainer.werkzeug", "hoeren", str(auftrag)], capture_output=True,
+                               text=True, timeout=1800, env=umgebung)
+        except subprocess.TimeoutExpired:
+            _LOG.warning("Pre-review took too long, skipped")
+            continue
+        zeile = next((z for z in reversed(r.stdout.splitlines()) if z.startswith("ERGEBNIS ")), None)
+        if r.returncode != 0 or zeile is None:
+            _LOG.warning("Pre-review failed: %s", (r.stdout + r.stderr).strip().splitlines()[-1:] or r.returncode)
+            continue
+        ergebnisse = json.loads(zeile[9:])
+        try:
+            antwort = ha.gehoert(eintrag["wort_id"], ergebnisse)
+            _LOG.info("Pre-review: %d recordings heard, %d confirmed", len(ergebnisse), antwort.get("bestaetigt", 0))
+        except Exception as err:  # noqa: BLE001
+            _LOG.warning("Pre-review not sent: %s", err)
+        shutil.rmtree(ordner, ignore_errors=True)
+
+
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     ha = HA()
@@ -117,4 +162,6 @@ def main() -> None:
                 faden.start()
             else:
                 ha.status({"info": info()})
+                if antwort.get("vorpruefen"):
+                    vorpruefen(ha, daten, antwort["vorpruefen"])
         time.sleep(TAKT_S)

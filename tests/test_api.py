@@ -254,3 +254,100 @@ async def test_tabelle_und_zelle(admin, api) -> None:
     sp.daten["aufnahmen"]["a5"] = {"id": "a5", "quelle": "hochgeladen", "urteil": "wort", "score": 0.9, "zeit": "x"}
     t = sp.tabelle()
     assert t["zeilen"][""]["verpasst"][0] == 1 and sum(t["zeilen"][""]["wort"]) == 0
+
+
+async def test_vorpruefen_und_schnitt(hass: HomeAssistant, hass_client_no_auth, admin, api) -> None:
+    """The trainer gets open recordings to listen to while it has nothing to train; HA confirms the clear ones."""
+    client = await hass_client_no_auth()
+    kopf = {"X-Sprachmodell-Schluessel": api.schluessel}
+    d = await (await client.get("/api/sprachmodell/trainer/auftrag", headers=kopf)).json()
+    [eintrag] = d["vorpruefen"]
+    assert eintrag["wort_id"] == "hey_lumi" and eintrag["wort"] == "Hey Lumi" and sorted(eintrag["ids"]) == ["a1", "a2"]
+    r = await client.post("/api/sprachmodell/trainer/gehoert", headers=kopf,
+                          json={"wort_id": "hey_lumi", "ergebnisse": {"a1": "Hey, Lumi!", "a2": "hello there", "x": "?"}})
+    assert (await r.json()) == {"bestaetigt": 1}
+    w = api.woerter["hey_lumi"]
+    a1, a2 = w.speicher.daten["aufnahmen"]["a1"], w.speicher.daten["aufnahmen"]["a2"]
+    assert a1["urteil"] == "wort" and a1["auto"] and a1["gehoert"] == "Hey, Lumi!"
+    assert a2["urteil"] is None and a2["gehoert"] == "hello there"
+    # everything heard: nothing more to listen to
+    d = await (await client.get("/api/sprachmodell/trainer/auftrag", headers=kopf)).json()
+    assert d["vorpruefen"] == []
+    d = await (await admin.get("/api/sprachmodell/liste?wort=hey_lumi&filter=auto")).json()
+    assert [a["id"] for a in d["eintraege"]] == ["a1"]
+    # your own answer replaces the automatic one
+    await admin.post("/api/sprachmodell/urteil", json={"wort": "hey_lumi", "ids": ["a1"], "urteil": "kein_wort"})
+    assert "auto" not in a1 and a1["urteil"] == "kein_wort"
+    # switched off: no listening, nothing confirmed
+    w.cfg["vorpruefen"] = False
+    w.speicher.aufnahme_neu({"id": "a3", "quelle": "echo", "art": "wake"}, b"RIFF" + b"\0" * 2000)
+    d = await (await client.get("/api/sprachmodell/trainer/auftrag", headers=kopf)).json()
+    assert d["vorpruefen"] == []
+    r = await client.post("/api/sprachmodell/trainer/gehoert", headers=kopf,
+                          json={"wort_id": "hey_lumi", "ergebnisse": {"a3": "hey lumi"}})
+    assert (await r.json()) == {"bestaetigt": 0}
+    r = await client.post("/api/sprachmodell/trainer/gehoert", headers=kopf, json={"wort_id": "hey_lumi", "ergebnisse": []})
+    assert r.status == 400
+    # nothing handed out while a run is going
+    w.cfg["vorpruefen"] = True
+    w.speicher.daten["aufnahmen"]["a3"].pop("gehoert", None)
+    w.speicher.daten["training"] = {"phase": "training"}
+    d = await (await client.get("/api/sprachmodell/trainer/auftrag", headers=kopf)).json()
+    assert d["vorpruefen"] == []
+    w.speicher.daten["training"] = {"phase": "bereit"}
+
+    # trim by hand: stored, sent to the trainer, removed again
+    r = await admin.post("/api/sprachmodell/aktion", json={"aktion": "schnitt", "wort": "hey_lumi", "id": "a1", "von": 0.2, "bis": 0.8})
+    assert r.status == 200 and a1["schnitt"] == [0.2, 0.8]
+    d = await (await client.get("/api/sprachmodell/trainer/liste?wort=hey_lumi", headers=kopf)).json()
+    assert d["aufnahmen"][0]["schnitt"] == [0.2, 0.8]
+    r = await admin.post("/api/sprachmodell/aktion", json={"aktion": "schnitt", "wort": "hey_lumi", "id": "a1", "von": 0.2, "bis": 0.3})
+    assert (await r.json())["message"] == "schnitt_zu_kurz"
+    r = await admin.post("/api/sprachmodell/aktion", json={"aktion": "schnitt", "wort": "hey_lumi", "id": "weg", "von": 0, "bis": 1})
+    assert (await r.json())["message"] == "aufnahme_fehlt"
+    r = await admin.post("/api/sprachmodell/aktion", json={"aktion": "schnitt", "wort": "hey_lumi", "id": "a1", "von": None, "bis": None})
+    assert r.status == 200 and "schnitt" not in a1
+
+
+async def test_clips_vom_geraet(hass: HomeAssistant, hass_client_no_auth, api) -> None:
+    """A device sends its recordings by itself (TECHO5 'Send wake clips to')."""
+    client = await hass_client_no_auth()
+    kopf = {"Authorization": "Bearer " + api.schluessel}
+    assert (await client.get("/api/sprachmodell/clips/ping", headers=kopf)).status == 200
+    assert (await client.get("/api/sprachmodell/clips/ping", headers={"Authorization": "Bearer falsch"})).status == 403
+    assert (await client.get("/api/sprachmodell/clips/ping")).status == 403
+
+    def form(meta, audio: bytes) -> aiohttp.FormData:
+        f = aiohttp.FormData()
+        f.add_field("audio", audio, filename="clip.wav")
+        f.add_field("meta", meta if isinstance(meta, str) else json.dumps(meta))
+        return f
+
+    meta = {"name": "wake_20261117-101500-1", "device": "kueche", "kind": "wake", "at": "2026-11-17T10:15:00Z",
+            "model": "hey_lumi", "slot": 1, "score": 0.97, "cutoff": 0.95}
+    w = api.woerter["hey_lumi"]
+    # neither the device nor the model name belongs to a word
+    r = await client.post("/api/sprachmodell/clips", headers=kopf, data=form({**meta, "model": "okay_nabu"}, wav(ton=1234)))
+    assert (await r.json()) == {"ok": True, "stored": "kein_wort"}
+    r = await client.post("/api/sprachmodell/clips", headers=kopf, data=form(meta, wav(ton=1234)))
+    assert (await r.json()) == {"ok": True, "stored": "neu"}
+    a = w.speicher.daten["aufnahmen"]["kueche-wake_20261117-101500-1"]
+    assert a["art"] == "wake" and a["score"] == 0.97 and a["quelle"] == "echo" and a["vorschlag"] == "wort"
+    # sent again, or the same audio under another name: kept once
+    r = await client.post("/api/sprachmodell/clips", headers=kopf, data=form(meta, wav(ton=1234)))
+    assert (await r.json()) == {"ok": True, "stored": "doppelt", "duplicate": True}
+    r = await client.post("/api/sprachmodell/clips", headers=kopf, data=form({**meta, "name": "anders"}, wav(ton=1234)))
+    assert (await r.json())["stored"] == "doppelt"
+    r = await client.post("/api/sprachmodell/clips", headers=kopf, data=form("kein json", wav()))
+    assert (await r.json())["message"] == "meta_kein_json"
+    r = await client.post("/api/sprachmodell/clips", headers=kopf, data=form({"device": "kueche"}, wav()))
+    assert (await r.json())["message"] == "meta_unvollstaendig"
+    r = await client.post("/api/sprachmodell/clips", headers=kopf, data=form({**meta, "name": "x"}, b"kein wav"))
+    assert (await r.json())["message"] == "wav_format"
+    with patch("custom_components.sprachmodell.api.GROESSTER_CLIP", 10):
+        r = await client.post("/api/sprachmodell/clips", headers=kopf, data=form(meta, wav()))
+    assert r.status == 413
+    f = aiohttp.FormData()
+    f.add_field("meta", json.dumps(meta))
+    r = await client.post("/api/sprachmodell/clips", headers=kopf, data=f)
+    assert (await r.json())["message"] == "keine_datei"

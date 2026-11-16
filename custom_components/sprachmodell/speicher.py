@@ -32,6 +32,11 @@ DATEI = "daten.json"
 VERSION = 1
 # Jede fuenfte bewertete Aufnahme bleibt fuer den ehrlichen Test zurueck
 TEST_ANTEIL = 5
+# Recordings from TEST_NEU_AB on: every third day goes to the test as a whole (recordings of one day share voices
+# and noise, so single clips held back would flatter the result), and the test grows faster. Older recordings keep
+# their place, so a version is never tested with recordings it was trained on.
+TEST_ANTEIL_NEU = 3
+TEST_NEU_AB = "2026-11-17T00:00:00+00:00"
 # Eine Fast-Erkennung so kurz vor einer echten zaehlt als "verpasst"
 VERPASST_S = 20
 
@@ -67,9 +72,22 @@ def sichere_id(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]+", "_", str(text))[:80]
 
 
-def ist_test(aid: str) -> bool:
+def ist_test(aid: str, zeit: str | None = None) -> bool:
     """Fest je Aufnahme, damit eine Aufnahme nie zwischen Training und Test wechselt."""
+    if zeit and _zeit(zeit) >= _zeit(TEST_NEU_AB):
+        tag = datetime.fromtimestamp(_zeit(zeit), UTC).date().isoformat()
+        return int(hashlib.sha1(tag.encode()).hexdigest()[:8], 16) % TEST_ANTEIL_NEU == 0
     return int(hashlib.sha1(aid.encode()).hexdigest()[:8], 16) % TEST_ANTEIL == 0
+
+
+def _normal(text: str) -> str:
+    """Lower case, ё as е, only letters and digits (to compare what was heard with the word)."""
+    return "".join(c for c in str(text).lower().replace("ё", "е") if c.isalnum())
+
+
+def wort_gehoert(gehoert: str, wort: str) -> bool:
+    w = _normal(wort)
+    return bool(w) and w in _normal(gehoert)
 
 
 def wav_dauer(daten: bytes) -> float:
@@ -168,13 +186,14 @@ class Speicher:
             aid = sichere_id(meta["id"])
             with open(self.pfad("aufnahmen", aid + ".wav"), "wb") as datei:
                 datei.write(wav)
+            zeit = meta.get("zeit") or jetzt()
             eintrag = {
                 "id": aid,
                 "quelle": meta.get("quelle", "echo"),
                 "echo": meta.get("echo"),
                 "knoten": meta.get("knoten"),
                 "art": meta.get("art"),
-                "zeit": meta.get("zeit") or jetzt(),
+                "zeit": zeit,
                 "score": meta.get("score"),
                 "cutoff": meta.get("cutoff"),
                 "slot": meta.get("slot"),
@@ -183,11 +202,17 @@ class Speicher:
                 "urteil": meta.get("urteil"),
                 "person": meta.get("person"),
                 "bewertet": jetzt() if meta.get("urteil") else None,
-                "test": ist_test(aid),
+                "test": ist_test(aid, zeit),
                 "notiz": meta.get("notiz"),
+                "ton": hashlib.sha1(wav).hexdigest()[:16],
             }
             self.daten["aufnahmen"][aid] = eintrag
             return eintrag
+
+    def gleicher_ton(self, wav: bytes) -> bool:
+        """True if exactly this audio is already stored (a clip that arrived both by upload and by fetching)."""
+        ton = hashlib.sha1(wav).hexdigest()[:16]
+        return any(a.get("ton") == ton for a in self.daten["aufnahmen"].values())
 
     def namen_angleichen(self, namen: dict[str, str]) -> bool:
         """Give every device recording the device's current name (node -> name).
@@ -251,11 +276,52 @@ class Speicher:
                     continue
                 a["urteil"] = urteil
                 a["bewertet"] = jetzt() if urteil else None
+                a.pop("auto", None)  # your own answer replaces the pre-review's
                 if person is not None:
                     a["person"] = person or None
                 n += 1
             self.speichern()
         return n
+
+    def zum_hoeren(self, anzahl: int) -> list[str]:
+        """Open device recordings the speech recognition has not listened to yet (newest first)."""
+        offen = [a for a in self.offen() if "gehoert" not in a]
+        offen.sort(key=lambda a: _zeit(a["zeit"]), reverse=True)
+        return [a["id"] for a in offen[:anzahl]]
+
+    def gehoert_setzen(self, ergebnisse: dict[str, str], wort: str, bestaetigen: bool) -> int:
+        """Store what the speech recognition heard. With bestaetigen: an open recording in which the word was
+        clearly heard counts as "said the word" (marked auto, so you can see and change it). Returns how many."""
+        n = 0
+        with self._sperre:
+            for aid, text in ergebnisse.items():
+                a = self.daten["aufnahmen"].get(sichere_id(aid))
+                if not a:
+                    continue
+                a["gehoert"] = str(text or "")[:200]
+                if bestaetigen and not a.get("urteil") and wort_gehoert(a["gehoert"], wort):
+                    a["urteil"], a["bewertet"], a["auto"] = WORT, jetzt(), True
+                    n += 1
+            self.speichern()
+        return n
+
+    def schnitt_setzen(self, aid: str, von: float | None, bis: float | None) -> dict[str, Any]:
+        """Use only part of a recording for training and test (seconds). None/None: the whole recording again."""
+        with self._sperre:
+            a = self.daten["aufnahmen"].get(aid)
+            if not a:
+                raise ValueError("aufnahme_fehlt")
+            if von is None and bis is None:
+                a.pop("schnitt", None)
+            else:
+                dauer = float(a.get("dauer") or 0) or 60.0
+                v = max(0.0, min(float(von or 0), dauer))
+                b = min(dauer, max(float(bis if bis is not None else dauer), v))
+                if b - v < 0.2:
+                    raise ValueError("schnitt_zu_kurz")
+                a["schnitt"] = [round(v, 2), round(b, 2)]
+            self.speichern()
+            return dict(a)
 
     def person_setzen(self, ids: list[str], person: str | None) -> int:
         with self._sperre:
@@ -379,6 +445,8 @@ class Speicher:
             alle = [a for a in alle if a.get("urteil")]
         elif filter_ == "hochgeladen":
             alle = [a for a in alle if a["quelle"] == "hochgeladen"]
+        elif filter_ == "auto":
+            alle = [a for a in alle if a.get("auto")]
         elif filter_ == "test":
             alle = [a for a in alle if a.get("urteil") in (WORT, KEIN_WORT) and a.get("test")]
         if echo:
@@ -460,6 +528,8 @@ class Speicher:
             "wort": sum(1 for a in bewertet if a["urteil"] == WORT),
             "kein_wort": sum(1 for a in bewertet if a["urteil"] == KEIN_WORT),
             "test": sum(1 for a in bewertet if a.get("test")),
+            "test_wort": sum(1 for a in bewertet if a.get("test") and a["urteil"] == WORT),
+            "auto": sum(1 for a in bewertet if a.get("auto")),
             "personen": personen,
             "alltag": {
                 "aufgewacht": len(aufgewacht),
@@ -498,6 +568,7 @@ class Speicher:
                 "id": a["id"], "urteil": a["urteil"], "person": a.get("person"),
                 "quelle": a["quelle"], "echo": a.get("echo"), "art": a.get("art"),
                 "score": a.get("score"), "test": bool(a.get("test")), "dauer": a.get("dauer"),
+                "schnitt": a.get("schnitt"),
             }
             for a in self.daten["aufnahmen"].values()
             if a.get("urteil") in (WORT, KEIN_WORT)

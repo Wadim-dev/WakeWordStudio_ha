@@ -153,6 +153,9 @@
       },
       "schwelle_automatisch": {
         "name": "Schwelle automatisch anpassen"
+      },
+      "vorpruefen": {
+        "name": "Neue Aufnahmen vorprüfen"
       }
     }
   },

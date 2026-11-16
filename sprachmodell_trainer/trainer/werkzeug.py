@@ -10,6 +10,7 @@ import glob
 import json
 import os
 import random
+import re
 import sys
 import warnings
 
@@ -31,28 +32,34 @@ def _dateien(ordner: list[str]) -> list[str]:
 
 # --- kuenstliche Aufnahmen ------------------------------------------------
 
-def tts(a: dict) -> dict:
-    """a: ziel, anzahl, texte, stimmen, [lautschrift_von]: Stimme, die den Text in Lautschrift umsetzt
-    (fuer fremde Stimmen, die das Wort mit Akzent sprechen sollen)."""
-    import scipy.signal as ss
-    import scipy.io.wavfile as wf
-    from piper import PiperVoice
-    from piper.config import SynthesisConfig
+_TTS: dict = {}
 
-    ziel = a["ziel"]
-    os.makedirs(ziel, exist_ok=True)
-    stimmen = [PiperVoice.load(v) for v in a["stimmen"]]
+
+def _tts_init(a: dict) -> None:
+    from piper import PiperVoice
+
+    warnings.filterwarnings("ignore")
+    _TTS["a"] = a
+    _TTS["stimmen"] = [PiperVoice.load(v) for v in a["stimmen"]]
     texte = list(a["texte"])
     if a.get("lautschrift_von"):
         quelle = PiperVoice.load(a["lautschrift_von"])
         texte = ["[[ " + " ".join("".join(s) for s in quelle.phonemize(t)) + " ]]" for t in texte]
-    rnd = random.Random(sum(map(ord, ziel)))
-    n = int(a["anzahl"])
-    fertig = len(glob.glob(os.path.join(ziel, "*.wav")))
-    i = fertig
-    versuche = 0
-    while i < n and versuche < n * 3:
-        versuche += 1
+    _TTS["texte"] = texte
+
+
+def _tts_eine(i: int) -> bool:
+    """Clip number i. Each number has its own random settings, so a resumed or parallel run makes the same set."""
+    import scipy.signal as ss
+    import scipy.io.wavfile as wf
+    from piper.config import SynthesisConfig
+
+    a, stimmen, texte = _TTS["a"], _TTS["stimmen"], _TTS["texte"]
+    datei = os.path.join(a["ziel"], f"{i:05d}.wav")
+    if os.path.exists(datei):
+        return True
+    rnd = random.Random(f"{a['ziel']}/{i}")
+    for _ in range(3):
         v = rnd.choice(stimmen)
         nsp = getattr(v.config, "num_speakers", 1) or 1
         cfg = SynthesisConfig(
@@ -71,11 +78,202 @@ def tts(a: dict) -> dict:
             f = rnd.choice([rnd.uniform(0.85, 0.97), rnd.uniform(1.03, 1.25)])
         x = ss.resample_poly(x, 16000, int(round(sr * f)))
         x = x / (np.abs(x).max() + 1e-6) * rnd.uniform(0.3, 0.95)
-        wf.write(os.path.join(ziel, f"{i:05d}.wav"), 16000, (x * 32767).astype(np.int16))
-        i += 1
-        if i % max(1, min(200, n // 20)) == 0:
-            _fortschritt(i - fertig, n - fertig)
-    return {"anzahl": i}
+        tmp = datei[:-4] + ".tmp"
+        wf.write(tmp, 16000, (x * 32767).astype(np.int16))
+        os.replace(tmp, datei)
+        return True
+    return False
+
+
+def tts(a: dict) -> dict:
+    """a: ziel, anzahl, texte, stimmen, [lautschrift_von], [prozesse]. lautschrift_von: voice that turns the text into
+    phonemes (for foreign voices that should say the word with an accent). Resumes where it stopped; with several
+    processes each one makes its own numbers."""
+    from concurrent.futures import ProcessPoolExecutor
+    from concurrent.futures.process import BrokenProcessPool
+
+    from .grenzen import prozesse
+
+    os.makedirs(a["ziel"], exist_ok=True)
+    n = int(a["anzahl"])
+    offen = [i for i in range(n) if not os.path.exists(os.path.join(a["ziel"], f"{i:05d}.wav"))]
+    p = max(1, min(prozesse(a.get("prozesse")), len(offen) // 50 or 1))
+    erledigt = 0
+    if p == 1:
+        _tts_init(a)
+        for k, i in enumerate(offen):
+            erledigt += _tts_eine(i)
+            if k % max(1, min(200, len(offen) // 20)) == 0:
+                _fortschritt(k, len(offen))
+    else:
+        with ProcessPoolExecutor(p, initializer=_tts_init, initargs=(a,)) as pool:
+            try:
+                for k, ok in enumerate(pool.map(_tts_eine, offen, chunksize=8)):
+                    erledigt += ok
+                    if k % max(1, min(200, len(offen) // 20)) == 0:
+                        _fortschritt(k, len(offen))
+            except BrokenProcessPool:
+                print("SPEICHER A worker process was stopped, probably out of memory", flush=True)
+                raise SystemExit(3) from None
+    return {"anzahl": len(glob.glob(os.path.join(a["ziel"], "*.wav"))), "neu": erledigt}
+
+
+def proben(a: dict) -> dict:
+    """A few clips of each text for the listening check: a: ziel, texte, stimmen, je. Files <text no>_<k>.wav."""
+    os.makedirs(a["ziel"], exist_ok=True)
+    texte = list(a["texte"])
+    _tts_init({**a, "texte": texte[:1] or [""]})
+    for i, text in enumerate(texte):
+        _TTS["texte"] = [text]
+        for k in range(int(a.get("je", 3))):
+            nr = i * 100 + k  # own number per clip: own voice and settings
+            datei = os.path.join(a["ziel"], f"{i:04d}_{k}.wav")
+            if not os.path.exists(datei) and _tts_eine(nr):
+                os.replace(os.path.join(a["ziel"], f"{nr:05d}.wav"), datei)
+        _fortschritt(i + 1, len(texte))
+    return {"texte": len(texte)}
+
+
+# --- modern voices and listening (run in the separate "stimmen" environment) --------------------------
+
+# Voice descriptions for OmniVoice: who speaks, how. Mixed at random for every clip.
+OMNI_WER = ["female", "male"]
+OMNI_ALTER = ["child", "teenager", "young adult", "middle-aged", "elderly"]
+OMNI_HOEHE = ["", "", "very low pitch", "low pitch", "moderate pitch", "high pitch", "very high pitch"]
+
+
+def _omni_stimme(rnd: random.Random) -> str:
+    teile = [rnd.choice(OMNI_WER), rnd.choice(OMNI_ALTER), rnd.choice(OMNI_HOEHE)]
+    if rnd.random() < 0.08:
+        teile.append("whisper")
+    return ", ".join(t for t in teile if t)
+
+
+def _normal(text: str) -> str:
+    """Lower case, ё as е, only letters and digits (for comparing what was heard with the word)."""
+    t = text.lower().replace("ё", "е")
+    return "".join(c for c in t if c.isalnum())
+
+
+def enthaelt_wort(gehoert: str, wort: str) -> bool:
+    w = _normal(wort)
+    return bool(w) and w in _normal(gehoert)
+
+
+def _threads() -> int:
+    from .grenzen import kerne
+
+    return int(os.environ.get("THREADS") or 0) or kerne()
+
+
+def _whisper(sprache: str):
+    from faster_whisper import WhisperModel
+
+    return WhisperModel(os.environ.get("WHISPER_MODELL", "small"), device="cpu", compute_type="int8",
+                        cpu_threads=_threads())
+
+
+def _hoeren(m, x: np.ndarray, sprache: str) -> str:
+    """What the speech recognition hears in a 16 kHz clip (empty for silence)."""
+    teile, _ = m.transcribe(x.astype(np.float32), language=sprache or None, beam_size=1, vad_filter=False,
+                            condition_on_previous_text=False)
+    text = " ".join(t.text for t in teile).strip()
+    # Whisper's known filler for silence and noise ("subtitles by ...", "thanks for watching")
+    if re.search(r"субтитр|subtit|amara|продолжение следует|thanks? for watching|untertitel", text, re.IGNORECASE):
+        return ""
+    return text
+
+
+def hoeren(a: dict) -> dict:
+    """a: sprache, dateien [{id, datei}]. Result: {id: what was heard}."""
+    import soundfile as sf
+    from scipy.signal import resample_poly
+
+    m = _whisper(a.get("sprache") or "")
+    aus = {}
+    for k, d in enumerate(a["dateien"]):
+        try:
+            x, sr = sf.read(d["datei"], dtype="float32")
+            x = x if x.ndim == 1 else x.mean(1)
+            if sr != 16000:
+                x = resample_poly(x, 16000, sr)
+            aus[d["id"]] = _hoeren(m, x, a.get("sprache") or "")
+        except Exception as err:  # noqa: BLE001
+            print(f"Could not listen to {d['id']}: {type(err).__name__}: {err}"[:240], flush=True)
+        _fortschritt(k + 1, len(a["dateien"]))
+    return aus
+
+
+def omni(a: dict) -> dict:
+    """More voices with OmniVoice: a: sprache, wort, ziel_pos, ziel_neg, anzahl_pos, anzahl_neg, texte_pos, texte_neg,
+    minuten. Every clip is checked by the speech recognition: the word must be heard in a positive and must not be
+    heard in a negative, so broken or wrong clips never reach the training. Stops after `minuten` and continues on
+    the next run."""
+    import time
+
+    import soundfile as sf
+    import torch
+    from omnivoice import OmniVoice
+    from omnivoice.models.omnivoice import OmniVoiceGenerationConfig
+    from scipy.signal import resample_poly
+
+    start = time.monotonic()
+    dauer = float(a.get("minuten", 90)) * 60
+    ende = start + dauer
+    torch.set_num_threads(_threads())
+    modell = OmniVoice.from_pretrained("k2-fsa/OmniVoice", device_map="cpu", dtype=torch.float32)
+    ohr = _whisper(a["sprache"])
+    cfg = OmniVoiceGenerationConfig(num_step=8)
+    rnd = random.Random()
+    paket = 8
+    stand = {}
+    for art in ("pos", "neg"):
+        ziel = a[f"ziel_{art}"]
+        os.makedirs(ziel, exist_ok=True)
+        da = sorted(glob.glob(os.path.join(ziel, "*.wav")))
+        stand[art] = {"ziel": ziel, "n": int(a[f"anzahl_{art}"]), "da": len(da), "verworfen": 0,
+                      "nr": max([int(os.path.basename(f)[:6]) for f in da] + [-1]) + 1, "texte": list(a[f"texte_{art}"])}
+    gesamt = sum(s["n"] for s in stand.values())
+    while time.monotonic() < ende:
+        # always fill the set that is furthest behind, so both grow together over the runs
+        offen = [k for k, s in stand.items() if s["da"] < s["n"] and s["texte"]]
+        if not offen:
+            break
+        art = min(offen, key=lambda k: stand[k]["da"] / stand[k]["n"])
+        s = stand[art]
+        satz = [rnd.choice(s["texte"]) for _ in range(paket)]
+        stimme = [_omni_stimme(rnd) for _ in range(paket)]
+        try:
+            audio = modell.generate(text=satz, language=[a["sprache"]] * paket, instruct=stimme,
+                                    speed=[rnd.uniform(0.8, 1.25) for _ in range(paket)], generation_config=cfg)
+        except Exception as err:  # noqa: BLE001
+            print(f"OmniVoice: {type(err).__name__}: {err}"[:240], flush=True)
+            break
+        for x in audio:
+            x = resample_poly(np.asarray(x, dtype=np.float32), 16000, 24000)
+            if len(x) < 3200 or len(x) > 16000 * 4 or np.abs(x).max() < 1e-3:
+                s["verworfen"] += 1
+                continue
+            gehoert = _hoeren(ohr, x, a["sprache"])
+            if enthaelt_wort(gehoert, a["wort"]) != (art == "pos"):
+                s["verworfen"] += 1
+                if os.environ.get("OMNI_ZEIGEN"):
+                    print(f"rejected {art}: {gehoert!r}", flush=True)
+                continue
+            x = x / (np.abs(x).max() + 1e-6) * rnd.uniform(0.3, 0.95)
+            datei = os.path.join(s["ziel"], f"{s['nr']:06d}.wav")
+            sf.write(datei + ".tmp", (x * 32767).astype(np.int16), 16000, format="WAV")
+            os.replace(datei + ".tmp", datei)
+            s["nr"] += 1
+            s["da"] += 1
+        # progress by time budget or stock, whichever is further: the step ends at the first of both
+        voll = sum(min(s["da"], s["n"]) for s in stand.values()) / max(1, gesamt)
+        _fortschritt(round(1000 * max(voll, (time.monotonic() - start) / dauer)), 1000)
+    ergebnis = {}
+    for art, s in stand.items():
+        ergebnis[art] = {"anzahl": s["da"], "verworfen": s["verworfen"]}
+        print(f"OmniVoice {art}: {s['da']} of {s['n']} clips, {s['verworfen']} rejected by the check", flush=True)
+    return ergebnis
 
 
 # --- Merkmale ---------------------------------------------------------------
@@ -300,7 +498,7 @@ def schlank(a: dict) -> dict:
     return aus
 
 
-BEFEHLE = {"tts": tts, "merkmale": merkmale, "pruefen": pruefen, "schlank": schlank}
+BEFEHLE = {"tts": tts, "merkmale": merkmale, "pruefen": pruefen, "schlank": schlank, "hoeren": hoeren, "omni": omni, "proben": proben}
 
 if __name__ == "__main__":
     with open(sys.argv[2], encoding="utf-8") as datei:
