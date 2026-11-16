@@ -4,7 +4,7 @@
 // No polling: the page reloads only when one of the integration's sensors changes.
 import { TEXTE, SPRACHNAMEN } from './sprachmodell-texte.js';
 
-const VERSION = '1.0.7';
+const VERSION = '1.0.8';
 const REPO = 'https://github.com/Wadim-dev/wake-word-studio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -65,7 +65,7 @@ button.k.gut.gewaehlt{background:var(--success-color,#4caf50);color:#fff}button.
 .drehen{animation:drehen 1.2s linear infinite}@keyframes drehen{to{transform:rotate(360deg)}}
 .last{display:grid;grid-template-columns:auto 1fr auto;gap:8px 12px;align-items:center;font-size:14px}.last .fortschritt{margin:0;height:8px}
 .protokoll{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;max-height:340px;overflow:auto;background:rgba(var(--rgb-primary-text-color,0,0,0),.05);border-radius:8px;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
-.protokoll .z{color:var(--secondary-text-color);margin-right:8px}.protokoll .aus,.protokoll .balken,.protokoll .schritt{color:var(--secondary-text-color)}.protokoll .warnung,.protokoll .warnung_aus{color:var(--warning-color,#ff9800)}.protokoll .fehler{color:var(--error-color,#f44336)}
+.protokoll .z{color:var(--secondary-text-color);margin-right:8px}.protokoll .l-aus,.protokoll .l-balken,.protokoll .l-schritt{color:var(--secondary-text-color)}.protokoll .l-warnung,.protokoll .l-warnung_aus{color:var(--warning-color,#ff9800)}.protokoll .l-fehler{color:var(--error-color,#f44336)}
 button.k.leise{background:none;color:var(--secondary-text-color)}
 button.k ha-icon{--mdc-icon-size:18px}
 button.k kbd{font:11px monospace;opacity:.6;border:1px solid currentColor;border-radius:4px;padding:0 4px}
@@ -291,9 +291,9 @@ class SprachmodellPanel extends HTMLElement {
     let f = seiten[this._reiter] || this._zentrale;
     if (!OHNE_WORT.includes(this._reiter) && !this._daten.wort) f = this._zentrale;
     const scroll = window.scrollY;
-    const log = main.querySelector('.protokoll'), unten = !log || log.scrollHeight - log.scrollTop - log.clientHeight < 30, logPos = log ? log.scrollTop : 0;
+    const log = main.querySelector('.protokoll'), oben = !log || log.scrollTop < 30, logPos = log ? log.scrollTop : 0;
     main.innerHTML = f.call(this);
-    const logNeu = main.querySelector('.protokoll'); if (logNeu) logNeu.scrollTop = unten ? logNeu.scrollHeight : logPos;
+    const logNeu = main.querySelector('.protokoll'); if (logNeu) logNeu.scrollTop = oben ? 0 : logPos;
     if (this._reiter === 'pruefen') this._markieren(false);
     if (this._reiter === 'aufnehmen') this._recZeichnen();
     window.scrollTo(0, scroll);
@@ -648,7 +648,7 @@ ${s.cpu != null ? `<span>${esc(this.t('t_cpu'))}</span>${balken(s.cpu, 100)}<spa
 ${s.ram_gb ? `<span>${esc(this.t('t_ram'))}</span>${balken(s.ram_belegt_gb || 0, s.ram_gb)}<span class="klein">${this._zahl(s.ram_belegt_gb, 1)} / ${this._zahl(s.ram_gb, 1)} GB</span>` : ''}
 ${s.platz_frei_gb != null ? `<span>${esc(this.t('t_platz'))}</span><span></span><span class="klein">${this._zahl(s.platz_frei_gb, 1)} GB</span>` : ''}
 </div></ha-card>` : '';
-    const log = (l.protokoll || []).map(([z, art, text]) => `<div class="${esc(art)}"><span class="z">${this._uhr(z)}</span>${esc(text)}</div>`).join('');
+    const log = (l.protokoll || []).slice().reverse().map(([z, art, text]) => `<div class="l-${esc(art)}"><span class="z">${this._uhr(z)}</span>${esc(text)}</div>`).join('');
     return `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('t_ablauf'))}</h2><span class="klein">${l.start ? esc(this.t('t_laeuft_seit', { z: this._spanne((aktuell && !laeuft && aktuell.ende ? aktuell.ende : jetzt) - l.start) })) : ''}</span></div><div class="ablauf" style="margin-top:10px">${zeilen}</div></ha-card>
 ${last}
 <ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('t_protokoll'))}</h2><span class="klein">${l.zeit ? esc(this.t('t_stand', { z: this._zeit(l.zeit) })) : ''}</span></div><div class="protokoll" style="margin-top:10px">${log || esc(this.t('t_protokoll_leer'))}</div></ha-card>`;
