@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.10
+- The training view also shows waiting for memory and for the processor, so a slow run shows its cause.
+
 ## 1.0.9
 - The training view shows how much of the time the trainer waits for its disk, with a hint when a faster disk would help.
 - Fix: the queue position text showed "Free space" instead of the position.
