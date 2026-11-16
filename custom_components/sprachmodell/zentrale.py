@@ -26,7 +26,7 @@ from typing import Any
 
 from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import Event, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event, async_track_time_change, async_track_time_interval
@@ -86,7 +86,7 @@ class Wort:
     @property
     def anzeige(self) -> str:
         if self.cfg["anzeige"]:
-            return self.cfg["anzeige"]
+            return str(self.cfg["anzeige"])
         de = str(self.z.hass.config.language or "").startswith("de")
         return f"{self.wort} ({'eigenes' if de else 'custom'})"
 
@@ -110,7 +110,7 @@ class Wort:
     def neue_seit_letztem_lauf(self) -> int:
         stat = self.speicher.statistik()
         letzte = next((lauf for lauf in reversed(self.speicher.daten["laeufe"]) if lauf.get("bewertet") is not None), None)
-        return stat["bewertet"] - (letzte["bewertet"] if letzte else 0)
+        return int(stat["bewertet"]) - int(letzte["bewertet"] if letzte else 0)
 
     def kurz(self) -> dict[str, Any]:
         """Fuer Listen in der App und fuer die Entitaeten."""
@@ -148,10 +148,10 @@ class Zentrale:
         self.version = "0"
         self._sperre = threading.RLock()
         self._weg: list[Any] = []
-        self._sammeln_spaeter = None
-        self._zaehler_weg: Any = None
+        self._sammeln_spaeter: CALLBACK_TYPE | None = None
+        self._zaehler_weg: CALLBACK_TYPE | None = None
         self._zaehler_ids: list[str] = []
-        self._nachts_weg: Any = None
+        self._nachts_weg: CALLBACK_TYPE | None = None
         # Plattform -> Funktion, die die Entitaeten eines neuen Worts anlegt
         self.anleger: dict[str, Any] = {}
         # Repairs: (word, node) -> first time the device was missing; issue ids raised now
@@ -200,7 +200,7 @@ class Zentrale:
 
     @property
     def schluessel(self) -> str:
-        return self.daten["schluessel"]
+        return str(self.daten["schluessel"])
 
     def personen(self) -> list[str]:
         eigene = [p for p in self.opt("personen") if p]
@@ -445,7 +445,7 @@ class Zentrale:
             self._zaehler_weg = async_track_state_change_event(self.hass, sensoren, self._zaehler)
 
     @callback
-    def _zaehler(self, _event: Event) -> None:
+    def _zaehler(self, _event: Event[EventStateChangedData]) -> None:
         # Kurz warten: das Geraet schreibt die Aufnahme erst fertig
         if self._sammeln_spaeter:
             self._sammeln_spaeter()
@@ -696,7 +696,7 @@ class Zentrale:
         for knoten, platz in wort.geraete.items():
             ent = self.wortwahl_entitaet(knoten, platz)
             s = self.hass.states.get(ent) if ent else None
-            if s is None or wort.anzeige not in (s.attributes.get("options") or []):
+            if ent is None or s is None or wort.anzeige not in (s.attributes.get("options") or []):
                 continue
             if s.state != wort.anzeige:
                 await self.hass.services.async_call(

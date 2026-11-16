@@ -38,8 +38,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      - run: pip install ruff
+      - run: pip install -r requirements_test.txt ruff mypy
       - run: ruff check custom_components tests
+      - run: mypy
       - name: Panel scripts parse
         run: node --check custom_components/sprachmodell/frontend/sprachmodell-panel.js && node --check custom_components/sprachmodell/frontend/sprachmodell-texte.js
       - name: Proxmox script parses

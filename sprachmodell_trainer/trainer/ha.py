@@ -57,7 +57,7 @@ class HA:
                 r = self.sitzung.request(art, self._url(pfad), **kw)
                 if r.status_code == 401:
                     raise SystemExit("Wrong key - see Wake Word Studio -> Settings -> Trainer.")
-                if not _ha_startet(r):
+                if not _ha_startet(r) or (r.status_code == 404 and self._integration_da()):
                     return r
                 grund = f"HTTP {r.status_code}"
             except requests.RequestException as err:
@@ -67,6 +67,14 @@ class HA:
             _LOG.warning("Home Assistant not reachable (%s), trying again in %d s", grund, pause)
             time.sleep(pause)
             pause = min(pause * 1.5, 30.0)
+
+    def _integration_da(self) -> bool:
+        """A plain 404 means either "not there" (older integration versions) or "HA is still
+        starting". A harmless status call tells them apart: it only works once the integration runs."""
+        try:
+            return self.sitzung.post(self._url("status"), json={}, timeout=30).status_code == 200
+        except requests.RequestException:
+            return False
 
     def _get(self, pfad: str, **kw: Any) -> requests.Response:
         return self._anfrage("GET", pfad, timeout=60, **kw)
@@ -81,8 +89,11 @@ class HA:
         r.raise_for_status()
         return r.json()["aufnahmen"]
 
-    def audio(self, wort: str, aid: str) -> bytes:
+    def audio(self, wort: str, aid: str) -> bytes | None:
+        """WAV of a recording, None if it was deleted meanwhile."""
         r = self._get(f"audio/{wort}/{aid}")
+        if r.status_code == 404:
+            return None
         r.raise_for_status()
         return r.content
 

@@ -100,8 +100,8 @@ async def async_remove_config_entry_device(
 
 def zentrale_holen(hass: HomeAssistant) -> Zentrale | None:
     for entry in hass.config_entries.async_entries(DOMAIN):
-        if isinstance(getattr(entry, "runtime_data", None), Zentrale):
-            return entry.runtime_data
+        if isinstance(zentrale := getattr(entry, "runtime_data", None), Zentrale):
+            return zentrale
     return None
 
 

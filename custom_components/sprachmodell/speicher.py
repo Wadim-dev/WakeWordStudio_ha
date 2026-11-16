@@ -59,7 +59,7 @@ def ist_test(aid: str) -> bool:
 def wav_dauer(daten: bytes) -> float:
     try:
         with wave.open(io.BytesIO(daten)) as w:
-            return round(w.getnframes() / float(w.getframerate() or 16000), 2)
+            return float(round(w.getnframes() / float(w.getframerate() or 16000), 2))
     except (wave.Error, EOFError):
         return 0.0
 

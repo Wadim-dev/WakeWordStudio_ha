@@ -49,8 +49,8 @@ def _name(hass: HomeAssistant, knoten: str, eintrag: ConfigEntry | None) -> str:
             if geraet.name_by_user or geraet.name:
                 return str(geraet.name_by_user or geraet.name)
         info = getattr(getattr(eintrag, "runtime_data", None), "device_info", None)
-        if getattr(info, "friendly_name", None):
-            return str(info.friendly_name)
+        if friendly := getattr(info, "friendly_name", None):
+            return str(friendly)
         if eintrag.title:
             return str(eintrag.title)
     return knoten.replace("_", " ").title()

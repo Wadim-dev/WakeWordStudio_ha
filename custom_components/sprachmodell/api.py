@@ -30,14 +30,16 @@ import os
 import secrets
 from typing import Any
 
-from aiohttp import web
-from homeassistant.components.http import KEY_AUTHENTICATED, KEY_HASS, KEY_HASS_USER, HomeAssistantView
+from aiohttp import BodyPartReader, web
+from homeassistant.components.http.const import KEY_HASS_USER
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.http import KEY_AUTHENTICATED, KEY_HASS, HomeAssistantView
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from . import zentrale_holen
 from .const import DOMAIN, KEIN_WORT, SPRACHEN, STANDARD_WORT, STANDARD_ZENTRALE, WORT
 from .speicher import sichere_id
+from .zentrale import Wort, Zentrale
 
 GROESSTE_ZIP = 200 * 1024 * 1024
 GROESSTE_AUFNAHME = 10 * 1024 * 1024
@@ -60,7 +62,7 @@ def _admin(request: web.Request) -> bool:
     return benutzer is not None and benutzer.is_admin
 
 
-def _zentrale(request: web.Request):
+def _zentrale(request: web.Request) -> Zentrale:
     hass: HomeAssistant = request.app[KEY_HASS]
     zentrale = zentrale_holen(hass)
     if zentrale is None:
@@ -68,18 +70,18 @@ def _zentrale(request: web.Request):
     return zentrale
 
 
-def _wort(z, wid: str | None):
+def _wort(z: Zentrale, wid: str | None) -> Wort:
     wort = z.woerter.get(str(wid or ""))
     if wort is None:
         raise _fehler(web.HTTPNotFound, "wort_nicht_gefunden")
     return wort
 
 
-def _wav(wort, aid: str) -> web.StreamResponse:
+def _wav(wort: Wort, aid: str) -> web.StreamResponse:
     aid = sichere_id(aid)
     pfad = wort.speicher.pfad("aufnahmen", aid + ".wav")
     if aid not in wort.speicher.daten["aufnahmen"] or not os.path.isfile(pfad):
-        raise web.HTTPNotFound()
+        raise _fehler(web.HTTPNotFound, "aufnahme_nicht_gefunden")
     return web.FileResponse(pfad, headers={"Content-Type": "audio/wav", "Cache-Control": "private, max-age=86400"})
 
 
@@ -92,7 +94,7 @@ def _interne_adresse(hass: HomeAssistant) -> str | None:
 
 def _vorhandene_modelle(ordner: str) -> list[dict[str, Any]]:
     """Eigene Woerter in /config/custom_wake_words (zum Uebernehmen beim Anlegen)."""
-    aus = []
+    aus: list[dict[str, Any]] = []
     try:
         namen = sorted(os.listdir(ordner))
     except OSError:
@@ -115,7 +117,7 @@ def _vorhandene_modelle(ordner: str) -> list[dict[str, Any]]:
     return aus
 
 
-def _zentrale_daten(z, admin: bool) -> dict[str, Any]:
+def _zentrale_daten(z: Zentrale, admin: bool) -> dict[str, Any]:
     return {
         "admin": admin,
         "version_integration": z.version,
@@ -137,7 +139,7 @@ def _zentrale_daten(z, admin: bool) -> dict[str, Any]:
     }
 
 
-def _wort_daten(z, wort) -> dict[str, Any]:
+def _wort_daten(z: Zentrale, wort: Wort) -> dict[str, Any]:
     sp = wort.speicher
     return {
         "id": wort.id,
@@ -238,6 +240,8 @@ async def _multipart(request: web.Request, grenze: int) -> tuple[dict[str, str],
     if not request.content_type.startswith("multipart/"):
         raise _fehler(web.HTTPBadRequest, "keine_datei")
     async for teil in await request.multipart():
+        if not isinstance(teil, BodyPartReader):
+            continue
         if teil.name == "datei":
             stuecke, groesse = [], 0
             while stueck := await teil.read_chunk(1 << 20):
@@ -313,7 +317,7 @@ class AktionAnsicht(HomeAssistantView):
         z.geaendert()
         return self.json(antwort or {"ok": True})
 
-    async def _ausfuehren(self, z, hass, aktion: str, daten: dict[str, Any]) -> dict[str, Any] | None:
+    async def _ausfuehren(self, z: Zentrale, hass: HomeAssistant, aktion: str, daten: dict[str, Any]) -> dict[str, Any] | None:
         # --- ohne Wort ---
         if aktion == "wort_neu":
             cfg = {k: v for k, v in (daten.get("einstellungen") or {}).items() if k in STANDARD_WORT}
@@ -335,9 +339,7 @@ class AktionAnsicht(HomeAssistantView):
             await hass.async_add_executor_job(z.speichern)
             return None
         # --- mit Wort ---
-        wort = z.woerter.get(str(daten.get("wort") or ""))
-        if wort is None:
-            raise _fehler(web.HTTPNotFound, "wort_nicht_gefunden")
+        wort = _wort(z, daten.get("wort"))
         if aktion == "wort_aendern":
             await z.wort_aendern(wort.id, daten.get("einstellungen") or {})
         elif aktion == "wort_loeschen":
@@ -373,7 +375,7 @@ class AktionAnsicht(HomeAssistantView):
 class _TrainerAnsicht(HomeAssistantView):
     requires_auth = False
 
-    def _pruefen(self, request: web.Request):
+    def _pruefen(self, request: web.Request) -> Zentrale:
         z = _zentrale(request)
         geschickt = request.headers.get("X-Sprachmodell-Schluessel", "")
         mit_schluessel = bool(geschickt) and hmac.compare_digest(geschickt.encode(), z.schluessel.encode())
@@ -437,10 +439,10 @@ class TrainerModell(_TrainerAnsicht):
         wort = _wort(z, request.query.get("wort"))
         nr = request.query.get("nr") or wort.speicher.daten["aktiv"]
         if not nr:
-            raise web.HTTPNotFound()
+            raise _fehler(web.HTTPNotFound, "modell_nicht_gefunden")
         pfad = wort.speicher.modell_datei(int(nr))
         if not os.path.isfile(pfad):
-            raise web.HTTPNotFound()
+            raise _fehler(web.HTTPNotFound, "modell_nicht_gefunden")
         return web.FileResponse(pfad, headers={"Content-Type": "application/octet-stream", "X-Version": str(nr)})
 
 
@@ -463,6 +465,8 @@ class TrainerErgebnis(_TrainerAnsicht):
         wort = _wort(z, request.query.get("wort"))
         modell, bericht = b"", {}
         async for teil in await request.multipart():
+            if not isinstance(teil, BodyPartReader):
+                continue
             if teil.name == "modell":
                 modell = await teil.read()
                 if len(modell) > GROESSTES_MODELL:

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.3
+- Trainer: a recording deleted while a run fetches the data is skipped instead of stopping the run (it used to wait for Home Assistant for up to 30 minutes and then fail).
+- "Recording not found" and "version not found" answers are JSON with a translated message.
+- Integration quality scale Platinum: strict typing, mypy runs in the checks.
+- Social preview image for GitHub.
+
 ## 1.0.2
 - Logo with "for Home Assistant" (integration, trainer app, README and title image).
 
