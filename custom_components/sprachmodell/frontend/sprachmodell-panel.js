@@ -4,7 +4,7 @@
 // No polling: the page reloads only when one of the integration's sensors changes.
 import { TEXTE, SPRACHNAMEN } from './sprachmodell-texte.js';
 
-const VERSION = '1.0.11';
+const VERSION = '1.0.12';
 const REPO = 'https://github.com/Wadim-dev/wake-word-studio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/sprachmodell_trainer/proxmox.sh';

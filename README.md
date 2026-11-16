@@ -106,6 +106,7 @@ Training needs a lot of computing power, so it runs in its own container. It ada
   ```bash
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/sprachmodell_trainer/proxmox.sh)" -- http://homeassistant.local:8123 <key>
   ```
+  The container is placed on a local disk of the Proxmox host (the one with most free space, never network storage such as a NAS – training reads its data all the time). `CT_STORAGE=<name>` chooses one. If an existing trainer container lives on network storage: stop it, then *Resources → Root Disk → Volume Action → Move Volume* to a local storage.
 - **Docker** on any other computer:
   ```bash
   docker run -d --name wake-word-studio-trainer --restart unless-stopped \

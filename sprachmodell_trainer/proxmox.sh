@@ -3,7 +3,7 @@
 # Run in the Proxmox shell:
 #   bash -c "$(curl -fsSL https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/sprachmodell_trainer/proxmox.sh)" -- <HA_URL> <KEY>
 # HA_URL e.g. http://192.168.1.10:8123, KEY = trainer key shown in Wake Word Studio (Settings -> Trainer).
-# Optional environment: CT_CORES (4), CT_RAM_MB (6144), CT_DISK_GB (40), CT_STORAGE (first storage for containers), CT_BRIDGE (vmbr0)
+# Optional environment: CT_CORES (4), CT_RAM_MB (6144), CT_DISK_GB (100), CT_STORAGE (local storage with most free space), CT_BRIDGE (vmbr0)
 #
 # The trainer updates itself every time the container starts: restarting the container
 # (Proxmox, or the "Restart" button of the Proxmox integration in Home Assistant) installs the newest version.
@@ -102,8 +102,14 @@ fi
 HA_URL="${1:-}"; KEY="${2:-}"
 if [ -z "$HA_URL" ] || [ -z "$KEY" ]; then echo "Usage: proxmox.sh <HA_URL> <KEY>   or   proxmox.sh update"; exit 1; fi
 
-CORES="${CT_CORES:-4}"; RAM="${CT_RAM_MB:-6144}"; DISK="${CT_DISK_GB:-40}"; BRIDGE="${CT_BRIDGE:-vmbr0}"
-STORAGE="${CT_STORAGE:-$(pvesm status --content rootdir --enabled 1 | awk 'NR>1{print $1; exit}')}"
+CORES="${CT_CORES:-4}"; RAM="${CT_RAM_MB:-6144}"; DISK="${CT_DISK_GB:-100}"; BRIDGE="${CT_BRIDGE:-vmbr0}"
+# Training reads its data at random all the time: only a disk inside this machine is fast enough (and a NAS would be
+# busy all day). Network storage (nfs, cifs, ...) is never chosen; among local ones the one with most free space wins.
+STORAGE="${CT_STORAGE:-$(pvesm status --content rootdir --enabled 1 | awk 'NR>1 && $2 ~ /^(lvmthin|lvm|zfspool|dir|btrfs)$/ {print $6, $1}' | sort -rn | awk '{print $2; exit}')}"
+if [ -z "$STORAGE" ]; then echo "No local storage for containers found. Set CT_STORAGE=<name> to choose one."; exit 1; fi
+if pvesm status --storage "$STORAGE" | awk 'NR>1{print $2}' | grep -qvE '^(lvmthin|lvm|zfspool|dir|btrfs)$'; then
+  echo "Note: $STORAGE is network storage - training will be slow and keep the storage busy."
+fi
 if pct list | awk 'NR>1{print $NF}' | grep -qxE "$NAME|$ALT"; then
   echo "A trainer container already exists - nothing changed. To update it: run this script with the argument update."; exit 1
 fi
