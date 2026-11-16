@@ -11,7 +11,7 @@ import time
 import traceback
 
 from . import __version__
-from .grenzen import kerne, prozesse, ram_gb
+from .grenzen import kerne, prozesse, ram_gb, steckbrief
 from .ha import HA
 from .lauf import Abgebrochen, Lauf
 
@@ -41,6 +41,7 @@ def info() -> dict:
         "ram_gb": ram_gb(),
         "prozesse": prozesse(),
         "art": "app" if os.environ.get("SUPERVISOR_TOKEN") and not os.environ.get("HA_URL") else "docker",
+        **steckbrief(os.environ.get("DATEN", "/data")),
     }
 
 

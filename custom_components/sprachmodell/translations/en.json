@@ -172,6 +172,14 @@
     "trainer_missing": {
       "title": "No trainer connected",
       "description": "A training has been waiting for more than a day, but no trainer is connected. Start the trainer app or the Docker container; the instructions are in Wake Word Studio → [Settings]({panel}) → Trainer."
+    },
+    "trainer_slow_memory": {
+      "title": "Trainer is slowed down",
+      "description": "The trainer has been mostly waiting for memory (swap) for more than 15 minutes while the processor is hardly used. Training continues, but much slower. Typical causes: too little memory for the container (swap in use), or the trainer's data is on a network drive. Give the container more memory or move its disk to a local SSD. Details and load: Wake Word Studio → [Settings]({panel}) → Trainer. This message disappears by itself once the trainer runs smoothly again."
+    },
+    "trainer_slow_disk": {
+      "title": "Trainer is slowed down",
+      "description": "The trainer has been mostly waiting for the disk for more than 15 minutes while the processor is hardly used. Training continues, but much slower. Typical causes: too little memory for the container (swap in use), or the trainer's data is on a network drive. Give the container more memory or move its disk to a local SSD. Details and load: Wake Word Studio → [Settings]({panel}) → Trainer. This message disappears by itself once the trainer runs smoothly again."
     }
   }
 }

@@ -172,6 +172,14 @@
     "trainer_missing": {
       "title": "Kein Trainer verbunden",
       "description": "Ein Training wartet seit über einem Tag, aber kein Trainer ist verbunden. Die Trainer-App oder den Docker-Container starten; die Anleitung steht in Wake Word Studio → [Einstellungen]({panel}) → Trainer."
+    },
+    "trainer_slow_memory": {
+      "title": "Trainer wird ausgebremst",
+      "description": "Der Trainer wartet seit über 15 Minuten meist auf Arbeitsspeicher (Auslagerung), während der Prozessor kaum arbeitet. Das Training läuft weiter, aber deutlich langsamer. Typische Ursachen: zu wenig Arbeitsspeicher für den Container (Auslagerung), oder die Daten des Trainers liegen auf einem Netzlaufwerk. Dem Container mehr Arbeitsspeicher geben oder seine Platte auf eine lokale SSD verschieben. Details und Auslastung: Wake Word Studio → [Einstellungen]({panel}) → Trainer. Der Hinweis verschwindet von selbst, sobald der Trainer wieder flüssig läuft."
+    },
+    "trainer_slow_disk": {
+      "title": "Trainer wird ausgebremst",
+      "description": "Der Trainer wartet seit über 15 Minuten meist auf die Platte, während der Prozessor kaum arbeitet. Das Training läuft weiter, aber deutlich langsamer. Typische Ursachen: zu wenig Arbeitsspeicher für den Container (Auslagerung), oder die Daten des Trainers liegen auf einem Netzlaufwerk. Dem Container mehr Arbeitsspeicher geben oder seine Platte auf eine lokale SSD verschieben. Details und Auslastung: Wake Word Studio → [Einstellungen]({panel}) → Trainer. Der Hinweis verschwindet von selbst, sobald der Trainer wieder flüssig läuft."
     }
   }
 }

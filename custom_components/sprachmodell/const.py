@@ -62,6 +62,9 @@ TRAINER_ONLINE_S = 180
 # Repairs: a device of a word missing this long, trainings waiting without trainer this long
 GERAET_FEHLT_S = 15 * 60
 TRAINER_FEHLT_S = 24 * 3600
+ENGPASS_S = 15 * 60  # trainer mostly waits for memory or disk this long: tell the user
+ENGPASS_WARTEN = 50  # % of time waiting for memory or disk
+ENGPASS_CPU = 50  # % processor use below which the trainer counts as held up
 
 # Phasen des Trainings
 PHASEN = ["bereit", "wartet", "vorbereiten", "daten", "merkmale", "training", "test", "fertig", "fehler"]

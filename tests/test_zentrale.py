@@ -258,3 +258,48 @@ def test_hilfen(hass: HomeAssistant) -> None:
     hass.config.language = "xx"
     assert sprache_aus(hass) == "en"
     assert ablage_standard(hass).endswith("sprachmodell")
+
+
+async def test_trainer_ausgebremst(hass: HomeAssistant, geladen, freezer: FrozenDateTimeFactory) -> None:
+    z = geladen.runtime_data
+    reg = ir.async_get(hass)
+    w = await z.wort_neu({"wort": "Hey Lumi"})
+    z.auftrag(w.id, "von_hand")
+    assert z.trainer_last() == {} and z.engpass() is None
+    langsam = {"cpu": 8, "speicher_warten": 70, "platte_warten": 3}
+    z.trainer_meldet({"wort_id": w.id, "phase": "training", "prozent": 20, "live": {"system": langsam}})
+    assert z.engpass() == "memory" and z.trainer_last()["cpu"] == 8
+    z.reparaturen_pruefen()
+    assert reg.async_get_issue(DOMAIN, "trainer_slow") is None  # not yet: has to last 15 minutes
+    freezer.tick(timedelta(minutes=16))
+    z.trainer_meldet({"wort_id": w.id, "phase": "training", "prozent": 21, "live": {"system": langsam}})
+    z.reparaturen_pruefen()
+    assert reg.async_get_issue(DOMAIN, "trainer_slow").translation_key == "trainer_slow_memory"
+    # disk instead of memory
+    z.trainer_meldet({"wort_id": w.id, "phase": "training", "prozent": 22, "live": {"system": {"cpu": 8, "platte_warten": 60}}})
+    assert z.engpass() == "disk"
+    # stale live data counts as nothing
+    freezer.tick(timedelta(minutes=6))
+    assert z.engpass() is None
+    # running smoothly again: message gone
+    z.trainer_meldet({"wort_id": w.id, "phase": "training", "prozent": 23, "live": {"system": {"cpu": 90, "speicher_warten": 70}}})
+    assert z.engpass() is None
+    z.reparaturen_pruefen()
+    assert reg.async_get_issue(DOMAIN, "trainer_slow") is None
+    w.live["zeit"] = "kaputt"
+    assert z.trainer_last() == {}
+
+
+async def test_tage(hass: HomeAssistant, geladen) -> None:
+    z = geladen.runtime_data
+    w = await z.wort_neu({"wort": "Hey Lumi"})
+    jetzt_ = datetime.now(UTC)
+    w.speicher.daten["aufnahmen"] = {
+        "a": {"quelle": "echo", "zeit": jetzt_.isoformat()},
+        "b": {"quelle": "echo", "zeit": (jetzt_ - timedelta(days=2)).isoformat()},
+        "c": {"quelle": "echo", "zeit": (jetzt_ - timedelta(days=40)).isoformat()},
+        "d": {"quelle": "aufnahme", "zeit": jetzt_.isoformat()},
+        "e": {"quelle": "echo", "zeit": "kaputt"},
+    }
+    tage = w.speicher.tage()
+    assert len(tage) == 14 and tage[-1] == 1 and tage[-3] == 1 and sum(tage) == 2
