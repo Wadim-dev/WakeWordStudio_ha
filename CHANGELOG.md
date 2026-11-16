@@ -4,6 +4,7 @@
 - New hub page: a status banner at the top says what matters now (training with progress and finish time, recordings waiting for review, trainer missing, or all set) with one button to the next step. Word cards show recall as a ring, open reviews, version and a 14-day chart of device recordings. Trainer card with processor, memory and disk use; queue with the nightly time; devices with the words on each.
 - Training shows the expected finish time ("done around 16:40") next to the time left.
 - Settings → Trainer: profile with version, cores, memory, swap and free disk, each rated green/yellow/red with a tip.
+- The repository is now `Wadim-dev/WakeWordStudio_ha`; all links point there (old links keep working).
 - Repair message when the trainer is mostly waiting for memory or disk for more than 15 minutes; it disappears once the trainer runs smoothly again.
 
 ## 1.0.12

@@ -5,9 +5,9 @@
 import { TEXTE, SPRACHNAMEN } from './sprachmodell-texte.js';
 
 const VERSION = '1.0.13';
-const REPO = 'https://github.com/Wadim-dev/wake-word-studio_ha';
+const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
-const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/sprachmodell_trainer/proxmox.sh';
+const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
 const WORT_REITER = [
   ['uebersicht', 'mdi:view-dashboard-outline'],
   ['pruefen', 'mdi:playlist-check'],

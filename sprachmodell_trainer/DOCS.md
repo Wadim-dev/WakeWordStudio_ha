@@ -48,7 +48,7 @@ docker run -d --name wake-word-studio-trainer --restart unless-stopped \
 On **Proxmox VE** one line in the Proxmox shell creates its own container that updates itself on every restart:
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/sprachmodell_trainer/proxmox.sh)" -- http://homeassistant.local:8123 <key>
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh)" -- http://homeassistant.local:8123 <key>
 ```
 
 Optional variables: `THREADS`, `ZIEL_FEHLAUSLOESER`, `SCHRITTE`, `TRAINER_NAME`. Only one trainer should run at a time.

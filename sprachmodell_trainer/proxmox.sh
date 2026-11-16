@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Wake Word Studio Trainer as its own LXC container on Proxmox VE (Debian 12 + Docker).
 # Run in the Proxmox shell:
-#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/sprachmodell_trainer/proxmox.sh)" -- <HA_URL> <KEY>
+#   bash -c "$(curl -fsSL https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh)" -- <HA_URL> <KEY>
 # HA_URL e.g. http://192.168.1.10:8123, KEY = trainer key shown in Wake Word Studio (Settings -> Trainer).
 # Optional environment: CT_CORES (4), CT_RAM_MB (6144), CT_DISK_GB (100), CT_STORAGE (local storage with most free space), CT_BRIDGE (vmbr0)
 #
@@ -124,7 +124,7 @@ echo "== Container $ID ($CORES cores, $RAM MB, $DISK GB on $STORAGE)"
 pct create "$ID" "local:vztmpl/$TPL" --hostname "$NAME" --cores "$CORES" --memory "$RAM" --swap 1024 \
   --rootfs "$STORAGE:$DISK" --net0 "name=eth0,bridge=$BRIDGE,ip=dhcp" \
   --features nesting=1,keyctl=1 --unprivileged 1 --onboot 1 --startup order=90 \
-  --description "Wake Word Studio Trainer (own wake words) - github.com/Wadim-dev/wake-word-studio_ha"
+  --description "Wake Word Studio Trainer (own wake words) - github.com/Wadim-dev/WakeWordStudio_ha"
 pct start "$ID"
 
 echo "== Waiting for network"

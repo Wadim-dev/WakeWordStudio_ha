@@ -4,7 +4,7 @@ from __future__ import annotations
 
 DOMAIN = "sprachmodell"
 NAME = "Wake Word Studio"
-REPO = "https://github.com/Wadim-dev/wake-word-studio_ha"
+REPO = "https://github.com/Wadim-dev/WakeWordStudio_ha"
 CONF_ORDNER = "ordner"  # storage folder
 
 # Seitenleiste

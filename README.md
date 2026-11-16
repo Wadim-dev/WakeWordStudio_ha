@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/dark_logo.png">
-    <img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/logo.png" alt="Wake Word Studio" height="80">
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/dark_logo.png">
+    <img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/logo.png" alt="Wake Word Studio" height="80">
   </picture>
 </p>
 
@@ -13,20 +13,20 @@
 </p>
 
 <p align="center">
-  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Wadim-dev&repository=wake-word-studio_ha&category=integration"><img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Install from the Marketplace"></a>
+  <a href="https://my.home-assistant.io/redirect/hacs_repository/?owner=Wadim-dev&repository=WakeWordStudio_ha&category=integration"><img src="https://my.home-assistant.io/badges/hacs_repository.svg" alt="Install from the Marketplace"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Wadim-dev/wake-word-studio_ha/releases"><img src="https://img.shields.io/github/v/release/Wadim-dev/wake-word-studio_ha?style=flat-square&color=7c5cff" alt="Release"></a>
-  <a href="https://github.com/Wadim-dev/wake-word-studio_ha/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/Wadim-dev/wake-word-studio_ha/validate.yml?branch=main&label=checks&style=flat-square" alt="Checks"></a>
+  <a href="https://github.com/Wadim-dev/WakeWordStudio_ha/releases"><img src="https://img.shields.io/github/v/release/Wadim-dev/WakeWordStudio_ha?style=flat-square&color=7c5cff" alt="Release"></a>
+  <a href="https://github.com/Wadim-dev/WakeWordStudio_ha/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/Wadim-dev/WakeWordStudio_ha/validate.yml?branch=main&label=checks&style=flat-square" alt="Checks"></a>
   <a href="custom_components/sprachmodell/quality_scale.yaml"><img src="https://img.shields.io/badge/quality%20scale-platinum-e5e4e2?style=flat-square" alt="Quality scale: Platinum"></a>
   <img src="https://img.shields.io/badge/100%25-local-00a37a?style=flat-square" alt="100 % local">
   <img src="https://img.shields.io/badge/languages-EN%20%7C%20DE-blue?style=flat-square" alt="English and German">
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/Wadim-dev/wake-word-studio_ha?style=flat-square" alt="License"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/Wadim-dev/WakeWordStudio_ha?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/images/hero.png" alt="Wake Word Studio on tablet and phone" width="900">
+  <img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/hero.png" alt="Wake Word Studio on tablet and phone" width="900">
 </p>
 
 > **Hobby project.** Wake Word Studio is free and not affiliated with Nabu Casa, ESPHome or the microWakeWord project.
@@ -64,20 +64,20 @@ Home Assistant Voice PE, ESP32-S3-Box, M5Stack Atom Echo with micro wake word, a
 
 ## Review
 
-<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/images/review.png" alt="Review recordings" width="900"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/review.png" alt="Review recordings" width="900"></p>
 
 Every wake-up, every "woke up, then cancelled" and every near miss shows up here with the device, the score and a **suggestion**.
 Listen, then tap *said* or *not said* – or use the keyboard (**Space** play · **1** said · **2** not said · **0** unusable). Accept all suggestions at once if you trust them.
 
 ## Record and upload
 
-<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/images/record.png" alt="Record in the browser" width="900"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/record.png" alt="Record in the browser" width="900"></p>
 
 Say the word into your phone or PC – every take is cut by itself. Record negative examples (similar words, normal sentences) too. Zip files with `word/` and `not_word/` folders and loose WAV files are accepted as well.
 
 ## Train and test honestly
 
-<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/images/training.png" alt="Training progress" width="900"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/training.png" alt="Training progress" width="900"></p>
 
 At night (or on a tap) the trainer fetches the reviewed recordings, adds thousands of synthetic voices of your word's language, trains a new version and tests it against recordings it **never learned** (every fifth one is held back).
 Only a version that is better than the current one is rolled out – to all devices of the word, without restarting Home Assistant.
@@ -86,29 +86,29 @@ While it runs, the *Training* page shows every step with its start time and dura
 
 ## Quality
 
-<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/images/quality.png" alt="Quality page" width="900"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/quality.png" alt="Quality page" width="900"></p>
 
 Recall in quiet and with music, false wakes per hour of speech, results per person, how the devices did in daily use – and a **threshold suggestion from your own answers** that you can apply to all devices with one tap. Every version stays available and can be rolled back.
 
 ## Words and devices
 
-<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/images/words.png" alt="All words" width="900"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/words.png" alt="All words" width="900"></p>
 
 The start page tells you at a glance what matters now – a training with its progress and finish time, recordings waiting for you, a missing trainer, or that all is set – with one button to the next step. Each word shows its recall, open reviews, active version and the recordings of the last 14 days; below are the trainer with its live load, the queue and every device with its words.
-<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/images/devices.png" alt="Devices and slots" width="900"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/devices.png" alt="Devices and slots" width="900"></p>
 
 ## The trainer
 
 Training needs a lot of computing power, so it runs in its own container. It adapts to its machine (cores, memory limit and free memory decide how many workers run: less memory = slower, but it finishes). 4 GB free memory minimum, 8 GB or more is much faster; the first run downloads about 8 GB of base data once. A watchdog makes sure it never hangs: a step that stops computing or runs short of memory is stopped and run again with fewer processes or smaller batches. Interrupted downloads continue, a run lost by a trainer restart is queued again with less memory, and a finished model waits on the trainer if Home Assistant is away.
 
-<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/images/trainer.png" alt="Trainer setup" width="900"></p>
+<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/trainer.png" alt="Trainer setup" width="900"></p>
 
 *Settings → Trainer* shows a profile of the connected trainer – version, cores, memory, swap and free disk – each rated green, yellow or red with a tip what to change.
 
-- **Home Assistant app**: *Settings → Apps → App store → ⋮ → Repositories*, add `https://github.com/Wadim-dev/wake-word-studio_ha`, install **Wake Word Studio Trainer** and start it. It connects by itself.
+- **Home Assistant app**: *Settings → Apps → App store → ⋮ → Repositories*, add `https://github.com/Wadim-dev/WakeWordStudio_ha`, install **Wake Word Studio Trainer** and start it. It connects by itself.
 - **Proxmox VE** (own LXC container, updates itself on every restart) – in the Proxmox shell:
   ```bash
-  bash -c "$(curl -fsSL https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/sprachmodell_trainer/proxmox.sh)" -- http://homeassistant.local:8123 <key>
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh)" -- http://homeassistant.local:8123 <key>
   ```
   The container is placed on a local disk of the Proxmox host (the one with most free space, never network storage such as a NAS – training reads its data all the time). `CT_STORAGE=<name>` chooses one. If an existing trainer container lives on network storage: stop it, then *Resources → Root Disk → Volume Action → Move Volume* to a local storage.
 - **Docker** on any other computer:
