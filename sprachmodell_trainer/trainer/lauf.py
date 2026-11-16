@@ -62,7 +62,7 @@ SPEICHER_REST_GB = 0.25
 PLATZ_REST_GB = 0.5  # below this the step stops instead of writing broken files  # less free memory than this for 30 s: stop the step ourselves before the OOM killer picks
 VERSUCHE = 3  # attempts per step: normal, then half the processes, then a single process
 SCHRITTE_MAX = 40
-_BALKEN = re.compile(r"\d+%\||it/s|s/it|\d+/\d+ \[")
+_BALKEN = re.compile(r"\d+%\||it/s|s/it|\d+/\d+ \[|Mini-Batch #\d+")  # progress lines overwrite each other
 
 # Anteil am Gesamtfortschritt je Abschnitt
 ANTEILE = {"vorbereiten": (0, 8), "daten": (8, 12), "stimmen": (12, 35), "merkmale": (35, 50),

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.8
+- Training log shows the newest line at the top, so it no longer has to be scrolled down. It stays where you scrolled while new lines arrive.
+- Training batches are shown as one updating progress line instead of filling the log, and progress lines no longer overlap the next line.
+
 ## 1.0.7
 - Fix: on machines with little memory (about 5 GB) training was killed at its first evaluation (step 500), because microWakeWord loads the complete validation sets of the base data into memory. Evaluation now uses evenly chosen samples that fit the memory (about 800 per GB per set, ambient audio about 8 minutes per GB); training still uses all data.
 - If memory runs out anyway, the system stops the computing step first, not the trainer service.
