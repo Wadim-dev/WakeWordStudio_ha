@@ -246,7 +246,8 @@ class Lauf:
         return self._wiederholen(befehl, lambda _stufe: self._werkzeug(befehl, auftrag, abschnitt, von, bis, schritt))
 
     def _ausfuehren(self, args: list[str], abschnitt: str, von: float, bis: float, schritt: str,
-                    cwd: str | None = None, schritte_gesamt: int | None = None, threads: int | None = None) -> dict:
+                    cwd: str | None = None, schritte_gesamt: int | None = None, threads: int | None = None,
+                    takt: int | None = None) -> dict:
         self._pruefen()
         umgebung = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parent.parent), "TF_CPP_MIN_LOG_LEVEL": "2"}
         if threads or self.o.get("threads"):
@@ -262,6 +263,7 @@ class Lauf:
         waechter.start()
         letzte: deque[str] = deque(maxlen=40)
         ergebnis: dict = {}
+        verlauf: deque[tuple[float, float]] = deque()  # (time, share done) of the last minutes, for the time left
         for zeile in self._prozess.stdout:  # type: ignore[union-attr]
             self._ausgabe_zeit = time.monotonic()
             zeile = zeile.rstrip()
@@ -275,6 +277,10 @@ class Lauf:
                 anteil = int(a) / max(1, int(b))
             elif zeile.startswith("ERGEBNIS "):
                 ergebnis = json.loads(zeile[9:])
+            elif schritte_gesamt and takt and (m := re.search(r"Validation Batch #(\d+).*Mini-Batch #(\d+)", zeile)):
+                # microWakeWord's line per training step: (evaluation round, step within the round)
+                anteil = ((int(m.group(1)) - 1) * takt + int(m.group(2))) / schritte_gesamt
+                self._ausgabe(zeile)
             elif schritte_gesamt and (m := re.search(r"Step #?(\d+)", zeile)):
                 anteil = int(m.group(1)) / schritte_gesamt
                 if "Validation" in zeile:
@@ -284,7 +290,7 @@ class Lauf:
             else:
                 self._ausgabe(zeile)
             if anteil is not None:
-                self._abschnitt(abschnitt, von + (bis - von) * anteil, schritt)
+                self._abschnitt(abschnitt, von + (bis - von) * anteil, schritt, **self._restzeit(verlauf, anteil))
         code = self._prozess.wait()
         self._beenden()  # workers left behind by a crashed step
         self._prozess = None
@@ -298,6 +304,21 @@ class Lauf:
                                    "probably out of memory")
             raise RuntimeError(next((z for z in reversed(letzte) if z.strip()), f"exit {code}")[:300])
         return ergebnis
+
+    @staticmethod
+    def _restzeit(verlauf: deque[tuple[float, float]], anteil: float) -> dict[str, int]:
+        """Minutes left of the running step, from its pace over the last 15 minutes (shown once it is known)."""
+        jetzt = time.monotonic()
+        if not verlauf or anteil < verlauf[-1][1]:
+            verlauf.clear()  # first value, or the step started again
+        if not verlauf or jetzt - verlauf[-1][0] >= 5:
+            verlauf.append((jetzt, anteil))
+        while len(verlauf) > 2 and jetzt - verlauf[1][0] > 900:
+            verlauf.popleft()
+        zeit, alt = verlauf[0]
+        if jetzt - zeit < 120 or anteil <= alt:
+            return {}
+        return {"restzeit_min": max(1, round((1 - anteil) * (jetzt - zeit) / (anteil - alt) / 60))}
 
     def _waechter(self, prozess: subprocess.Popen) -> None:
         """Never wait silently: stop a step that hangs or is about to run out of memory."""
@@ -668,7 +689,7 @@ class Lauf:
                 datei.write_text(yaml.dump(cfg), encoding="utf-8")
                 self.notiz(f"Training with batch size {cfg['batch_size']}")
             self._ausfuehren(args, "training", 0, 1, text, cwd=str(self.ordner), schritte_gesamt=sum(schritte),
-                             threads=None if not stufe else max(1, kerne() >> stufe))
+                             threads=None if not stufe else max(1, kerne() >> stufe), takt=cfg["eval_step_interval"])
 
         self._wiederholen("Training", versuch)
         modell = train / MODELL_DATEI
