@@ -425,8 +425,12 @@ class Speicher:
         aufgewacht = [a for a in echo_bew if a.get("art") in ("wake", "mistake")]
         richtig = sum(1 for a in aufgewacht if a["urteil"] == WORT)
         verpasst = sum(1 for a in echo_bew if a.get("art") in ("nearmiss", "noise") and a["urteil"] == WORT)
-        # Schwelle aus deinen Antworten (nur Echo-Aufnahmen mit Wert)
-        mit_wert = [a for a in echo_bew if isinstance(a.get("score"), int | float)]
+        # Threshold from your answers: only device recordings scored by the model that is on the devices now
+        seit = self.aktiv_seit()
+        mit_wert = [
+            a for a in echo_bew
+            if isinstance(a.get("score"), int | float) and (seit is None or _zeit(a.get("zeit")) >= _zeit(seit))
+        ]
         schwellen = []
         for c100 in range(70, 100):
             c = c100 / 100
@@ -465,6 +469,9 @@ class Speicher:
             },
             "schwellen": schwellen,
             "schwelle_vorschlag": vorschlag,
+            "schwelle_seit": seit,
+            "schwelle_basis": {"wort": anzahl_wort, "kein_wort": len(mit_wert) - anzahl_wort},
+            "schwelle_auto": self.daten.get("schwelle_auto"),
             "tabelle": self.tabelle(),
             "verteilung": verteilung,
         }
@@ -519,6 +526,21 @@ class Speicher:
             self.daten["versionen"].append(eintrag)
             self.speichern()
             return eintrag
+
+    def aktiv_seit(self) -> str | None:
+        """Since when the active version is on the devices (after the restart), else when it was rolled out."""
+        if self.daten.get("aktiv_seit"):
+            return str(self.daten["aktiv_seit"])
+        aktiv = next((v for v in self.daten["versionen"] if v.get("status") == "aktiv"), None)
+        return str(aktiv["eingespielt"]) if aktiv and aktiv.get("eingespielt") else None
+
+    def aktive_schwelle(self) -> float | None:
+        """The threshold the active version was tested with."""
+        aktiv = next((v for v in self.daten["versionen"] if v.get("status") == "aktiv"), None)
+        try:
+            return float((aktiv or {}).get("bericht", {}).get("cutoff"))
+        except (TypeError, ValueError):
+            return None
 
     def version(self, nr: int) -> dict[str, Any] | None:
         return next((v for v in self.daten["versionen"] if v["nr"] == nr), None)

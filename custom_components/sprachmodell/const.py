@@ -41,6 +41,8 @@ STANDARD_WORT = {
     "geraete": {},
     "automatisch_einspielen": True,
     "nachts": True,
+    # Keep the devices' threshold right by itself: the tested value on rollout, later your answers
+    "schwelle_automatisch": True,
     "farbe": "",
 }
 
@@ -81,3 +83,7 @@ PHASE_ZUSTAND = {
     "fertig": "done",
     "fehler": "error",
 }
+
+# Automatic threshold: never more than this below the value the version was tested with, never above the maximum
+SCHWELLE_SPIELRAUM = 0.03
+SCHWELLE_MAX = 0.99

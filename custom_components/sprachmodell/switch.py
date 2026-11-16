@@ -1,4 +1,4 @@
-"""Switches per word: train at night, roll out a better version by itself."""
+"""Switches per word: train at night, roll out a better version by itself, keep the threshold right by itself."""
 
 from __future__ import annotations
 
@@ -24,7 +24,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: SprachConfigEntry, async
     z = entry.runtime_data
     plattform_anmelden(
         z, "switch", [],
-        lambda w: [Option(z, w, "nachts_trainieren", "nachts"), Option(z, w, "automatisch_einspielen", "automatisch_einspielen")],
+        lambda w: [
+            Option(z, w, "nachts_trainieren", "nachts"),
+            Option(z, w, "automatisch_einspielen", "automatisch_einspielen"),
+            Option(z, w, "schwelle_automatisch", "schwelle_automatisch"),
+        ],
         async_add_entities,
     )
 

@@ -150,6 +150,9 @@
       },
       "automatisch_einspielen": {
         "name": "Bessere Version einspielen"
+      },
+      "schwelle_automatisch": {
+        "name": "Schwelle automatisch anpassen"
       }
     }
   },

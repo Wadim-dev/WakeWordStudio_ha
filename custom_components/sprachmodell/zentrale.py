@@ -43,6 +43,8 @@ from .const import (
     LAEUFT,
     NAME,
     PANEL_URL,
+    SCHWELLE_MAX,
+    SCHWELLE_SPIELRAUM,
     SIGNAL_NEU,
     SPRACHEN,
     STANDARD_WORT,
@@ -517,6 +519,7 @@ class Zentrale:
         if weg:
             self.geaendert()
         self.erinnern()
+        await self.schwelle_pruefen()
 
     @callback
     def _verlorene_laeufe(self) -> None:
@@ -789,7 +792,13 @@ class Zentrale:
         """After a restart of Home Assistant: select the rolled out words on their devices."""
         for wid in list(self.daten.get("nach_neustart", [])):
             if wid in self.woerter:
-                await self.auswaehlen(self.woerter[wid])
+                wort = self.woerter[wid]
+                await self.auswaehlen(wort)
+                wort.speicher.daten["aktiv_seit"] = jetzt()
+                schwelle = wort.speicher.aktive_schwelle()
+                if wort.cfg.get("schwelle_automatisch") and schwelle is not None:
+                    await self._schwelle_auto(wort, schwelle, "test")
+                await self.hass.async_add_executor_job(wort.speicher.speichern)
         self.daten["nach_neustart"] = []
         await self.hass.async_add_executor_job(self.speichern)
         self.neustart_meldung()
@@ -817,6 +826,30 @@ class Zentrale:
                 "number", "set_value", {"entity_id": ziele, "value": round(wert, 2)}, blocking=True
             )
         return ziele
+
+    async def _schwelle_auto(self, wort: Wort, wert: float, quelle: str) -> None:
+        """Set the threshold on the word's devices by itself and remember why (shown on the quality page)."""
+        wert = round(min(SCHWELLE_MAX, wert), 2)
+        if await self.schwelle_setzen(wort, wert):
+            wort.speicher.daten["schwelle_auto"] = {"wert": wert, "zeit": jetzt(), "quelle": quelle}
+
+    async def schwelle_pruefen(self) -> None:
+        """Follow your answers: once enough device recordings of the active version are reviewed,
+        move the threshold to the value that fits them best (never far below the tested value)."""
+        for wort in list(self.woerter.values()):
+            if not wort.cfg.get("schwelle_automatisch") or not wort.geraete:
+                continue
+            statistik = await self.hass.async_add_executor_job(wort.speicher.statistik)
+            vorschlag, getestet = statistik.get("schwelle_vorschlag"), wort.speicher.aktive_schwelle()
+            if vorschlag is None:
+                continue
+            ziel = round(min(SCHWELLE_MAX, max(vorschlag, (getestet or 0) - SCHWELLE_SPIELRAUM)), 2)
+            jetzt_werte = self.schwellen_jetzt(wort).values()
+            if jetzt_werte and all(abs(x - ziel) < 0.005 for x in jetzt_werte):
+                continue
+            await self._schwelle_auto(wort, ziel, "antworten")
+            await self.hass.async_add_executor_job(wort.speicher.speichern)
+            self.geaendert()
 
     def schwellen_jetzt(self, wort: Wort) -> dict[str, float]:
         namen = self.geraete()
