@@ -375,6 +375,11 @@ class SprachmodellPanel extends HTMLElement {
       text = [this._schritt(t.schritt) || this.t('p_' + t.phase), t.prozent != null ? Math.round(t.prozent) + ' %' : '', this._fertigText(t, true)].filter(Boolean).join(' · ');
       balken = `<div class="fortschritt"><i style="width:${t.prozent ?? 3}%;background-color:${farbe}"></i></div>`;
       knopf = `<button class="k haupt" data-reiter="training" data-wort="${esc(lauf.id)}"><ha-icon icon="mdi:chart-timeline-variant"></ha-icon>${esc(this.t('h_ansehen'))}</button>`;
+    } else if ((d.nach_neustart || []).length) {
+      const namen = d.nach_neustart.map((id) => (ws.find((w) => w.id === id) || {}).wort).filter(Boolean).join(', ');
+      farbe = 'var(--primary-color)'; icon = 'mdi:restart';
+      titel = this.t('h_neustart', { w: namen }); text = this.t('h_neustart_text');
+      knopf = this._admin ? `<button class="k haupt" data-a="reparaturen"><ha-icon icon="mdi:restart"></ha-icon>${esc(this.t('h_neustart_knopf'))}</button>` : '';
     } else if (d.offen) {
       const w = ws.filter((x) => x.offen).sort((x, y) => y.offen - x.offen)[0];
       farbe = 'var(--warning-color,#ff9800)'; icon = 'mdi:playlist-check';
@@ -975,6 +980,7 @@ ${this._steckbrief()}</ha-card>
     try {
       if (a === 'neu') this._laden();
       else if (a === 'datei') this.shadowRoot.getElementById('datei').click();
+      else if (a === 'reparaturen') { history.pushState(null, '', '/config/repairs'); window.dispatchEvent(new CustomEvent('location-changed')); }
       else if (a === 'holen') { t.disabled = true; await this._api('POST', 'aktion', { aktion: 'jetzt_holen' }); this._laden(); }
       else if (a === 'trainieren') { await this._api('POST', 'aktion', { aktion: 'training_starten', wort: this._wortId }); this._laden(); }
       else if (a === 'abbrechen') { if (confirm(this.t('t_abbrechen_frage'))) { await this._api('POST', 'aktion', { aktion: 'training_abbrechen', wort: this._wortId }); this._laden(); } }

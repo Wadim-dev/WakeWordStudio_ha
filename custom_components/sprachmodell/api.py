@@ -129,6 +129,7 @@ def _zentrale_daten(z: Zentrale, admin: bool) -> dict[str, Any]:
         "einstellungen": {k: z.opt(k) for k in STANDARD_ZENTRALE},
         "ablage": z.ablage,
         "reihe": z.reihe(),
+        "nach_neustart": [w for w in z.daten.get("nach_neustart", []) if w in z.woerter],
         "trainer": {
             "online": z.trainer_online,
             "kontakt": z.trainer_kontakt.isoformat() if z.trainer_kontakt else None,

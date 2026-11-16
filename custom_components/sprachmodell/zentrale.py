@@ -27,7 +27,7 @@ from typing import Any
 
 from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import CALLBACK_TYPE, Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.core import CALLBACK_TYPE, CoreState, Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event, async_track_time_change, async_track_time_interval
@@ -60,7 +60,7 @@ ABGEHOLT_SPERRE_S = 120  # a handed-out run is not given to a second trainer wit
 SAMMELN_TAKT = timedelta(minutes=2)
 HINWEIS_ID = f"{DOMAIN}_pruefen"
 # Cache der ESPHome-Integration fuer eigene Aktivierungswoerter (sonst erst nach Neustart neu)
-WAKE_WORD_CACHE = "wake_word_cache"
+NEUSTART_MELDUNG = "restart_to_roll_out"
 DATEI = "zentrale.json"
 
 
@@ -419,6 +419,12 @@ class Zentrale:
         self.nachts_planen()
         self._weg.append(async_call_later(self.hass, 20, self._takt))
         self._weg.append(async_call_later(self.hass, 60, self._stuendlich))
+        if self.daten.get("nach_neustart"):
+            if self.hass.state is CoreState.running:
+                self.neustart_meldung()  # only the integration was reloaded: ESPHome still has the old list
+            else:
+                # Home Assistant is starting and reads the new models now; select them once the devices are back
+                self._weg.append(async_call_later(self.hass, 90, self.nach_neustart))
 
     @callback
     def nachts_planen(self) -> None:
@@ -448,6 +454,7 @@ class Zentrale:
         for issue in self._meldungen:
             ir.async_delete_issue(self.hass, DOMAIN, issue)
         self._meldungen.clear()
+        ir.async_delete_issue(self.hass, DOMAIN, NEUSTART_MELDUNG)
         for weg in self._weg:
             weg()
         self._weg.clear()
@@ -756,24 +763,37 @@ class Zentrale:
         await self.hass.async_add_executor_job(
             wort.speicher.einspielen_dateien, nr, ziel, wort.modell_id, wort.anzeige, cutoff, wort.sprache
         )
-        # ESPHome merkt sich die Liste eigener Woerter samt Pruefsumme bis zum Neustart.
-        # Ohne den Zwischenspeicher liest es sie neu; nach dem Neuladen holen die Geraete
-        # das Modell mit der neuen Pruefsumme selbst.
-        self.hass.data.pop(WAKE_WORD_CACHE, None)
-        eintraege = esphome_eintraege(self.hass)
-        for knoten in wort.geraete:
-            if (eintrag := eintraege.get(knoten)) is not None:
-                self.hass.async_create_task(self.hass.config_entries.async_reload(eintrag.entry_id))
-        # Nach dem Neuladen das Wort an den Plaetzen auswaehlen
-        self._weg.append(async_call_later(self.hass, 30, self._spaeter_auswaehlen(wort)))
+        # ESPHome reads the folder custom_wake_words when Home Assistant starts. A new version reaches the
+        # devices after the next restart; a repair message offers it with one tap, afterwards the word is
+        # selected on its slots by itself.
+        warten = self.daten.setdefault("nach_neustart", [])
+        if wort.id not in warten:
+            warten.append(wort.id)
+        await self.hass.async_add_executor_job(self.speichern)
+        self.neustart_meldung()
         self.geaendert()
 
-    def _spaeter_auswaehlen(self, wort: Wort) -> Any:
-        async def auswaehlen(_now: Any) -> None:
-            if wort.id in self.woerter:
-                await self.auswaehlen(wort)
+    @callback
+    def neustart_meldung(self) -> None:
+        """Repair message 'restart to roll out' while versions are waiting for a restart."""
+        namen = [self.woerter[w].wort for w in self.daten.get("nach_neustart", []) if w in self.woerter]
+        if namen:
+            ir.async_create_issue(
+                self.hass, DOMAIN, NEUSTART_MELDUNG, is_fixable=True, severity=ir.IssueSeverity.WARNING,
+                translation_key=NEUSTART_MELDUNG, translation_placeholders={"words": ", ".join(namen)},
+            )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, NEUSTART_MELDUNG)
 
-        return auswaehlen
+    async def nach_neustart(self, _now: Any = None) -> None:
+        """After a restart of Home Assistant: select the rolled out words on their devices."""
+        for wid in list(self.daten.get("nach_neustart", [])):
+            if wid in self.woerter:
+                await self.auswaehlen(self.woerter[wid])
+        self.daten["nach_neustart"] = []
+        await self.hass.async_add_executor_job(self.speichern)
+        self.neustart_meldung()
+        self.geaendert()
 
     async def auswaehlen(self, wort: Wort) -> list[str]:
         """Das Wort an seinen Plaetzen in der Auswahl "Aktivierungswort" setzen."""
