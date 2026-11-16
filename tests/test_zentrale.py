@@ -62,6 +62,9 @@ async def test_training_ablauf(hass: HomeAssistant, geladen, geraet) -> None:
     w.cfg["anzeige"] = "Hey Lumi (custom)"
     z.auftrag(w.id, "von_hand")
     assert z.reihe() == [w.id] and z.naechster_auftrag() is w
+    assert z.naechster_auftrag() is None  # just handed out: a second trainer does not get it as well
+    z._abgeholt[w.id] -= 1000
+    assert z.naechster_auftrag() is w  # the trainer never confirmed: offered again
     assert w.speicher.daten["training"]["phase"] == "wartet"
     z.trainer_meldet({"info": {"name": "PC"}})
     assert z.trainer_online and z.trainer_info == {"name": "PC"}

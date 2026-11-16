@@ -58,7 +58,8 @@ PROTOKOLL_ZEILEN = 80
 # unless it stays silent for STUMM_MAX_S.
 STILL_S = int(os.environ.get("STILL_S", "600"))
 STUMM_MAX_S = int(os.environ.get("STUMM_MAX_S", str(3 * 3600)))
-SPEICHER_REST_GB = 0.25  # less free memory than this for 30 s: stop the step ourselves before the OOM killer picks
+SPEICHER_REST_GB = 0.25
+PLATZ_REST_GB = 0.5  # below this the step stops instead of writing broken files  # less free memory than this for 30 s: stop the step ourselves before the OOM killer picks
 VERSUCHE = 3  # attempts per step: normal, then half the processes, then a single process
 SCHRITTE_MAX = 40
 _BALKEN = re.compile(r"\d+%\||it/s|s/it|\d+/\d+ \[")
@@ -315,6 +316,10 @@ class Lauf:
                     break
             else:
                 knapp_seit = None
+            if platz_frei(self.daten) < PLATZ_REST_GB:
+                self._grund = (f"PLATZ Disk almost full ({platz_frei(self.daten):.1f} GB left), step stopped. "
+                               "Free space on the trainer and start again")
+                break
             if jetzt - cpu_zeit >= STILL_S:
                 cpu = _cpu_gruppe(prozess.pid)
                 still = jetzt - self._ausgabe_zeit
@@ -339,7 +344,11 @@ class Lauf:
                 return versuch(stufe)
             except RuntimeError as err:
                 text = str(err)
-                if stufe == VERSUCHE - 1 or not text.startswith(("SPEICHER", "HAENGT")):
+                art, _, rest = text.partition(" ")
+                if art in ("SPEICHER", "HAENGT", "PLATZ"):
+                    if stufe == VERSUCHE - 1 or art == "PLATZ":  # fewer processes do not help against a full disk
+                        raise RuntimeError(rest) from err
+                else:
                     raise
                 self.notiz(f"{name}: {text.split(' ', 1)[1]} - trying again with fewer processes "
                            f"({stufe + 2}/{VERSUCHE})", "warnung")
@@ -392,7 +401,17 @@ class Lauf:
         tflite = self._training(merkmale, self._schlanke_negative(neg))
         bericht = self._test(tflite, echt, tts, bg, gerede)
         self._abschnitt("test", 1, "senden", True)
-        self.ha.ergebnis(self.wort_id, tflite.read_bytes(), bericht)
+        try:
+            self.ha.ergebnis(self.wort_id, tflite.read_bytes(), bericht)
+        except Exception as err:  # noqa: BLE001 - Home Assistant gone for longer than 30 minutes
+            ablage = Path(self.daten) / "ausstehend" / self.wort_id
+            ablage.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(tflite, ablage / "modell.tflite")
+            (ablage / "bericht.json").write_text(json.dumps(bericht), encoding="utf-8")
+            self.notiz(f"Home Assistant not reachable ({err}); the result is kept and sent as soon as it is back",
+                       "warnung")
+            self.letzter = {"wort_id": self.wort_id}
+            return
         self.letzter = {"wort_id": self.wort_id}  # HA now shows the result; the heartbeat must not report "testing" again
         _LOG.info("Done: %s", json.dumps(bericht, ensure_ascii=False))
         self.notiz("Done, result sent to Home Assistant")
@@ -588,6 +607,9 @@ class Lauf:
         max_proben = max(500, int(ram * 800 * faktor))
         max_frames = max(30000, int(ram * 50000 * faktor))
         ziel = Path(self.daten) / "schlank" / f"{max_proben}_{max_frames}"
+        for alt in (Path(self.daten) / "schlank").glob("*"):  # other sizes (other memory) are no longer needed
+            if alt != ziel:
+                shutil.rmtree(alt, ignore_errors=True)
         aus = {}
         for name, pfad in neg.items():
             z = ziel / name

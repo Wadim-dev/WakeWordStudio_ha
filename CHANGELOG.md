@@ -5,6 +5,10 @@
 - If memory runs out anyway, the system stops the computing step first, not the trainer service.
 - A run lost because the trainer restarted is no longer an error: Home Assistant queues it again and the trainer starts it with less memory (up to 2 times).
 - The self-test also covers choosing the evaluation data.
+- Interrupted downloads of the base data continue where they stopped (up to 6 attempts with growing pauses); a damaged archive is downloaded once more instead of failing.
+- If Home Assistant is away for more than 30 minutes when a run finishes, the trainer keeps the model and delivers it as soon as Home Assistant is back.
+- If the trainer's disk is almost full (below 0.5 GB), the step stops with a clear message instead of writing broken files.
+- A queued run is never handed to two trainers at the same time; evaluation data of an older memory size is removed.
 
 ## 1.0.6
 - Fix: training stopped at its first evaluation because TensorBoard was missing in the trainer image.
