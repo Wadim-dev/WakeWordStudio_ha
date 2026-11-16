@@ -8,7 +8,7 @@ import os
 from unittest.mock import AsyncMock, patch
 
 from freezegun.api import FrozenDateTimeFactory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CoreState, HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er, issue_registry as ir
 import pytest
 from pytest_homeassistant_custom_component.common import async_fire_time_changed, async_mock_service
@@ -57,7 +57,7 @@ async def test_vorhandenes_modell_wird_v1(hass: HomeAssistant, geladen) -> None:
 
 async def test_training_ablauf(hass: HomeAssistant, geladen, geraet) -> None:
     z = geladen.runtime_data
-    g = geraet("kueche", "Kitchen")
+    geraet("kueche", "Kitchen")
     w = await z.wort_neu({"wort": "Hey Lumi", "geraete": {"kueche": "1"}})
     w.cfg["anzeige"] = "Hey Lumi (custom)"
     z.auftrag(w.id, "von_hand")
@@ -85,27 +85,28 @@ async def test_training_ablauf(hass: HomeAssistant, geladen, geraet) -> None:
     z.trainer_meldet({"neustart": True})
     assert w.speicher.daten["training"]["phase"] == "fehler"
     assert w.speicher.daten["laeufe"][-1]["hinweis"] == "trainer_getrennt"
-    # Ergebnis: besser -> einspielen, Geraete neu laden, spaeter auswaehlen
+    # Ergebnis: besser -> Dateien schreiben, Neustart-Meldung, nach dem Neustart auswaehlen
     sel = async_mock_service(hass, "select", "select_option")
     num = async_mock_service(hass, "number", "set_value")
-    with patch.object(hass.config_entries, "async_reload", AsyncMock(return_value=True)) as neu_laden:
-        e = await z.ergebnis(w, b"TFL3neu", {"besser": True, "cutoff": 0.96, "neu": {"trefferquote": 0.9}})
-        await hass.async_block_till_done()
+    reg = ir.async_get(hass)
+    e = await z.ergebnis(w, b"TFL3neu", {"besser": True, "cutoff": 0.96, "neu": {"trefferquote": 0.9}})
+    await hass.async_block_till_done()
     assert e["status"] == "aktiv" and w.speicher.daten["aktiv"] == 1
     assert w.speicher.daten["laeufe"][-1]["ergebnis"] == "eingespielt"
-    neu_laden.assert_called_once_with(g.eintrag.entry_id)
+    assert z.daten["nach_neustart"] == [w.id]
+    meldung = reg.async_get_issue(DOMAIN, "restart_to_roll_out")
+    assert meldung.is_fixable and meldung.translation_placeholders == {"words": "Hey Lumi"}
     beschreibung = json.load(open(hass.config.path("custom_wake_words", "hey_lumi.json"), encoding="utf-8"))
     assert beschreibung["micro"]["probability_cutoff"] == 0.96
     hass.states.async_set("select.kueche_wake_word", "Okay Nabu", {"options": ["Okay Nabu", "Hey Lumi (custom)"]})
-    async_fire_time_changed(hass, datetime.now(UTC) + timedelta(seconds=31))
-    await hass.async_block_till_done()
+    await z.nach_neustart()
     assert sel[-1].data == {"entity_id": "select.kueche_wake_word", "option": "Hey Lumi (custom)"}
+    assert z.daten["nach_neustart"] == [] and reg.async_get_issue(DOMAIN, "restart_to_roll_out") is None
     assert await z.schwelle_setzen(w, 0.951) == ["number.kueche_assistant_1_wake_word_threshold"]
     assert num[-1].data["value"] == 0.95
     assert z.schwellen_jetzt(w) == {"Kitchen": 0.97}
     # nicht besser: bleibt
-    with patch.object(hass.config_entries, "async_reload", AsyncMock()):
-        e2 = await z.ergebnis(w, b"TFL3schlecht", {"besser": False})
+    e2 = await z.ergebnis(w, b"TFL3schlecht", {"besser": False})
     assert e2["status"] == "verworfen" and w.speicher.daten["aktiv"] == 1
     with pytest.raises(ValueError, match="version_fehlt"):
         await z.einspielen(w, 99)
@@ -303,3 +304,37 @@ async def test_tage(hass: HomeAssistant, geladen) -> None:
     }
     tage = w.speicher.tage()
     assert len(tage) == 14 and tage[-1] == 1 and tage[-3] == 1 and sum(tage) == 2
+
+
+async def test_neustart_zum_einspielen(hass: HomeAssistant, geladen) -> None:
+    """Integration reloaded (HA keeps running): the message stays; HA starting: words are selected later."""
+    z = geladen.runtime_data
+    reg = ir.async_get(hass)
+    w = await z.wort_neu({"wort": "Hey Lumi"})
+    z.daten["nach_neustart"] = [w.id, "weg"]
+    await hass.async_add_executor_job(z.speichern)
+    assert await hass.config_entries.async_reload(geladen.entry_id)
+    await hass.async_block_till_done()
+    assert reg.async_get_issue(DOMAIN, "restart_to_roll_out").translation_placeholders == {"words": "Hey Lumi"}
+    z = geladen.runtime_data
+    with patch.object(type(z), "nach_neustart", AsyncMock()) as nach:
+        hass.set_state(CoreState.starting)
+        assert await hass.config_entries.async_reload(geladen.entry_id)
+        hass.set_state(CoreState.running)
+        async_fire_time_changed(hass, datetime.now(UTC) + timedelta(seconds=91))
+        await hass.async_block_till_done()
+    assert nach.called
+    # repair flow restarts Home Assistant
+    from custom_components.sprachmodell.repairs import async_create_fix_flow
+
+    neustart = async_mock_service(hass, "homeassistant", "restart")
+    flow = await async_create_fix_flow(hass, "restart_to_roll_out", None)
+    flow.hass = hass
+    assert (await flow.async_step_init())["type"] == "form"
+    assert (await flow.async_step_confirm({}))["type"] == "create_entry"
+    await hass.async_block_till_done()
+    assert len(neustart) == 1
+    with pytest.raises(ValueError):
+        await async_create_fix_flow(hass, "anderes", None)
+    await hass.config_entries.async_unload(geladen.entry_id)
+    assert reg.async_get_issue(DOMAIN, "restart_to_roll_out") is None

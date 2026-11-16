@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.14
+- Quality page: table of your answers (word, missed, not the word, not reviewed) against the device's confidence, for all devices or one. Cells where you and the model strongly disagree are outlined; tap a cell to listen to exactly those recordings in History and decide again.
+- Rollout follows Home Assistant's rules: a better version is saved to `custom_wake_words` and a repair message offers a restart with one tap (Home Assistant reads new wake word models when it starts); after the restart the word is selected on its devices by itself. Wake Word Studio no longer touches ESPHome's internal wake word cache or its runtime data.
+- Devices are found through the device and entity registries and the device name ESPHome stores in its config entry.
+- The start page shows when a new version waits for a restart, with a button to the repair message.
+
 ## 1.0.13
 - New hub page: a status banner at the top says what matters now (training with progress and finish time, recordings waiting for review, trainer missing, or all set) with one button to the next step. Word cards show recall as a ring, open reviews, version and a 14-day chart of device recordings. Trainer card with processor, memory and disk use; queue with the nightly time; devices with the words on each.
 - Training shows the expected finish time ("done around 16:40") next to the time left.

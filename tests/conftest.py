@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import base64
 import io
-from types import SimpleNamespace
 from typing import Any
 import wave
 
@@ -76,11 +75,9 @@ class Geraet:
         self.audio: dict[str, bytes] = {}
         self.aufrufe: list[str] = []
         self.fehler: Exception | None = None
-        self.eintrag = MockConfigEntry(domain="esphome", title=name, data={"host": knoten})
+        self.eintrag = MockConfigEntry(domain="esphome", title=name,
+                                       data={"host": knoten, "device_name": knoten.replace("_", "-")})
         self.eintrag.add_to_hass(hass)
-        self.eintrag.runtime_data = SimpleNamespace(
-            device_info=SimpleNamespace(name=knoten.replace("_", "-"), friendly_name=name)
-        )
         dev = dr.async_get(hass).async_get_or_create(
             config_entry_id=self.eintrag.entry_id, identifiers={("esphome", knoten)}, name=name
         )

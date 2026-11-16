@@ -33,12 +33,12 @@ WAHL_ENDUNGEN = {"1": "-wake_word", "2": "-wake_word_2"}
 
 
 def esphome_eintraege(hass: HomeAssistant) -> dict[str, ConfigEntry]:
-    """Node name -> loaded ESPHome config entry."""
+    """Node name -> ESPHome config entry (from the entry's stored device name, no ESPHome internals)."""
     eintraege: dict[str, ConfigEntry] = {}
     for eintrag in hass.config_entries.async_entries("esphome"):
-        info = getattr(getattr(eintrag, "runtime_data", None), "device_info", None)
-        if info is not None and getattr(info, "name", None):
-            eintraege[str(info.name).replace("-", "_")] = eintrag
+        knoten = eintrag.data.get("device_name")
+        if eintrag.disabled_by is None and isinstance(knoten, str) and knoten:
+            eintraege[knoten.replace("-", "_")] = eintrag
     return eintraege
 
 
@@ -48,9 +48,6 @@ def _name(hass: HomeAssistant, knoten: str, eintrag: ConfigEntry | None) -> str:
         for geraet in dr.async_entries_for_config_entry(dr.async_get(hass), eintrag.entry_id):
             if geraet.name_by_user or geraet.name:
                 return str(geraet.name_by_user or geraet.name)
-        info = getattr(getattr(eintrag, "runtime_data", None), "device_info", None)
-        if friendly := getattr(info, "friendly_name", None):
-            return str(friendly)
         if eintrag.title:
             return str(eintrag.title)
     return knoten.replace("_", " ").title()

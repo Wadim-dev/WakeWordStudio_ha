@@ -47,6 +47,22 @@ def _zeit(text: str | None) -> float:
         return 0.0
 
 
+TABELLE_GRENZEN = [0.0, 0.5, 0.7, 0.8, 0.85, 0.9, 0.93, 0.95, 0.97, 0.99, 1.01]
+TABELLE_ZEILEN = ("wort", "verpasst", "kein_wort", "offen")
+
+
+def _zeile(a: dict[str, Any]) -> str | None:
+    """Row of a device recording in the table: said the word (woke up), missed it, did not say it, not reviewed."""
+    if a.get("quelle") != "echo":
+        return None
+    urteil = a.get("urteil")
+    if urteil == WORT:
+        return "verpasst" if a.get("art") in ("nearmiss", "noise") else "wort"
+    if urteil == KEIN_WORT:
+        return "kein_wort"
+    return "offen" if not urteil else None
+
+
 def sichere_id(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]+", "_", str(text))[:80]
 
@@ -334,8 +350,12 @@ class Speicher:
         ]
 
     def liste(self, filter_: str, echo: str | None, art: str | None,
-              seite: int, je_seite: int = 60) -> dict[str, Any]:
+              seite: int, je_seite: int = 60, zelle: tuple[str, float, float] | None = None) -> dict[str, Any]:
         alle = list(self.daten["aufnahmen"].values())
+        if zelle:  # one cell of the table on the quality page: row and score range
+            zeile, von, bis = zelle
+            alle = [a for a in alle if _zeile(a) == zeile and isinstance(a.get("score"), int | float)
+                    and von <= a["score"] < bis]
         if filter_ == "offen":
             alle = [a for a in alle if a["quelle"] == "echo" and not a.get("urteil")]
         elif filter_ == "bewertet":
@@ -355,6 +375,24 @@ class Speicher:
             "seiten": max(1, -(-len(alle) // je_seite)),
             "eintraege": alle[seite * je_seite:(seite + 1) * je_seite],
         }
+
+    def tabelle(self) -> dict[str, Any]:
+        """Device recordings by your answer (rows) and the device's score (columns), for all devices and per device.
+        Cells where you and the model disagree strongly are worth listening to again."""
+        def leer() -> dict[str, list[int]]:
+            return {z: [0] * (len(TABELLE_GRENZEN) - 1) for z in TABELLE_ZEILEN}
+
+        aus: dict[str, dict[str, list[int]]] = {"": leer()}
+        for a in self.daten["aufnahmen"].values():
+            zeile, score = _zeile(a), a.get("score")
+            if zeile is None or not isinstance(score, int | float):
+                continue
+            spalte = next((i for i in range(len(TABELLE_GRENZEN) - 1) if score < TABELLE_GRENZEN[i + 1]), None)
+            if spalte is None:
+                continue
+            for schluessel in ("", a.get("echo") or "?"):
+                aus.setdefault(schluessel, leer())[zeile][spalte] += 1
+        return {"grenzen": TABELLE_GRENZEN, "zeilen": aus}
 
     def statistik(self) -> dict[str, Any]:
         """Zahlen fuer die Seiten Uebersicht und Qualitaet."""
@@ -410,6 +448,7 @@ class Speicher:
             },
             "schwellen": schwellen,
             "schwelle_vorschlag": vorschlag,
+            "tabelle": self.tabelle(),
             "verteilung": verteilung,
         }
 

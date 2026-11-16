@@ -30,9 +30,8 @@ async def test_geraet_nur_mit_dienst(hass: HomeAssistant, geraet) -> None:
     dr_reg = dr.async_get(hass)
     for d in dr.async_entries_for_config_entry(dr_reg, g.eintrag.entry_id):
         dr_reg.async_remove_device(d.id)
-    g.eintrag.runtime_data.device_info.friendly_name = None
     assert geraete_info(hass)["bad_echo"]["name"] == "Bath"  # entry title
-    g.eintrag.runtime_data = None
+    hass.config_entries.async_update_entry(g.eintrag, data={"host": "x"})  # no stored device name
     assert geraete_info(hass)["bad_echo"] == {"name": "Bad Echo", "clips": True, "plaetze": ["1"]}
 
 

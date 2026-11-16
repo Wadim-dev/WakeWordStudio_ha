@@ -80,7 +80,7 @@ Say the word into your phone or PC – every take is cut by itself. Record negat
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/training.png" alt="Training progress" width="900"></p>
 
 At night (or on a tap) the trainer fetches the reviewed recordings, adds thousands of synthetic voices of your word's language, trains a new version and tests it against recordings it **never learned** (every fifth one is held back).
-Only a version that is better than the current one is rolled out – to all devices of the word, without restarting Home Assistant.
+Only a version that is better than the current one is rolled out. Home Assistant reads new wake word models when it starts, so a repair message offers the restart with one tap; afterwards the word is selected on all its devices by itself.
 
 While it runs, the *Training* page shows every step with its start time and duration, the time left and the expected finish time, the trainer's processor, memory and disk load, and a live log, newest line first (also kept after an error, so you can see what went wrong). If the trainer is held up for a long time because it waits for memory or disk, Home Assistant shows a repair message with what to do.
 
@@ -88,7 +88,7 @@ While it runs, the *Training* page shows every step with its start time and dura
 
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/quality.png" alt="Quality page" width="900"></p>
 
-Recall in quiet and with music, false wakes per hour of speech, results per person, how the devices did in daily use – and a **threshold suggestion from your own answers** that you can apply to all devices with one tap. Every version stays available and can be rolled back.
+Recall in quiet and with music, false wakes per hour of speech, results per person, a **table of your answers against the device's confidence** (cells where you and the model strongly disagree are outlined – tap one to listen to exactly those recordings and decide again), how the devices did in daily use – and a **threshold suggestion from your own answers** that you can apply to all devices with one tap. Every version stays available and can be rolled back.
 
 ## Words and devices
 
@@ -190,7 +190,8 @@ No entity polls. Devices with wake clips are asked every two minutes and right a
 | *Device not found* repair | The device was renamed, replaced or is offline. Choose it again under the word → Word → Devices and slot. |
 | *No trainer connected* repair | Start the trainer app or container; check the key under Settings → Trainer. |
 | Training stopped with *trainer did not report back* | The trainer restarted (update, out of memory). It adapts to memory by itself; start the run again. |
-| New version not selectable on the device | It appears after the first rollout; use *Select on the devices* on the word page. |
+| New version not on the device | Restart Home Assistant (repair message *New wake word version ready*); the word is then selected by itself. You can also use *Select on the devices* on the word page. |
+| *Trainer is slowed down* repair | The trainer mostly waits for memory or disk. Give its container more memory or move its disk to a local SSD (see *Settings → Trainer → Profile*). |
 
 Diagnostics (*Settings → Devices & services → Wake Word Studio → ⋮ → Download diagnostics*) never contain the trainer key or names of people.
 
@@ -211,7 +212,11 @@ Diagnostics (*Settings → Devices & services → Wake Word Studio → ⋮ → D
 2. *Einstellungen → Geräte & Dienste → Integration hinzufügen → Wake Word Studio*, Ablageordner bestätigen (später änderbar über *Neu konfigurieren*, die Daten ziehen mit um).
 3. **Wake Word Studio** in der Seitenleiste öffnen, Wort anlegen, Geräte wählen, Trainer starten (App, Docker oder Proxmox – Befehle unter *Einstellungen → Trainer*).
 
-Die Seite *Training* zeigt während eines Laufs jeden Schritt mit Startzeit und Dauer, die Auslastung des Trainers (Prozessor, Arbeitsspeicher, Platz) und ein Live-Protokoll, das auch nach einem Fehler stehen bleibt.
+Die Seite *Qualität* zeigt eine Tabelle aus deinen Antworten und der Sicherheit des Geräts; auffällige Zellen (du und das Modell seid euch sehr uneinig) sind orange umrandet, ein Tipp öffnet genau diese Aufnahmen zum Nachhören.
+
+Die Startseite zeigt oben, was gerade zählt (Training mit „fertig ca. HH:MM“, wartende Aufnahmen, Trainer fehlt, neue Version bereit), mit einem Knopf zum nächsten Schritt; darunter jedes Wort mit Erkennungsquote und den Aufnahmen der letzten 14 Tage, den Trainer mit Auslastung, die Warteschlange und die Geräte.
+
+Die Seite *Training* zeigt während eines Laufs jeden Schritt mit Startzeit und Dauer, Restzeit und voraussichtliches Ende, die Auslastung des Trainers (Prozessor, Arbeitsspeicher, Platte) und ein Live-Protokoll (neueste Zeile oben), das auch nach einem Fehler stehen bleibt. Eine bessere Version liegt danach bereit; Home Assistant liest neue Modelle beim Start, deshalb bietet eine Reparaturmeldung den Neustart mit einem Tipp an, danach wird das Wort an den Geräten von selbst ausgewählt.
 
 Gefunden wird jedes ESPHome-Sprachgerät mit der Auswahl „Aktivierungswort“, egal wie es heißt. Geräte mit Firmware, die Aufnahmen aufhebt (z. B. TECHO, Schalter *Keep wake clips*), liefern ihre Aufnahmen von selbst.
 

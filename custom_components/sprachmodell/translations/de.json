@@ -180,6 +180,17 @@
     "trainer_slow_disk": {
       "title": "Trainer wird ausgebremst",
       "description": "Der Trainer wartet seit über 15 Minuten meist auf die Platte, während der Prozessor kaum arbeitet. Das Training läuft weiter, aber deutlich langsamer. Typische Ursachen: zu wenig Arbeitsspeicher für den Container (Auslagerung), oder die Daten des Trainers liegen auf einem Netzlaufwerk. Dem Container mehr Arbeitsspeicher geben oder seine Platte auf eine lokale SSD verschieben. Details und Auslastung: Wake Word Studio → [Einstellungen]({panel}) → Trainer. Der Hinweis verschwindet von selbst, sobald der Trainer wieder flüssig läuft."
+    },
+    "restart_to_roll_out": {
+      "title": "Neue Version des Aktivierungsworts bereit",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Home Assistant neu starten",
+            "description": "Eine neue Version von **{words}** ist gespeichert. Home Assistant liest neue Aktivierungswort-Modelle beim Start ein. Jetzt neu starten, um sie einzuspielen? Danach wird das Wort an seinen Geräten von selbst ausgewählt."
+          }
+        }
+      }
     }
   }
 }

@@ -4,7 +4,7 @@
 // No polling: the page reloads only when one of the integration's sensors changes.
 import { TEXTE, SPRACHNAMEN } from './sprachmodell-texte.js';
 
-const VERSION = '1.0.13';
+const VERSION = '1.0.14';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -172,6 +172,17 @@ h3.abschnitt{margin:20px 2px 8px;font-size:13px;text-transform:uppercase;letter-
 .leer-klein{display:flex;align-items:center;gap:8px;margin-top:12px;color:var(--secondary-text-color);font-size:13px}.leer-klein ha-icon{opacity:.6}
 .steckbrief td:first-child{color:var(--secondary-text-color);width:40%}
 @media (max-width:600px){.neu-karte{min-height:64px;flex-direction:row}.neu-karte ha-icon{width:36px;height:36px;--mdc-icon-size:24px}.held{grid-template-columns:auto 1fr;padding:16px}.held-knopf{grid-column:1/-1}.held-knopf .k{width:100%;justify-content:center}.held-ikon{width:44px;height:44px;border-radius:12px}.held-titel{font-size:19px}}
+.tb-rahmen{overflow-x:auto}
+table.tb{border-collapse:separate;border-spacing:3px;width:auto;min-width:100%}
+table.tb th,table.tb td{border:0;padding:0;vertical-align:middle}
+.tb-k{font-size:11px;font-weight:400;text-align:center;color:var(--secondary-text-color);padding:0 2px 4px!important;white-space:nowrap}
+.tb-k.tb-sw{color:var(--primary-color);font-weight:600}
+.tb-r{text-align:left;font-weight:400;font-size:13px;white-space:nowrap;padding-right:10px!important;color:var(--primary-text-color)}
+.tb-z{min-width:42px;height:34px;text-align:center;font-size:13px;border-radius:6px;cursor:pointer;background:color-mix(in srgb,var(--tf) var(--ta),transparent);transition:transform .15s}
+.tb-z:hover{transform:scale(1.08)}
+.tb-z.leer{background:rgba(var(--rgb-primary-text-color,0,0,0),.04);cursor:default}.tb-z.leer:hover{transform:none}
+.tb-z.auff{outline:2px solid var(--warning-color,#ff9800);outline-offset:-2px;font-weight:600}
+.tb-muster{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}.tb-muster.auff{outline:2px solid var(--warning-color,#ff9800);outline-offset:-2px}.tb-muster.sw{background:var(--primary-color)}
 @media (max-width:600px){main{padding:12px 8px 80px}.eintrag{grid-template-columns:44px 1fr;gap:10px;padding:10px}.spielen{width:44px;height:44px}button.k kbd{display:none}}
 `;
 
@@ -314,7 +325,7 @@ class SprachmodellPanel extends HTMLElement {
       const ew = this._wortId ? '&wort=' + encodeURIComponent(this._wortId) : '';
       const ef = this._filter.echo ? '&echo=' + encodeURIComponent(this._filter.echo) : '';
       if (this._daten.wort && this._reiter === 'pruefen') this._liste = await this._api('GET', 'liste?filter=offen' + ew + ef);
-      if (this._daten.wort && this._reiter === 'verlauf') this._liste = await this._api('GET', `liste?filter=${this._filter.verlauf}&seite=${this._filter.seite}` + ew + ef);
+      if (this._daten.wort && this._reiter === 'verlauf') { const z = this._filter.zelle; this._liste = await this._api('GET', (z ? `liste?filter=alle&zeile=${z.zeile}&von=${z.von}&bis=${z.bis}&seite=${this._filter.seite}` : `liste?filter=${this._filter.verlauf}&seite=${this._filter.seite}`) + ew + (z ? (z.echo ? '&echo=' + encodeURIComponent(z.echo) : '') : ef)); }
       this._fehler = null;
     } catch (e) { this._fehler = this._fehlerText(e); }
     this._kopfZeichnen();
@@ -375,6 +386,11 @@ class SprachmodellPanel extends HTMLElement {
       text = [this._schritt(t.schritt) || this.t('p_' + t.phase), t.prozent != null ? Math.round(t.prozent) + ' %' : '', this._fertigText(t, true)].filter(Boolean).join(' · ');
       balken = `<div class="fortschritt"><i style="width:${t.prozent ?? 3}%;background-color:${farbe}"></i></div>`;
       knopf = `<button class="k haupt" data-reiter="training" data-wort="${esc(lauf.id)}"><ha-icon icon="mdi:chart-timeline-variant"></ha-icon>${esc(this.t('h_ansehen'))}</button>`;
+    } else if ((d.nach_neustart || []).length) {
+      const namen = d.nach_neustart.map((id) => (ws.find((w) => w.id === id) || {}).wort).filter(Boolean).join(', ');
+      farbe = 'var(--primary-color)'; icon = 'mdi:restart';
+      titel = this.t('h_neustart', { w: namen }); text = this.t('h_neustart_text');
+      knopf = this._admin ? `<button class="k haupt" data-a="reparaturen"><ha-icon icon="mdi:restart"></ha-icon>${esc(this.t('h_neustart_knopf'))}</button>` : '';
     } else if (d.offen) {
       const w = ws.filter((x) => x.offen).sort((x, y) => y.offen - x.offen)[0];
       farbe = 'var(--warning-color,#ff9800)'; icon = 'mdi:playlist-check';
@@ -725,7 +741,8 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
   _verlauf() {
     const l = this._liste || { eintraege: [], gesamt: 0, seiten: 1 };
     const filter = ['bewertet', 'hochgeladen', 'test', 'alle'];
-    return `<div class="zeile" style="margin-bottom:10px">${filter.map((k) => `<button class="chip ${this._filter.verlauf === k ? 'an' : ''}" data-verlauf="${k}">${esc(this.t('v_' + k))}</button>`).join('')}<span class="klein">${esc(this.t('v_anzahl', { n: l.gesamt }))}</span></div>
+    const z = this._filter.zelle;
+    return `<div class="zeile" style="margin-bottom:10px">${z ? `<button class="chip an" data-a="zelle_weg"><ha-icon icon="mdi:table" style="--mdc-icon-size:16px"></ha-icon>${esc(this.t('tb_zeile_' + z.zeile))} · ${this._zahl(z.von)}–${this._zahl(Math.min(1, z.bis))}${z.echo ? ' · ' + esc(z.echo) : ''} ✕</button>` : filter.map((k) => `<button class="chip ${this._filter.verlauf === k ? 'an' : ''}" data-verlauf="${k}">${esc(this.t('v_' + k))}</button>`).join('')}<span class="klein">${esc(this.t('v_anzahl', { n: l.gesamt }))}</span></div>
 <div class="klein" style="margin-bottom:10px">${esc(this.t('v_hilfe'))}</div>
 ${l.gesamt ? `<div class="liste">${l.eintraege.map((a, i) => this._eintrag(a, i, false)).join('')}</div>` : `<ha-card><div class="leer">${esc(this.t('v_leer'))}</div></ha-card>`}
 ${l.seiten > 1 ? `<div class="zeile" style="justify-content:center;margin-top:12px"><button class="k" data-seite="-1" ${l.seite ? '' : 'disabled'}>${esc(this.t('zurueck'))}</button><span class="klein">${esc(this.t('seite', { a: l.seite + 1, b: l.seiten }))}</span><button class="k" data-seite="1" ${l.seite + 1 < l.seiten ? '' : 'disabled'}>${esc(this.t('weiter'))}</button></div>` : ''}`;
@@ -822,6 +839,33 @@ ${this._details(w, laeuft)}
   }
 
   // ---------- Qualität ----------
+  _tabelle() {
+    const w = this._daten.wort, tb = (w.statistik || {}).tabelle;
+    if (!tb) return '';
+    const echo = this._tbEcho && tb.zeilen[this._tbEcho] ? this._tbEcho : '';
+    const z = tb.zeilen[echo], g = tb.grenzen, n = g.length - 1;
+    const summe = Object.values(z).reduce((a, r) => a + r.reduce((x, y) => x + y, 0), 0);
+    const schwellen = Object.values(w.schwellen || {}), sw = schwellen.length ? schwellen[0] : null;
+    const kopf = Array.from({ length: n }, (_, i) => `<th class="tb-k ${sw != null && sw >= g[i] && sw < g[i + 1] ? 'tb-sw' : ''}">${i === 0 ? '&lt;' + this._zahl(g[1]) : i === n - 1 ? '≥' + this._zahl(g[i]) : this._zahl(g[i])}</th>`).join('');
+    const auffaellig = (zeile, i) => (zeile === 'kein_wort' && g[i] >= 0.95) || (zeile === 'wort' && g[i + 1] <= 0.7);
+    const reihen = ['wort', 'verpasst', 'kein_wort', 'offen'].map((zeile) => {
+      const r = z[zeile] || [], ges = r.reduce((x, y) => x + y, 0);
+      const zellen = r.map((anz, i) => {
+        if (!anz) return '<td class="tb-z leer"></td>';
+        const anteil = anz / ges, auff = auffaellig(zeile, i);
+        const farbe = auff ? 'var(--warning-color,#ff9800)' : zeile === 'kein_wort' ? 'var(--error-color,#f44336)' : zeile === 'offen' ? 'var(--secondary-text-color)' : 'var(--success-color,#4caf50)';
+        return `<td class="tb-z ${auff ? 'auff' : ''}" style="--tf:${farbe};--ta:${Math.round(12 + 70 * anteil)}%" data-zelle="${zeile}|${g[i]}|${g[i + 1]}" title="${esc(this.t('tb_titel_zelle', { n: anz }))}">${anz}</td>`;
+      }).join('');
+      return `<tr><th class="tb-r">${esc(this.t('tb_zeile_' + zeile))}<span class="klein"> · ${ges}</span></th>${zellen}</tr>`;
+    }).join('');
+    const echos = Object.keys(tb.zeilen).filter((k) => k);
+    const auffAnz = ['wort', 'kein_wort'].reduce((a, zeile) => a + (z[zeile] || []).reduce((x, anz, i) => x + (auffaellig(zeile, i) ? anz : 0), 0), 0);
+    return `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('tb_titel'))}</h2>${echos.length > 1 ? `<div class="zeile"><button class="chip ${!echo ? 'an' : ''}" data-tbecho="">${esc(this.t('pr_alle'))}</button>${echos.map((e) => `<button class="chip ${echo === e ? 'an' : ''}" data-tbecho="${esc(e)}">${esc(e)}</button>`).join('')}</div>` : ''}</div>
+<p class="klein" style="line-height:1.5">${esc(this.t('tb_hilfe'))}</p>
+${summe ? `<div class="tb-rahmen"><table class="tb"><tr><th class="tb-r klein">${esc(this.t('tb_ecke'))}</th>${kopf}</tr>${reihen}</table></div>
+<div class="zeile klein" style="margin-top:8px;gap:14px">${auffAnz ? `<span><span class="tb-muster auff"></span>${esc(this.t('tb_auff', { n: auffAnz }))}</span>` : `<span class="gruen">${esc(this.t('tb_keine_auff'))}</span>`}${sw != null ? `<span><span class="tb-muster sw"></span>${esc(this.t('tb_schwelle', { w: this._zahl(sw) }))}</span>` : ''}</div>` : `<div class="klein">${esc(this.t('tb_leer'))}</div>`}</ha-card>`;
+  }
+
   _qualitaet() {
     const w = this._daten.wort, s = w.statistik, v = w.versionen.find((x) => x.nr === w.aktiv), b = (v && v.bericht) || {};
     const neu = b.neu || {}, personen = neu.je_person || {};
@@ -835,6 +879,7 @@ ${this._details(w, laeuft)}
 <div><div class="klein">${esc(this.t('q_gegen'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.gegenbeispiele)}</div></div></div>
 ${Object.keys(personen).length ? `<h3>${esc(this.t('q_je_person'))}</h3><table><tr><th>${esc(this.t('h_person'))}</th><th class="z">${esc(this.t('q_erkannt'))}</th><th class="z">${esc(this.t('q_aufnahmen'))}</th></tr>${Object.entries(personen).map(([p, x]) => `<tr><td>${esc(p)}</td><td class="z">${this._pct(x.trefferquote)}</td><td class="z">${x.anzahl}</td></tr>`).join('')}</table>` : ''}
 <div class="klein" style="margin-top:10px">${esc(this.t('ue_eingespielt', { z: this._zeit(v.eingespielt) }))}${b.cutoff ? ' · ' + esc(this.t('q_modell_schwelle', { w: this._zahl(b.cutoff) })) : ''}${herkunft ? ' · ' + esc(herkunft) : ''}</div>` : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>
+${this._tabelle()}
 <ha-card><h2>${esc(this.t('q_alltag'))}</h2>${this._alltag()}</ha-card>
 <ha-card><h2>${esc(this.t('q_schwelle'))}</h2>${this._verteilung(sj, s.schwelle_vorschlag)}
 ${s.schwelle_vorschlag != null ? `<div class="zeile weit" style="margin-top:10px"><span>${this.t('q_vorschlag', { w: this._zahl(s.schwelle_vorschlag) })} ${sj != null ? esc(this.t('q_jetzt', { w: this._zahl(sj) })) : ''}</span><button class="k haupt" data-a="schwelle" data-wert="${s.schwelle_vorschlag}" ${!this._admin || (sj != null && Math.abs(sj - s.schwelle_vorschlag) < 0.005) ? 'disabled' : ''}>${esc(this.t('q_uebernehmen'))}</button></div>` : `<div class="klein">${esc(this.t('q_vorschlag_spaeter'))}</div>`}
@@ -965,7 +1010,9 @@ ${this._steckbrief()}</ha-card>
     if (t.dataset.spielen) { const zeile = t.closest('.eintrag'); if (zeile) { const alle = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')]; this._aktiv = Math.max(0, alle.indexOf(zeile)); this._markieren(false); } this._spielen(t.dataset.spielen); return; }
     if (t.dataset.urteil) { this._urteilen(t.dataset.id, t.dataset.urteil); return; }
     if (t.dataset.echo !== undefined) { this._filter.echo = t.dataset.echo; this._filter.seite = 0; this._aktiv = 0; this._laden(); return; }
-    if (t.dataset.verlauf) { this._filter.verlauf = t.dataset.verlauf; this._filter.seite = 0; this._laden(); return; }
+    if (t.dataset.zelle) { const [zeile, von, bis] = t.dataset.zelle.split('|'); this._filter.zelle = { zeile, von: Number(von), bis: Number(bis), echo: this._tbEcho || '' }; this._filter.seite = 0; this._gehe('verlauf', this._wortId); return; }
+    if (t.dataset.tbecho !== undefined) { this._tbEcho = t.dataset.tbecho; this._zeichnen(); return; }
+    if (t.dataset.verlauf) { this._filter.zelle = null; this._filter.verlauf = t.dataset.verlauf; this._filter.seite = 0; this._laden(); return; }
     if (t.dataset.seite) { this._filter.seite = Math.max(0, this._filter.seite + Number(t.dataset.seite)); this._laden(); window.scrollTo(0, 0); return; }
     if (t.dataset.recmodus) { this._rec.modus = t.dataset.recmodus; this._zeichnen(); return; }
     if (t.dataset.takespielen) { const tk = this._rec.takes[Number(t.dataset.takespielen)]; if (tk) this._spielen('take' + t.dataset.takespielen, tk.url); return; }
@@ -975,6 +1022,8 @@ ${this._steckbrief()}</ha-card>
     try {
       if (a === 'neu') this._laden();
       else if (a === 'datei') this.shadowRoot.getElementById('datei').click();
+      else if (a === 'zelle_weg') { this._filter.zelle = null; this._filter.seite = 0; this._laden(); }
+      else if (a === 'reparaturen') { history.pushState(null, '', '/config/repairs'); window.dispatchEvent(new CustomEvent('location-changed')); }
       else if (a === 'holen') { t.disabled = true; await this._api('POST', 'aktion', { aktion: 'jetzt_holen' }); this._laden(); }
       else if (a === 'trainieren') { await this._api('POST', 'aktion', { aktion: 'training_starten', wort: this._wortId }); this._laden(); }
       else if (a === 'abbrechen') { if (confirm(this.t('t_abbrechen_frage'))) { await this._api('POST', 'aktion', { aktion: 'training_abbrechen', wort: this._wortId }); this._laden(); } }
