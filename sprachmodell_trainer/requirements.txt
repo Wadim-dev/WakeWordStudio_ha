@@ -1,5 +1,5 @@
-# microWakeWord (OHF-Voice), fest auf einen getesteten Stand
-microwakeword @ git+https://github.com/OHF-Voice/micro-wake-word@4665173
+# microWakeWord (OHF-Voice) is installed in the Dockerfile from a fixed commit (its audio/ and layers/ folders
+# lack __init__.py, so a plain pip install leaves them out)
 tensorflow-cpu>=2.18,<2.22; platform_machine == "x86_64"
 tensorflow>=2.18,<2.22; platform_machine != "x86_64"
 piper-tts>=1.3,<2

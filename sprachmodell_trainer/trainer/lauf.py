@@ -13,6 +13,7 @@ import os
 import random
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -23,6 +24,7 @@ from typing import Any
 
 import yaml
 
+from .grenzen import kerne
 from .grunddaten import Grunddaten, platz_frei
 from .ha import HA
 
@@ -51,12 +53,33 @@ MIXEDNET = [
 MODELL_DATEI = "tflite_stream_state_internal_quant/stream_state_internal_quant.tflite"
 
 PROTOKOLL_ZEILEN = 80
+# Watchdog: a step that neither prints anything nor uses the CPU for this long counts as hung and is
+# stopped (then retried with fewer processes). A step that only prints nothing but keeps computing is left alone,
+# unless it stays silent for STUMM_MAX_S.
+STILL_S = int(os.environ.get("STILL_S", "600"))
+STUMM_MAX_S = int(os.environ.get("STUMM_MAX_S", str(3 * 3600)))
+SPEICHER_REST_GB = 0.25  # less free memory than this for 30 s: stop the step ourselves before the OOM killer picks
+VERSUCHE = 3  # attempts per step: normal, then half the processes, then a single process
 SCHRITTE_MAX = 40
 _BALKEN = re.compile(r"\d+%\||it/s|s/it|\d+/\d+ \[")
 
 # Anteil am Gesamtfortschritt je Abschnitt
 ANTEILE = {"vorbereiten": (0, 8), "daten": (8, 12), "stimmen": (12, 35), "merkmale": (35, 50),
            "training": (50, 92), "test": (92, 100)}
+
+
+def _cpu_gruppe(gruppe: int) -> float:
+    """CPU seconds used so far by all processes of a process group (incl. finished children)."""
+    takt = os.sysconf("SC_CLK_TCK") or 100
+    summe = 0
+    for pfad in Path("/proc").glob("[0-9]*/stat"):
+        try:
+            felder = pfad.read_text().rsplit(")", 1)[1].split()
+        except (OSError, IndexError):
+            continue
+        if len(felder) > 14 and felder[2] == str(gruppe):
+            summe += sum(int(x) for x in felder[11:15])
+    return summe / takt
 
 
 class _Mitschrift(logging.Handler):
@@ -136,8 +159,16 @@ class Lauf:
 
     def abbrechen(self) -> None:
         self._stopp.set()
-        if self._prozess and self._prozess.poll() is None:
-            self._prozess.kill()
+        self._beenden()
+
+    def _beenden(self) -> None:
+        """Stop the running step including every worker it started (own process group)."""
+        p = self._prozess
+        if p and p.poll() is None:
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except OSError:
+                p.kill()
 
     def _pruefen(self) -> None:
         if self._stopp.is_set():
@@ -192,28 +223,39 @@ class Lauf:
         self.melden(phase, von + (bis - von) * max(0.0, min(1.0, anteil)), schritt, sofort, **mehr)
 
     def _werkzeug(self, befehl: str, auftrag: dict, abschnitt: str, von: float, bis: float, schritt: str) -> dict:
-        """Arbeitsschritt als eigenen Prozess starten, Fortschritt weitergeben, abbrechbar."""
+        """Arbeitsschritt als eigenen Prozess starten, Fortschritt weitergeben, abbrechbar, vom Waechter bewacht."""
         datei = self.ordner / f"auftrag_{befehl}.json"
         datei.write_text(json.dumps(auftrag), encoding="utf-8")
         return self._ausfuehren([sys.executable, "-m", "trainer.werkzeug", befehl, str(datei)],
                                 abschnitt, von, bis, schritt)
 
+    def _werkzeug_sicher(self, befehl: str, auftrag: dict, abschnitt: str, von: float, bis: float,
+                         schritt: str) -> dict:
+        """Single-process step: if it hangs or runs out of memory, simply run it again (it resumes)."""
+        return self._wiederholen(befehl, lambda _stufe: self._werkzeug(befehl, auftrag, abschnitt, von, bis, schritt))
+
     def _ausfuehren(self, args: list[str], abschnitt: str, von: float, bis: float, schritt: str,
-                    cwd: str | None = None, schritte_gesamt: int | None = None) -> dict:
+                    cwd: str | None = None, schritte_gesamt: int | None = None, threads: int | None = None) -> dict:
         self._pruefen()
         umgebung = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parent.parent), "TF_CPP_MIN_LOG_LEVEL": "2"}
-        if self.o.get("threads"):
-            umgebung["TF_NUM_INTRAOP_THREADS"] = umgebung["OMP_NUM_THREADS"] = str(self.o["threads"])
+        if threads or self.o.get("threads"):
+            umgebung["TF_NUM_INTRAOP_THREADS"] = umgebung["OMP_NUM_THREADS"] = str(threads or self.o["threads"])
         self.notiz("Running " + " ".join(Path(a).name if "/" in a else a for a in args[1:4]))
+        # own process group: the watchdog and cancelling stop the step together with all its workers
         self._prozess = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                                         bufsize=1, cwd=cwd, env=umgebung)
+                                         bufsize=1, cwd=cwd, env=umgebung, start_new_session=True)
+        self._ausgabe_zeit = time.monotonic()
+        self._grund: str | None = None
+        waechter = threading.Thread(target=self._waechter, args=(self._prozess,), daemon=True)
+        waechter.start()
         letzte: deque[str] = deque(maxlen=40)
         ergebnis: dict = {}
         for zeile in self._prozess.stdout:  # type: ignore[union-attr]
+            self._ausgabe_zeit = time.monotonic()
             zeile = zeile.rstrip()
             letzte.append(zeile)
             if self._stopp.is_set():
-                self._prozess.kill()
+                self._beenden()
                 break
             anteil = None
             if zeile.startswith("FORTSCHRITT "):
@@ -232,12 +274,63 @@ class Lauf:
             if anteil is not None:
                 self._abschnitt(abschnitt, von + (bis - von) * anteil, schritt)
         code = self._prozess.wait()
+        self._beenden()  # workers left behind by a crashed step
         self._prozess = None
         self._pruefen()
+        if self._grund:
+            raise RuntimeError(self._grund)
         if code != 0:
             _LOG.error("Step failed:\n%s", "\n".join(letzte))
+            if code < 0 or code == 137:  # killed from outside, almost always the out-of-memory killer
+                raise RuntimeError(f"SPEICHER Step was stopped by the system (signal {-code if code < 0 else 9}), "
+                                   "probably out of memory")
             raise RuntimeError(next((z for z in reversed(letzte) if z.strip()), f"exit {code}")[:300])
         return ergebnis
+
+    def _waechter(self, prozess: subprocess.Popen) -> None:
+        """Never wait silently: stop a step that hangs or is about to run out of memory."""
+        from .grenzen import frei_gb
+
+        cpu_alt, cpu_zeit = _cpu_gruppe(prozess.pid), time.monotonic()
+        knapp_seit: float | None = None
+        while prozess.poll() is None:
+            time.sleep(5)
+            jetzt = time.monotonic()
+            frei = frei_gb()
+            if frei is not None and frei < SPEICHER_REST_GB:
+                knapp_seit = knapp_seit or jetzt
+                if jetzt - knapp_seit > 30:
+                    self._grund = f"SPEICHER Only {frei:.2f} GB memory left, step stopped before the system kills it"
+                    break
+            else:
+                knapp_seit = None
+            if jetzt - cpu_zeit >= STILL_S:
+                cpu = _cpu_gruppe(prozess.pid)
+                still = jetzt - self._ausgabe_zeit
+                if still >= STILL_S and cpu - cpu_alt < 2:
+                    self._grund = f"HAENGT No output and no computing for {round(still / 60)} min, step stopped"
+                    break
+                if still >= STUMM_MAX_S:
+                    self._grund = f"HAENGT No output for {round(still / 60)} min, step stopped"
+                    break
+                cpu_alt, cpu_zeit = cpu, jetzt
+        if self._grund and prozess.poll() is None:
+            self.notiz(self._grund.split(" ", 1)[1], "fehler")
+            self._beenden()
+
+    def _wiederholen(self, name: str, versuch: Any) -> Any:
+        """Run a step; if it hung or ran out of memory, run it again with fewer processes (slower, but it finishes).
+        versuch(stufe) gets 0, 1, 2: normal, half the processes, one process."""
+        for stufe in range(VERSUCHE):
+            try:
+                return versuch(stufe)
+            except RuntimeError as err:
+                text = str(err)
+                if stufe == VERSUCHE - 1 or not text.startswith(("SPEICHER", "HAENGT")):
+                    raise
+                self.notiz(f"{name}: {text.split(' ', 1)[1]} - trying again with fewer processes "
+                           f"({stufe + 2}/{VERSUCHE})", "warnung")
+        raise RuntimeError(name)  # not reached
 
     def _ausgabe(self, zeile: str) -> None:
         """Output of a step for the live log: warnings stay, progress bars overwrite each other."""
@@ -363,7 +456,7 @@ class Lauf:
             aus[name] = ziel
             if not (ziel / "fertig").exists():
                 von, bis = erledigt / gesamt, (erledigt + anzahl) / gesamt
-                self._werkzeug("tts", {"ziel": str(ziel), "anzahl": anzahl, "texte": texte, "stimmen": voices,
+                self._werkzeug_sicher("tts", {"ziel": str(ziel), "anzahl": anzahl, "texte": texte, "stimmen": voices,
                                        "lautschrift_von": lautschrift},
                                "stimmen", von, bis, "stimmen")
                 (ziel / "fertig").touch()
@@ -450,15 +543,19 @@ class Lauf:
         return aus
 
     def _merkmale_werkzeug(self, auftrag: dict, von: float, bis: float, schritt: str) -> dict:
-        """Feature step; if a worker runs out of memory, try once more with a single process."""
-        try:
-            return self._werkzeug("merkmale", auftrag, "merkmale", von, bis, schritt)
-        except RuntimeError as err:
-            if "SPEICHER" not in str(err) or auftrag.get("prozesse") == 1:
-                raise
-            self.notiz("Out of memory with several processes, trying again with one", "warnung")
-            shutil.rmtree(auftrag["ziel"], ignore_errors=True)
-            return self._werkzeug("merkmale", {**auftrag, "prozesse": 1}, "merkmale", von, bis, schritt)
+        """Feature step; hung or out of memory: again with half the processes, then with one."""
+        from .grenzen import prozesse
+
+        n = prozesse(auftrag.get("prozesse"))
+
+        def versuch(stufe: int) -> dict:
+            if stufe:
+                shutil.rmtree(auftrag["ziel"], ignore_errors=True)
+            p = 1 if stufe == 2 else max(1, n // 2) if stufe == 1 else n
+            self.notiz(f"Computing features with {p} process{'es' if p > 1 else ''}")
+            return self._werkzeug("merkmale", {**auftrag, "prozesse": p}, "merkmale", von, bis, schritt)
+
+        return self._wiederholen("Features", versuch)
 
     @staticmethod
     def _wavs(ordner: Path) -> list[str]:
@@ -506,7 +603,15 @@ class Lauf:
                 "--test_tf_nonstreaming", "0", "--test_tflite_nonstreaming", "0",
                 "--test_tflite_nonstreaming_quantized", "0", "--test_tflite_streaming", "0",
                 "--test_tflite_streaming_quantized", "1", "--use_weights", "best_weights", *MIXEDNET]
-        self._ausfuehren(args, "training", 0, 1, text, cwd=str(self.ordner), schritte_gesamt=sum(schritte))
+        def versuch(stufe: int) -> None:
+            if stufe:  # smaller batches need less memory; the run continues from its last checkpoint
+                cfg["batch_size"] = 128 >> stufe
+                datei.write_text(yaml.dump(cfg), encoding="utf-8")
+                self.notiz(f"Training with batch size {cfg['batch_size']}")
+            self._ausfuehren(args, "training", 0, 1, text, cwd=str(self.ordner), schritte_gesamt=sum(schritte),
+                             threads=None if not stufe else max(1, kerne() >> stufe))
+
+        self._wiederholen("Training", versuch)
         modell = train / MODELL_DATEI
         if not modell.exists():
             raise RuntimeError("Training produced no model")
@@ -527,13 +632,13 @@ class Lauf:
         random.Random(4).shuffle(musik)
         auftrag = {"positiv": positiv, "negativ": negativ, "gerede": rede, "bg": musik[:300], "max_stunden": 3}
 
-        neu = self._werkzeug("pruefen", {**auftrag, "modell": str(tflite)}, "test", 0, 0.5, "test_neu")
+        neu = self._werkzeug_sicher("pruefen", {**auftrag, "modell": str(tflite)}, "test", 0, 0.5, "test_neu")
         alt = None
         alt_bytes = self.ha.modell(self.wort_id) if self.auftrag.get("aktiv") else None
         if alt_bytes:
             alt_datei = self.ordner / "alt.tflite"
             alt_datei.write_bytes(alt_bytes)
-            alt = self._werkzeug("pruefen", {**auftrag, "modell": str(alt_datei)}, "test", 0.5, 1.0,
+            alt = self._werkzeug_sicher("pruefen", {**auftrag, "modell": str(alt_datei)}, "test", 0.5, 1.0,
                                  "test_alt")
         ziel = float(self.o.get("ziel_fehlausloeser") or 1.0)
         cut_neu, werte_neu = self._schwelle(neu, ziel)

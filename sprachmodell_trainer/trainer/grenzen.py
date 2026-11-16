@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 
-GB_JE_PROZESS = 1.5
+GB_JE_PROZESS = 2.0  # rather fewer processes than running out of memory
 
 
 def kerne() -> int:
