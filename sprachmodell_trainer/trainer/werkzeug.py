@@ -125,7 +125,8 @@ def _merkmal(f: str) -> list[np.ndarray]:
             s = generate_features_for_clip(_AUG.augment_clip(x), 10)[-_OPT.get("frames", 220):]
             aus.append(np.clip(np.round(s / FAKTOR), 0, 65535).astype(np.uint16))
         return aus
-    except Exception:  # noqa: BLE001
+    except Exception as err:  # noqa: BLE001 - one broken file must not stop the step, but it is reported
+        print(f"Skipped {os.path.basename(f)}: {type(err).__name__}: {err}"[:240], flush=True)
         return []
 
 
@@ -163,6 +164,8 @@ def merkmale(a: dict) -> dict:
 
     os.makedirs(os.path.dirname(a["ziel"]), exist_ok=True)
     RaggedMmap.from_generator(out_dir=a["ziel"], sample_generator=erzeugen(), batch_size=500, verbose=False)
+    if n and not zaehler["n"]:
+        raise SystemExit(f"No features could be computed from any of the {n} files")
     return {"dateien": n, "merkmale": zaehler["n"]}
 
 

@@ -21,6 +21,6 @@ RUN apt-get update \
 COPY trainer /app/trainer
 WORKDIR /app
 # The image is only published if everything the trainer uses can really be imported
-RUN python -c "import microwakeword.audio.augmentation, microwakeword.audio.audio_utils, microwakeword.inference, microwakeword.model_train_eval, microwakeword.layers.stream, trainer.werkzeug, trainer.lauf, trainer.dienst; print('imports ok')"
+RUN python -c "import microwakeword.audio.augmentation, microwakeword.audio.audio_utils, microwakeword.inference, microwakeword.model_train_eval, microwakeword.layers.stream, tensorboard, piper, ai_edge_litert.interpreter, trainer.werkzeug, trainer.lauf, trainer.dienst; print('imports ok')"
 VOLUME /data
 CMD ["python", "-m", "trainer"]

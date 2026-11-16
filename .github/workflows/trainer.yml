@@ -39,12 +39,24 @@ jobs:
         run: |
           echo "bild=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/wake-word-studio-trainer" >> "$GITHUB_OUTPUT"
           echo "alt=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/sprachmodell-trainer" >> "$GITHUB_OUTPUT"
-      - uses: docker/build-push-action@v6
+      # Every image first runs a complete tiny training (features, training with evaluation, model conversion,
+      # test) - only if that works, it is published
+      - name: Build image for the self-test
+        uses: docker/build-push-action@v6
         with:
           context: sprachmodell_trainer
-          # pull requests: only build (amd64) to prove the image works, nothing is published
-          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
-          push: ${{ github.event_name != 'pull_request' }}
+          platforms: linux/amd64
+          load: true
+          tags: trainer-selbsttest
+          cache-from: type=gha
+      - name: Self-test (complete tiny training run)
+        run: docker run --rm trainer-selbsttest python -m trainer.selbsttest
+      - uses: docker/build-push-action@v6
+        if: github.event_name != 'pull_request'
+        with:
+          context: sprachmodell_trainer
+          platforms: linux/amd64,linux/arm64
+          push: true
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.description=Wake Word Studio Trainer: your own wake words for ESPHome voice devices (microWakeWord)
@@ -53,4 +65,4 @@ jobs:
             ${{ steps.n.outputs.bild }}:${{ steps.v.outputs.version }}
             ${{ steps.n.outputs.alt }}:latest
           cache-from: type=gha
-          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,mode=max' || '' }}
+          cache-to: type=gha,mode=max

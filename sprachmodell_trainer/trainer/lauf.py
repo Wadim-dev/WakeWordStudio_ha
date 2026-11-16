@@ -591,7 +591,7 @@ class Lauf:
             "training_steps": schritte, "positive_class_weight": [1, 1], "negative_class_weight": [20, 20],
             "learning_rates": lr, "batch_size": 128,
             "time_mask_max_size": [5, 5], "time_mask_count": [2, 2], "freq_mask_max_size": [5, 5], "freq_mask_count": [2, 2],
-            "eval_step_interval": 500, "clip_duration_ms": 1500,
+            "eval_step_interval": min(500, max(10, sum(schritte) // 4)), "clip_duration_ms": 1500,
             "target_minimization": 0.9, "minimization_metric": None, "maximization_metric": "average_viable_recall",
         }
         datei = self.ordner / "training.yaml"
