@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.2
+- Logo with "for Home Assistant" (integration, trainer app, README and title image).
+
 ## 1.0.1
 - Training keeps running when Home Assistant restarts or updates: the trainer waits up to 30 minutes for Home Assistant (all requests, including sending the result) and repeats its full progress every 20 seconds, so the panel shows the run again right after the restart. Home Assistant gives the trainer 20 minutes to report back before a run counts as lost.
 
