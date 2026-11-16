@@ -82,6 +82,8 @@ Say the word into your phone or PC – every take is cut by itself. Record negat
 At night (or on a tap) the trainer fetches the reviewed recordings, adds thousands of synthetic voices of your word's language, trains a new version and tests it against recordings it **never learned** (every fifth one is held back).
 Only a version that is better than the current one is rolled out – to all devices of the word, without restarting Home Assistant.
 
+While it runs, the *Training* page shows every step with its start time and duration, the trainer's processor and memory load, and a live log (also kept after an error, so you can see what went wrong).
+
 ## Quality
 
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/images/quality.png" alt="Quality page" width="900"></p>
@@ -203,6 +205,8 @@ Diagnostics (*Settings → Devices & services → Wake Word Studio → ⋮ → D
 1. Über den Marketplace installieren und Home Assistant neu starten.
 2. *Einstellungen → Geräte & Dienste → Integration hinzufügen → Wake Word Studio*, Ablageordner bestätigen (später änderbar über *Neu konfigurieren*, die Daten ziehen mit um).
 3. **Wake Word Studio** in der Seitenleiste öffnen, Wort anlegen, Geräte wählen, Trainer starten (App, Docker oder Proxmox – Befehle unter *Einstellungen → Trainer*).
+
+Die Seite *Training* zeigt während eines Laufs jeden Schritt mit Startzeit und Dauer, die Auslastung des Trainers (Prozessor, Arbeitsspeicher, Platz) und ein Live-Protokoll, das auch nach einem Fehler stehen bleibt.
 
 Gefunden wird jedes ESPHome-Sprachgerät mit der Auswahl „Aktivierungswort“, egal wie es heißt. Geräte mit Firmware, die Aufnahmen aufhebt (z. B. TECHO, Schalter *Keep wake clips*), liefern ihre Aufnahmen von selbst.
 

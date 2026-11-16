@@ -132,7 +132,8 @@ def _merkmal(f: str) -> list[np.ndarray]:
 def merkmale(a: dict) -> dict:
     """a: ziel (…_mmap), ordner [..] oder dateien [..], wiederholungen (0 = lang/unveraendert), frames, trim,
     bg [..], rir, snr_min, prozesse."""
-    from multiprocessing import Pool
+    from concurrent.futures import ProcessPoolExecutor
+    from concurrent.futures.process import BrokenProcessPool
 
     from .grenzen import prozesse
 
@@ -143,12 +144,18 @@ def merkmale(a: dict) -> dict:
     zaehler = {"n": 0}
 
     def erzeugen():
-        with Pool(prozesse(a.get("prozesse")), initializer=_init, initargs=(a,)) as pool:
-            for i, r in enumerate(pool.imap_unordered(_merkmal, dateien, chunksize=16)):
-                if i % max(1, min(200, n // 20)) == 0:
-                    _fortschritt(i, n)
-                zaehler["n"] += len(r)
-                yield from r
+        # ProcessPoolExecutor instead of multiprocessing.Pool: if a worker is killed (out of memory),
+        # Pool waits forever, the executor raises BrokenProcessPool and the step ends with a clear error.
+        with ProcessPoolExecutor(prozesse(a.get("prozesse")), initializer=_init, initargs=(a,)) as pool:
+            try:
+                for i, r in enumerate(pool.map(_merkmal, dateien, chunksize=16)):
+                    if i % max(1, min(200, n // 20)) == 0:
+                        _fortschritt(i, n)
+                    zaehler["n"] += len(r)
+                    yield from r
+            except BrokenProcessPool:
+                print("SPEICHER A worker process was stopped, probably out of memory", flush=True)
+                raise SystemExit(3) from None
 
     os.makedirs(os.path.dirname(a["ziel"]), exist_ok=True)
     RaggedMmap.from_generator(out_dir=a["ziel"], sample_generator=erzeugen(), batch_size=500, verbose=False)

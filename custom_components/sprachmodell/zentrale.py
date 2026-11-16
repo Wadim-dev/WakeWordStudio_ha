@@ -68,6 +68,24 @@ def sprache_aus(hass: HomeAssistant) -> str:
     return sprache if sprache in SPRACHEN else "en"
 
 
+def _live_pruefen(live: dict[str, Any]) -> dict[str, Any]:
+    """Keep only what the panel shows, with limits (the trainer is trusted, but the data ends up in the browser)."""
+    zeilen = [
+        [z[0], str(z[1])[:16], str(z[2])[:300]]
+        for z in (live.get("protokoll") or [])[-100:]
+        if isinstance(z, list) and len(z) == 3 and isinstance(z[0], int | float)
+    ]
+    schritte = [
+        {k: x[k] for k in ("phase", "schritt", "detail", "start", "ende") if k in x and isinstance(x[k], str | int | float)}
+        for x in (live.get("schritte") or [])[-50:]
+        if isinstance(x, dict)
+    ]
+    system = {k: v for k, v in (live.get("system") or {}).items() if isinstance(v, int | float) and isinstance(k, str)}
+    start = live.get("start")
+    return {"protokoll": zeilen, "schritte": schritte, "system": system,
+            "start": start if isinstance(start, int | float) else None, "zeit": jetzt()}
+
+
 class Wort:
     """Ein eigenes Aktivierungswort mit eigenen Aufnahmen und Versionen."""
 
@@ -76,6 +94,8 @@ class Wort:
         self.id = wid
         self.cfg = {**STANDARD_WORT, **cfg}
         self.speicher = Speicher(os.path.join(zentrale.ablage, "woerter", wid))
+        # Details of the current or last run (live log, steps, trainer load); only in memory, the trainer resends them
+        self.live: dict[str, Any] | None = None
 
     # --- Eigenschaften ----------------------------------------------------
 
@@ -607,8 +627,13 @@ class Zentrale:
         if wort is None:
             self.geaendert()
             return
+        if isinstance(status.get("live"), dict):
+            wort.live = _live_pruefen(status["live"])
+            if "phase" not in status:  # only details (end of a run): no change of the stored state
+                self.geaendert()
+                return
         alt = wort.speicher.daten["training"]
-        neu = {**{k: v for k, v in status.items() if k not in ("info", "wort_id")}, "aktualisiert": jetzt()}
+        neu = {**{k: v for k, v in status.items() if k not in ("info", "wort_id", "live")}, "aktualisiert": jetzt()}
         if neu.get("phase") in LAEUFT:
             # Auftrag ist angenommen: aus der Reihe nehmen
             if alt.get("phase") not in LAEUFT:

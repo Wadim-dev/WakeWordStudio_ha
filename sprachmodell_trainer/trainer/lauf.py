@@ -50,9 +50,32 @@ MIXEDNET = [
 ]
 MODELL_DATEI = "tflite_stream_state_internal_quant/stream_state_internal_quant.tflite"
 
+PROTOKOLL_ZEILEN = 80
+SCHRITTE_MAX = 40
+_BALKEN = re.compile(r"\d+%\||it/s|s/it|\d+/\d+ \[")
+
 # Anteil am Gesamtfortschritt je Abschnitt
 ANTEILE = {"vorbereiten": (0, 8), "daten": (8, 12), "stimmen": (12, 35), "merkmale": (35, 50),
            "training": (50, 92), "test": (92, 100)}
+
+
+class _Mitschrift(logging.Handler):
+    """All trainer log messages of a run (including waiting for HA and downloads) also go to the live log."""
+
+    def __init__(self, lauf: Lauf) -> None:
+        super().__init__(logging.INFO)
+        self.lauf = lauf
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            text = record.getMessage().splitlines()[0][:240] if record.getMessage() else ""
+        except Exception:  # noqa: BLE001
+            return
+        if getattr(record, "live_schon", False):  # already added by Lauf.notiz
+            return
+        art = "fehler" if record.levelno >= logging.ERROR else "warnung" if record.levelno >= logging.WARNING else "info"
+        if text:
+            self.lauf.protokoll.append([round(record.created), art, text])
 
 
 class Abgebrochen(Exception):
@@ -105,6 +128,9 @@ class Lauf:
         self.start = time.time()
         self.phase = "vorbereiten"
         self.letzter: dict[str, Any] = {"wort_id": self.wort_id}  # last reported state, repeated as heartbeat
+        # For the detailed view in HA: last log lines and every step with its start time
+        self.protokoll: deque[list[Any]] = deque(maxlen=PROTOKOLL_ZEILEN)
+        self.schritte: list[dict[str, Any]] = []
 
     # --- Steuerung --------------------------------------------------------
 
@@ -120,12 +146,44 @@ class Lauf:
     def melden(self, phase: str, prozent: float | None, schritt: str, sofort: bool = True, **mehr: Any) -> None:
         from .dienst import info
 
-        if not sofort and time.time() - self._zuletzt < 10:
-            return
+        schluessel = (phase, schritt.split(":")[0])
+        if not sofort and schluessel == getattr(self, "_schluessel", None) and time.time() - self._zuletzt < 10:
+            return  # only repeated progress of the same step is throttled, a new step is always reported
+        self._schluessel = schluessel
         self._zuletzt = time.time()
+        if not self.schritte or (self.schritte[-1]["phase"], self.schritte[-1]["schritt"]) != schluessel:
+            if self.schritte:
+                self.schritte[-1]["ende"] = round(time.time())
+            self.schritte.append({"phase": phase, "schritt": schluessel[1], "start": round(time.time())})
+            del self.schritte[:-SCHRITTE_MAX]
+        self.schritte[-1]["detail"] = schritt
+        stufe = (phase, schritt.split(":")[0], int((prozent or 0) // 10))
+        if stufe != getattr(self, "_geloggt", None):  # log each step and every 10 % so `docker logs` shows where it is
+            self._geloggt = stufe
+            self.notiz(f"{phase}: {schritt}" + ("" if prozent is None else f" {prozent:.0f} %"))
         self.letzter = {"wort_id": self.wort_id, "phase": phase,
                         "prozent": None if prozent is None else round(prozent, 1), "schritt": schritt, **mehr}
-        self.ha.status({**self.letzter, "info": info()})
+        self.ha.status({**self.letzter, "live": self.live(), "info": info()})
+
+    def notiz(self, text: str, art: str = "info", ersetzen: bool = False) -> None:
+        """A line for `docker logs` and for the live log in HA. ersetzen: overwrite the last line of the same kind
+        (progress bars and training steps would otherwise push everything else out)."""
+        text = text.strip()[:240]
+        if not text:
+            return
+        if art in ("info", "warnung"):
+            (_LOG.warning if art == "warnung" else _LOG.info)(text, extra={"live_schon": True})
+        zeile = [round(time.time()), art, text]
+        if ersetzen and self.protokoll and self.protokoll[-1][1] == art:
+            self.protokoll[-1] = zeile
+        else:
+            self.protokoll.append(zeile)
+
+    def live(self) -> dict[str, Any]:
+        from .grenzen import auslastung
+
+        return {"protokoll": list(self.protokoll), "schritte": self.schritte, "system": auslastung(self.daten),
+                "start": round(self.start)}
 
     def _abschnitt(self, name: str, anteil: float, schritt: str, sofort: bool = False, **mehr: Any) -> None:
         phase = {"stimmen": "daten"}.get(name, name)
@@ -146,6 +204,7 @@ class Lauf:
         umgebung = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parent.parent), "TF_CPP_MIN_LOG_LEVEL": "2"}
         if self.o.get("threads"):
             umgebung["TF_NUM_INTRAOP_THREADS"] = umgebung["OMP_NUM_THREADS"] = str(self.o["threads"])
+        self.notiz("Running " + " ".join(Path(a).name if "/" in a else a for a in args[1:4]))
         self._prozess = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                                          bufsize=1, cwd=cwd, env=umgebung)
         letzte: deque[str] = deque(maxlen=40)
@@ -165,7 +224,11 @@ class Lauf:
             elif schritte_gesamt and (m := re.search(r"Step #?(\d+)", zeile)):
                 anteil = int(m.group(1)) / schritte_gesamt
                 if "Validation" in zeile:
-                    _LOG.info(zeile)
+                    self.notiz(zeile)
+                else:
+                    self.notiz(zeile, "schritt", ersetzen=True)
+            else:
+                self._ausgabe(zeile)
             if anteil is not None:
                 self._abschnitt(abschnitt, von + (bis - von) * anteil, schritt)
         code = self._prozess.wait()
@@ -176,9 +239,31 @@ class Lauf:
             raise RuntimeError(next((z for z in reversed(letzte) if z.strip()), f"exit {code}")[:300])
         return ergebnis
 
+    def _ausgabe(self, zeile: str) -> None:
+        """Output of a step for the live log: warnings stay, progress bars overwrite each other."""
+        z = zeile.strip()
+        if not z:
+            return
+        if _BALKEN.search(z):
+            self.notiz(z, "balken", ersetzen=True)
+        elif z.startswith("SPEICHER") or re.search(r"error|fehler|traceback|killed", z, re.IGNORECASE):
+            self.notiz(z, "fehler")
+        elif re.search(r"warn", z, re.IGNORECASE):
+            self.notiz(z, "warnung_aus")
+        else:
+            self.notiz(z, "aus")
+
     # --- Ablauf -----------------------------------------------------------
 
     def ausfuehren(self) -> None:
+        mitschrift = _Mitschrift(self)
+        logging.getLogger("trainer").addHandler(mitschrift)
+        try:
+            self._ausfuehren_lauf()
+        finally:
+            logging.getLogger("trainer").removeHandler(mitschrift)
+
+    def _ausfuehren_lauf(self) -> None:
         self.ordner.mkdir(parents=True, exist_ok=True)
         self._abschnitt("vorbereiten", 0, "grunddaten", True)
         g = Grunddaten(self.daten, lambda s: (self._pruefen(), self._abschnitt("vorbereiten", 0.3, s, True)))
@@ -204,6 +289,10 @@ class Lauf:
         self.ha.ergebnis(self.wort_id, tflite.read_bytes(), bericht)
         self.letzter = {"wort_id": self.wort_id}  # HA now shows the result; the heartbeat must not report "testing" again
         _LOG.info("Done: %s", json.dumps(bericht, ensure_ascii=False))
+        self.notiz("Done, result sent to Home Assistant")
+        if self.schritte:
+            self.schritte[-1]["ende"] = round(time.time())
+        self.ha.status({"wort_id": self.wort_id, "live": self.live()})
 
     # --- eigene Aufnahmen ---------------------------------------------------
 
@@ -221,7 +310,7 @@ class Lauf:
             if not ziel.exists():
                 inhalt = self.ha.audio(self.wort_id, a["id"])
                 if inhalt is None:  # deleted in the meantime
-                    _LOG.info("Recording %s no longer exists, skipped", a["id"])
+                    self.notiz(f"Recording {a['id']} no longer exists, skipped", "warnung")
                     behalten.discard(ziel)
                     continue
                 ziel.parent.mkdir(parents=True, exist_ok=True)
@@ -337,11 +426,11 @@ class Lauf:
                     if not auswahl:
                         continue
                     anteil = len(auswahl) * wdh / gesamt
-                    self._werkzeug("merkmale", {
+                    self._merkmale_werkzeug({
                         "ziel": str(ziel / teil / f"{name}_mmap"), "dateien": auswahl, "wiederholungen": wdh,
                         "frames": FRAMES, "trim": True, "bg": bgs, "rir": str(rir), "snr_min": -5,
                         "prozesse": self.o.get("threads") or None,
-                    }, "merkmale", erledigt / gesamt, erledigt / gesamt + anteil, "merkmale")
+                    }, erledigt / gesamt, erledigt / gesamt + anteil, "merkmale")
                     erledigt += len(auswahl) * wdh
                 if (ziel / "validation").exists():
                     shutil.copytree(ziel / "validation", ziel / "testing", dirs_exist_ok=True)
@@ -353,12 +442,23 @@ class Lauf:
         lang = g.o / "merkmale" / f"gerede_{self.sprache}"
         if not (lang / "fertig").exists():
             shutil.rmtree(lang, ignore_errors=True)
-            self._werkzeug("merkmale", {"ziel": str(lang / "training" / "gerede_mmap"), "ordner": [str(gerede["train"])],
-                                        "wiederholungen": 0, "prozesse": self.o.get("threads") or None},
-                           "merkmale", 0.95, 1.0, "merkmale_gerede")
+            self._merkmale_werkzeug({"ziel": str(lang / "training" / "gerede_mmap"), "ordner": [str(gerede["train"])],
+                                     "wiederholungen": 0, "prozesse": self.o.get("threads") or None},
+                                    0.95, 1.0, "merkmale_gerede")
             (lang / "fertig").touch()
         aus["gerede"] = {"dir": str(lang), "wort": False, "gewicht": 8.0, "strafe": 1.0, "lang": True}
         return aus
+
+    def _merkmale_werkzeug(self, auftrag: dict, von: float, bis: float, schritt: str) -> dict:
+        """Feature step; if a worker runs out of memory, try once more with a single process."""
+        try:
+            return self._werkzeug("merkmale", auftrag, "merkmale", von, bis, schritt)
+        except RuntimeError as err:
+            if "SPEICHER" not in str(err) or auftrag.get("prozesse") == 1:
+                raise
+            self.notiz("Out of memory with several processes, trying again with one", "warnung")
+            shutil.rmtree(auftrag["ziel"], ignore_errors=True)
+            return self._werkzeug("merkmale", {**auftrag, "prozesse": 1}, "merkmale", von, bis, schritt)
 
     @staticmethod
     def _wavs(ordner: Path) -> list[str]:
