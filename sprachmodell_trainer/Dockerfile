@@ -8,7 +8,12 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
-RUN pip install -r /app/requirements.txt
+# Compiler nur fuer den Bau (z. B. python-stretch hat fuer arm64 kein fertiges Paket), danach wieder weg
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential \
+ && pip install -r /app/requirements.txt \
+ && apt-get purge -y build-essential && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/*
 
 COPY trainer /app/trainer
 WORKDIR /app
