@@ -64,13 +64,22 @@ EOF
 if [ "${1:-}" = "update" ]; then
   ID="$(pct list | awk -v n="$NAME" 'NR>1 && $NF==n {print $1; exit}')"
   [ -n "$ID" ] || { echo "No container named $NAME found."; exit 1; }
-  if ! pct exec "$ID" -- test -f /etc/sprachmodell-trainer.env; then
-    pct exec "$ID" -- docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$NAME" \
-      | grep -E '^(HA_URL|SCHLUESSEL|TRAINER_NAME|THREADS|ZIEL_FEHLAUSLOESER|SCHRITTE)=' >/tmp/sprachmodell-trainer.env
-    pct exec "$ID" -- docker rm -f "$NAME" >/dev/null   # recreated from the settings file
-  else
+  if [ -n "${2:-}" ] && [ -n "${3:-}" ]; then   # update <HA_URL> <KEY>: settings given again
+    printf 'HA_URL=%s\nSCHLUESSEL=%s\nTRAINER_NAME=Proxmox\n' "$2" "$3" >/tmp/sprachmodell-trainer.env
+  elif pct exec "$ID" -- test -f /etc/sprachmodell-trainer.env; then
     pct pull "$ID" /etc/sprachmodell-trainer.env /tmp/sprachmodell-trainer.env
+  else
+    pct exec "$ID" -- docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "$NAME" 2>/dev/null \
+      | grep -E '^(HA_URL|SCHLUESSEL|TRAINER_NAME|THREADS|ZIEL_FEHLAUSLOESER|SCHRITTE)=' >/tmp/sprachmodell-trainer.env.neu || true
+    if grep -q '^SCHLUESSEL=' /tmp/sprachmodell-trainer.env.neu; then
+      mv /tmp/sprachmodell-trainer.env.neu /tmp/sprachmodell-trainer.env
+    elif ! grep -qs '^SCHLUESSEL=' /tmp/sprachmodell-trainer.env; then
+      rm -f /tmp/sprachmodell-trainer.env.neu
+      echo "Settings not found. Run: proxmox.sh update <HA_URL> <KEY>"; exit 1
+    fi
+    rm -f /tmp/sprachmodell-trainer.env.neu
   fi
+  pct exec "$ID" -- docker rm -f "$NAME" >/dev/null 2>&1 || true   # recreated from the settings file
   einrichten "$ID"
   echo "Done. Container $ID runs the newest trainer and updates itself on every restart."
   exit 0
