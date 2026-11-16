@@ -12,3 +12,4 @@ pyarrow>=17
 requests>=2.32
 pyyaml>=6
 webrtcvad-wheels>=2.0.14
+tensorboard>=2.18,<2.22
