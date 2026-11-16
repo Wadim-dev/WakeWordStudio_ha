@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.6
+- Fix: training stopped at its first evaluation because TensorBoard was missing in the trainer image.
+- Every trainer image now runs a complete tiny training before it is published (features with worker pool and augmentation, training with evaluation, model conversion, model test).
+- Short runs evaluate too; feature files that cannot be read are listed in the log, and a step without any features fails clearly.
+
 ## 1.0.5
 - **Fix: training could never get past "Fetching recordings".** The trainer image installed microWakeWord without its `audio` and `layers` folders (they have no `__init__.py`), so computing features failed at once; with the old worker pool that looked like a hang at 8 %. microWakeWord is now installed completely, and the image is only published if every module the trainer uses can be imported.
 - Trainer never hangs: every step runs in its own process group under a watchdog.
