@@ -1,6 +1,5 @@
 # Trainer image for Docker and Proxmox users (amd64 + arm64) on ghcr.io.
 # The Home Assistant app builds its own image from sprachmodell_trainer/.
-# Also published under the earlier name sprachmodell-trainer, so existing installations keep updating.
 name: Trainer image
 
 on:
@@ -38,7 +37,6 @@ jobs:
         id: n
         run: |
           echo "bild=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/wake-word-studio-trainer" >> "$GITHUB_OUTPUT"
-          echo "alt=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/sprachmodell-trainer" >> "$GITHUB_OUTPUT"
       # Every image first runs a complete tiny training (features, training with evaluation, model conversion,
       # test) - only if that works, it is published
       - name: Build image for the self-test
@@ -63,6 +61,5 @@ jobs:
           tags: |
             ${{ steps.n.outputs.bild }}:latest
             ${{ steps.n.outputs.bild }}:${{ steps.v.outputs.version }}
-            ${{ steps.n.outputs.alt }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
