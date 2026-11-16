@@ -12,10 +12,15 @@ COPY requirements.txt /app/requirements.txt
 RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential \
  && pip install -r /app/requirements.txt \
+ && git clone -q https://github.com/OHF-Voice/micro-wake-word /tmp/mww && git -C /tmp/mww checkout -q 4665173 \
+ && touch /tmp/mww/microwakeword/audio/__init__.py /tmp/mww/microwakeword/layers/__init__.py \
+ && pip install /tmp/mww && rm -rf /tmp/mww \
  && apt-get purge -y build-essential && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/*
 
 COPY trainer /app/trainer
 WORKDIR /app
+# The image is only published if everything the trainer uses can really be imported
+RUN python -c "import microwakeword.audio.augmentation, microwakeword.audio.audio_utils, microwakeword.inference, microwakeword.model_train_eval, microwakeword.layers.stream, trainer.werkzeug, trainer.lauf, trainer.dienst; print('imports ok')"
 VOLUME /data
 CMD ["python", "-m", "trainer"]

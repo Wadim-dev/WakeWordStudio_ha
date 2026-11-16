@@ -139,6 +139,10 @@ def merkmale(a: dict) -> dict:
 
     from mmap_ninja.ragged import RaggedMmap
 
+    # import here first: a broken installation then fails with its real error, not as a broken worker pool
+    from microwakeword.audio.audio_utils import generate_features_for_clip  # noqa: F401
+    from microwakeword.audio.augmentation import Augmentation  # noqa: F401
+
     dateien = a.get("dateien") or _dateien(a["ordner"])
     n = len(dateien)
     zaehler = {"n": 0}

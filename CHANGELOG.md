@@ -1,6 +1,7 @@
 # Changelog
 
 ## 1.0.5
+- **Fix: training could never get past "Fetching recordings".** The trainer image installed microWakeWord without its `audio` and `layers` folders (they have no `__init__.py`), so computing features failed at once; with the old worker pool that looked like a hang at 8 %. microWakeWord is now installed completely, and the image is only published if every module the trainer uses can be imported.
 - Trainer never hangs: every step runs in its own process group under a watchdog.
   - No output and no computing for 10 minutes: the step is stopped.
   - Less than 0.25 GB memory left for 30 seconds: the step is stopped before the system's out-of-memory killer picks a process.
