@@ -1,4 +1,5 @@
-"""Switches per word: train at night, roll out a better version by itself, keep the threshold right by itself."""
+"""Switches per word: train at night, roll out a better version by itself, keep the threshold right by itself,
+let the speech recognition pre-review new recordings."""
 
 from __future__ import annotations
 
@@ -28,6 +29,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SprachConfigEntry, async
             Option(z, w, "nachts_trainieren", "nachts"),
             Option(z, w, "automatisch_einspielen", "automatisch_einspielen"),
             Option(z, w, "schwelle_automatisch", "schwelle_automatisch"),
+            Option(z, w, "vorpruefen", "vorpruefen"),
         ],
         async_add_entities,
     )

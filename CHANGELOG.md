@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.17
+- Fix: the first time Wake Word Studio was opened after Home Assistant loaded, the page could stay black (opening it again worked). The panel is now ready as soon as its script has run.
+- More and better training data: about 50,000 synthetic clips per word instead of 17,000, plus up to 9,000 clips from **OmniVoice**, a modern voice model with many different voices (men, women, children, old, high, low, whispering). Every OmniVoice clip is checked by speech recognition (faster-whisper) before it is used: the word must be heard in a positive clip and must not be heard in a negative one. Without a graphics card the stock grows by at most 90 minutes per run, so the first runs after this update take longer.
+- Listening check for sound-alikes: each similar word the trainer uses as a negative example is spoken and heard by the speech recognition first; one that sounds exactly like your word is left out, so the model never learns to ignore its own word.
+- Pre-review (new switch "Pre-review new recordings", on by default): while the trainer has nothing else to do, it listens to new device recordings and confirms those in which the word was clearly heard. They are marked *auto* in History (new filter) and can be changed like any other answer. Each recording shows what was heard.
+- Trim per recording: *Trim* under a recording opens its waveform with start and end sliders; listen to the selection and save. Training uses only the selected part; *Whole recording* removes the trim.
+- Device wake-ups and false wake-ups are trimmed by themselves for training: the word is placed at the end of the clip and the device's sound after it is cut off.
+- Honest test: from now on new recordings are held back for the test by whole days (about one day in three), so the test contains days the model never heard (other room noise, other mood). Older recordings keep their place.
+- Recordings can be sent directly by a device: `POST /api/sprachmodell/clips` (multipart `audio` WAV up to 2 MB and `meta` JSON with `name`, `device`, `kind`, `at`, `model`, `slot`, `score`, `cutoff`), `GET /api/sprachmodell/clips/ping`, both with `Authorization: Bearer <trainer key>`. A clip that is already there (same audio) is kept once, also when the device is asked for its clips later.
+
 ## 1.0.16
 - The threshold adjusts itself (new switch "Adjust threshold automatically", on by default): when a version is rolled out the devices get the threshold it was tested with; afterwards it follows your answers to recordings of that version once 10 correct and 5 false wake-ups are reviewed, never more than 0.03 below the tested value. The quality page shows the current value and why it was set.
 - The threshold suggestion only counts recordings scored by the version that is on the devices now (older recordings were scored by a different model).

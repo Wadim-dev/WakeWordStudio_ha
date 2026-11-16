@@ -55,6 +55,12 @@
         "state": {
           "off": "mdi:tune-vertical-variant"
         }
+      },
+      "vorpruefen": {
+        "default": "mdi:ear-hearing",
+        "state": {
+          "off": "mdi:ear-hearing-off"
+        }
       }
     }
   }

@@ -153,6 +153,9 @@
       },
       "schwelle_automatisch": {
         "name": "Adjust threshold automatically"
+      },
+      "vorpruefen": {
+        "name": "Pre-review new recordings"
       }
     }
   },

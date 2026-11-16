@@ -3,9 +3,14 @@
 // Addresses: /wake-word-studio/<tab>?wort=<id>   tabs without a word: zentrale, geraete, einstellungen, neu
 // No polling: the page reloads only when one of the integration's sensors changes.
 // Texts are loaded with the panel's own ?v= so a browser never mixes a new panel with old cached texts.
-const { TEXTE, SPRACHNAMEN } = await import(`./sprachmodell-texte.js${new URL(import.meta.url).search}`);
+// Not with a top-level await: Home Assistant creates the panel element as soon as this script has run, so the
+// element must be defined right away - otherwise the first opening stays black (its hass/route would be lost).
+let TEXTE = { en: {} }, SPRACHNAMEN = { de: {}, en: {} };
+const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).search}`)
+  .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
+  .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.14';
+const VERSION = '1.0.17';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -85,6 +90,13 @@ button.k kbd{font:11px monospace;opacity:.6;border:1px solid currentColor;border
 .balken b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--error-color,#f44336)}
 .vorschlag{font-size:13px;margin:6px 0 8px;color:var(--secondary-text-color)}
 .vorschlag strong{color:var(--primary-text-color)}
+.gehoert{margin:4px 0 2px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.marke{border-radius:999px;padding:1px 8px;background:color-mix(in srgb,var(--primary-color) 14%,transparent);color:var(--primary-text-color);font-size:11px}
+.schnitt:empty{display:none}
+.schnitt{margin-top:10px;padding:10px;border-radius:10px;background:color-mix(in srgb,var(--primary-text-color) 5%,transparent)}
+.schnitt canvas{width:100%;height:64px;display:block}
+.schnitt .regler{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
+.schnitt .regler input{width:100%}
 .knoepfe{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 select,input[type=time],input[type=text],input[type=number]{font:inherit;font-size:14px;padding:8px 10px;border-radius:10px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);box-sizing:border-box}
 input[type=text]{width:100%;max-width:440px}
@@ -237,7 +249,8 @@ class SprachmodellPanel extends HTMLElement {
   set hass(h) {
     const erstes = !this._hass;
     this._hass = h;
-    if (erstes) { this._aufbauen(); this._laden(); return; }
+    if (erstes) { TEXTE_DA.then(() => { this._bereit = true; this._aufbauen(); this._laden(); }); return; }
+    if (!this._bereit) return;
     const zust = Object.values(h.entities || {}).filter((e) => e.platform === 'sprachmodell').map((e) => h.states[e.entity_id]).filter(Boolean);
     // last_contact changes with every trainer report: it only refreshes the training page (live log), not lists you work in
     const st = zust.map((s) => s.state + JSON.stringify({ ...s.attributes, last_contact: undefined })).join('|');
@@ -255,11 +268,17 @@ class SprachmodellPanel extends HTMLElement {
     if (neu !== this._reiter || wort !== this._wortId) {
       if (neu !== this._reiter) this._recStopp();
       this._reiter = neu; this._wortId = wort;
-      if (this._hass) { this._kopfZeichnen(); this._laden(); }
+      if (this._bereit) { this._kopfZeichnen(); this._laden(); }
     }
   }
   set panel(p) { this._panel = p; }
-  connectedCallback() { window.addEventListener('keydown', this._taste); }
+  connectedCallback() {
+    // values Home Assistant set before the element was defined would hide the setters: hand them over again
+    for (const k of ['panel', 'narrow', 'route', 'hass']) {
+      if (Object.prototype.hasOwnProperty.call(this, k)) { const v = this[k]; delete this[k]; this[k] = v; }
+    }
+    window.addEventListener('keydown', this._taste);
+  }
   disconnectedCallback() { window.removeEventListener('keydown', this._taste); this._audio.pause(); this._recStopp(); }
 
   // Formular offen und geändert? Dann nicht unter den Fingern neu zeichnen
@@ -554,13 +573,85 @@ ${l.gesamt > l.eintraege.length ? `<div class="leer klein">${esc(this.t('pr_weit
 <button class="spielen" data-spielen="${esc(a.id)}" title="${esc(this.t('pr_abspielen'))}"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="25"></circle></svg><ha-icon icon="mdi:play"></ha-icon></button>
 <div><div class="zeile weit"><span class="titel"><ha-icon icon="${ART_ICON[art] || 'mdi:waveform'}" style="--mdc-icon-size:16px"></ha-icon> ${esc(this.t('a_' + art))}${a.echo ? ' · ' + esc(a.echo) : ''}</span><span class="klein">${this._zeit(a.zeit)}${a.dauer ? ' · ' + this._zahl(a.dauer, 1) + ' s' : ''}${a.test ? ' · ' + esc(this.t('pr_test')) : ''}</span></div>
 ${sc != null ? `<div class="balken"><i style="width:${Math.min(100, sc * 100)}%"></i>${cu != null ? `<b style="left:${cu * 100}%"></b>` : ''}</div><div class="klein">${esc(this.t('pr_wert', { w: this._zahl(sc) }))}${cu != null ? ' · ' + esc(this.t('pr_schwelle', { w: this._zahl(cu) })) : ''}</div>` : a.notiz ? `<div class="klein">${esc(a.notiz)}</div>` : ''}
+${a.gehoert != null || a.auto || a.schnitt ? `<div class="klein gehoert">${a.gehoert != null ? `<ha-icon icon="mdi:ear-hearing" style="--mdc-icon-size:14px"></ha-icon> ${esc(a.gehoert ? this.t('pr_gehoert', { t: a.gehoert }) : this.t('pr_nichts_gehoert'))}` : ''}${a.auto ? ` <span class="marke">${esc(this.t('pr_auto'))}</span>` : ''}${a.schnitt ? ` <span class="marke">${esc(this.t('pr_geschnitten', { a: this._zahl(a.schnitt[0], 1), b: this._zahl(a.schnitt[1], 1) }))}</span>` : ''}</div>` : ''}
 ${pruefen && a.vorschlag ? `<div class="vorschlag">${esc(this.t('pr_vorschlag'))}: <strong>${esc(a.vorschlag === 'wort' ? this.t('pr_gesagt', { w: wort }) : this.t('pr_nicht'))}</strong>${grund ? ' – ' + esc(grund) : ''}</div>` : !pruefen ? `<div class="vorschlag">${urteil}${a.person ? ' · ' + esc(a.person) : ''}${a.quelle === 'hochgeladen' ? ' · ' + esc(this.t('pr_hochgeladen')) : a.quelle === 'browser' ? ' · ' + esc(this.t('pr_aufgenommen')) : ''}</div>` : ''}
 <div class="knoepfe">
 <button class="k gut ${!pruefen && a.urteil === 'wort' ? 'gewaehlt' : ''}" data-urteil="wort" data-id="${esc(a.id)}"><ha-icon icon="mdi:check"></ha-icon>${esc(pruefen ? this.t('pr_gesagt', { w: wort }) : this.t('pr_wort_k'))} <kbd>1</kbd></button>
 <button class="k schlecht ${!pruefen && a.urteil === 'kein_wort' ? 'gewaehlt' : ''}" data-urteil="kein_wort" data-id="${esc(a.id)}"><ha-icon icon="mdi:close"></ha-icon>${esc(this.t('pr_nicht_k'))} <kbd>2</kbd></button>
 <button class="k leise ${!pruefen && a.urteil === 'verworfen' ? 'gewaehlt' : ''}" data-urteil="verworfen" data-id="${esc(a.id)}" title="${esc(this.t('pr_unbrauchbar_t'))}"><ha-icon icon="mdi:delete-outline"></ha-icon>${esc(this.t('u_verworfen'))} <kbd>0</kbd></button>
 ${this._personWahl(a.person || (pruefen ? this._person : ''), a.id)}
-</div></div></div>`;
+<button class="k leise" data-schnitt="${esc(a.id)}" title="${esc(this.t('pr_schneiden_t'))}"><ha-icon icon="mdi:content-cut"></ha-icon>${esc(this.t('pr_schneiden'))}</button>
+</div><div class="schnitt" data-schnittbox="${esc(a.id)}"></div></div></div>`;
+  }
+
+  // ---------- Zuschneiden ----------
+  async _schnittOeffnen(id) {
+    const box = this.shadowRoot.querySelector(`[data-schnittbox="${CSS.escape(id)}"]`);
+    if (!box) return;
+    if (this._schnitt && this._schnitt.id === id) { this._schnitt = null; box.innerHTML = ''; return; }
+    this.shadowRoot.querySelectorAll('[data-schnittbox]').forEach((b) => { b.innerHTML = ''; });
+    const a = ((this._liste && this._liste.eintraege) || []).find((x) => x.id === id) || {};
+    try {
+      const url = await this._blob(id);
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const puffer = await ctx.decodeAudioData(await (await fetch(url)).arrayBuffer());
+      ctx.close();
+      const dauer = puffer.duration, s = a.schnitt || [0, dauer];
+      this._schnitt = { id, url, dauer, daten: puffer.getChannelData(0), von: s[0], bis: Math.min(s[1], dauer) };
+    } catch (e) { this._meldung(this.t('ging_nicht', { f: e.message })); return; }
+    const z = this._schnitt;
+    box.innerHTML = `<canvas height="64"></canvas>
+<div class="regler"><label class="klein">${esc(this.t('pr_anfang'))}<input type="range" data-sr="von" min="0" max="${z.dauer}" step="0.01" value="${z.von}"></label>
+<label class="klein">${esc(this.t('pr_ende'))}<input type="range" data-sr="bis" min="0" max="${z.dauer}" step="0.01" value="${z.bis}"></label></div>
+<div class="zeile weit"><span class="klein" data-sinfo></span><span class="zeile"><button class="k" data-sa="hoeren"><ha-icon icon="mdi:play"></ha-icon>${esc(this.t('pr_auswahl_hoeren'))}</button><button class="k leise" data-sa="ganz">${esc(this.t('pr_ganz'))}</button><button class="k haupt" data-sa="speichern">${esc(this.t('pr_schnitt_speichern'))}</button></span></div>`;
+    box.querySelectorAll('[data-sr]').forEach((r) => r.addEventListener('input', () => {
+      const v = Number(r.value);
+      if (r.dataset.sr === 'von') z.von = Math.min(v, z.bis - 0.2); else z.bis = Math.max(v, z.von + 0.2);
+      r.value = r.dataset.sr === 'von' ? z.von : z.bis;
+      this._schnittZeichnen(box);
+    }));
+    this._schnittZeichnen(box);
+  }
+
+  _schnittZeichnen(box) {
+    const z = this._schnitt, c = box.querySelector('canvas');
+    if (!z || !c) return;
+    const b = c.clientWidth || 300, h = c.height;
+    c.width = b;
+    const g = c.getContext('2d'), st = getComputedStyle(this);
+    const farbe = st.getPropertyValue('--primary-color') || '#03a9f4', grau = st.getPropertyValue('--secondary-text-color') || '#888';
+    g.clearRect(0, 0, b, h);
+    const schritt = Math.max(1, Math.floor(z.daten.length / b));
+    for (let x = 0; x < b; x++) {
+      let m = 0;
+      for (let i = x * schritt; i < Math.min(z.daten.length, (x + 1) * schritt); i++) m = Math.max(m, Math.abs(z.daten[i]));
+      const t = (x / b) * z.dauer;
+      g.fillStyle = t >= z.von && t <= z.bis ? farbe : grau;
+      g.globalAlpha = t >= z.von && t <= z.bis ? 1 : 0.35;
+      const y = Math.max(1, m * h);
+      g.fillRect(x, (h - y) / 2, 1, y);
+    }
+    g.globalAlpha = 1;
+    const info = box.querySelector('[data-sinfo]');
+    if (info) info.textContent = this.t('pr_auswahl', { a: this._zahl(z.von, 2), b: this._zahl(z.bis, 2), d: this._zahl(z.bis - z.von, 2) });
+  }
+
+  async _schnittAktion(was) {
+    const z = this._schnitt;
+    if (!z) return;
+    if (was === 'hoeren') {
+      this._audio.pause(); this._audio.src = z.url; this._audio.currentTime = z.von; this._spielt = null;
+      const ende = () => { if (this._audio.currentTime >= z.bis) { this._audio.pause(); this._audio.removeEventListener('timeupdate', ende); } };
+      this._audio.addEventListener('timeupdate', ende);
+      try { await this._audio.play(); } catch (e) { this._meldung(this.t('ging_nicht', { f: e.message })); }
+      return;
+    }
+    const ganz = was === 'ganz' || (z.von <= 0.01 && z.bis >= z.dauer - 0.01);
+    try {
+      await this._api('POST', 'aktion', { aktion: 'schnitt', wort: this._wortId, id: z.id, von: ganz ? null : z.von, bis: ganz ? null : z.bis });
+      this._meldung(this.t(ganz ? 'pr_schnitt_weg' : 'pr_schnitt_ok'));
+      this._schnitt = null; this._laden();
+    } catch (e) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(e) })); }
   }
 
   _markieren(fokus = true) {
@@ -741,7 +832,7 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
   // ---------- Verlauf ----------
   _verlauf() {
     const l = this._liste || { eintraege: [], gesamt: 0, seiten: 1 };
-    const filter = ['bewertet', 'hochgeladen', 'test', 'alle'];
+    const filter = ['bewertet', 'auto', 'hochgeladen', 'test', 'alle'];
     const z = this._filter.zelle;
     return `<div class="zeile" style="margin-bottom:10px">${z ? `<button class="chip an" data-a="zelle_weg"><ha-icon icon="mdi:table" style="--mdc-icon-size:16px"></ha-icon>${esc(this.t('tb_zeile_' + z.zeile))} · ${this._zahl(z.von)}–${this._zahl(Math.min(1, z.bis))}${z.echo ? ' · ' + esc(z.echo) : ''} ✕</button>` : filter.map((k) => `<button class="chip ${this._filter.verlauf === k ? 'an' : ''}" data-verlauf="${k}">${esc(this.t('v_' + k))}</button>`).join('')}<span class="klein">${esc(this.t('v_anzahl', { n: l.gesamt }))}</span></div>
 <div class="klein" style="margin-bottom:10px">${esc(this.t('v_hilfe'))}</div>
@@ -835,7 +926,8 @@ ${this._details(w, laeuft)}
 <ha-card><h2>${esc(this.t('t_auto'))}</h2>
 <div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="nachts" ${e.nachts ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_nachts'))} · ${esc(String(d.einstellungen.uhrzeit).slice(0, 5))}</label></div>
 <div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="automatisch_einspielen" ${e.automatisch_einspielen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_einspielen'))}</label></div>
-<div class="zeile"><label><input type="checkbox" data-wopt="schwelle_automatisch" ${e.schwelle_automatisch ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_schwelle_auto'))}</label></div>
+<div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="schwelle_automatisch" ${e.schwelle_automatisch ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_schwelle_auto'))}</label></div>
+<div class="zeile"><label><input type="checkbox" data-wopt="vorpruefen" ${e.vorpruefen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_vorpruefen'))}</label></div>
 <p class="klein">${esc(this.t('t_besser_heisst'))}</p></ha-card>
 <ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
   }
@@ -1014,11 +1106,13 @@ ${this._steckbrief()}</ha-card>
 
   // ---------- Ereignisse ----------
   async _klick(e) {
-    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe],[data-zelle],[data-tbecho]');
+    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe],[data-zelle],[data-tbecho],[data-schnitt],[data-sa]');
     if (!t) return;
     if (t.dataset.reiter) { if (t.dataset.reiter === 'neu') this._entwurf = null; this._gehe(t.dataset.reiter, t.dataset.wort); return; }
     if (t.dataset.spielen) { const zeile = t.closest('.eintrag'); if (zeile) { const alle = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')]; this._aktiv = Math.max(0, alle.indexOf(zeile)); this._markieren(false); } this._spielen(t.dataset.spielen); return; }
     if (t.dataset.urteil) { this._urteilen(t.dataset.id, t.dataset.urteil); return; }
+    if (t.dataset.schnitt) { this._schnittOeffnen(t.dataset.schnitt); return; }
+    if (t.dataset.sa) { this._schnittAktion(t.dataset.sa); return; }
     if (t.dataset.echo !== undefined) { this._filter.echo = t.dataset.echo; this._filter.seite = 0; this._aktiv = 0; this._laden(); return; }
     if (t.dataset.zelle) { const [zeile, von, bis] = t.dataset.zelle.split('|'); this._filter.zelle = { zeile, von: Number(von), bis: Number(bis), echo: this._tbEcho || '' }; this._filter.seite = 0; this._gehe('verlauf', this._wortId); return; }
     if (t.dataset.tbecho !== undefined) { this._tbEcho = t.dataset.tbecho; this._zeichnen(); return; }

@@ -115,3 +115,9 @@ class HA:
         )
         r.raise_for_status()
         return r.json()
+
+    def gehoert(self, wort: str, ergebnisse: dict[str, str]) -> dict[str, Any]:
+        """What the speech recognition heard in each recording (pre-review)."""
+        r = self._anfrage("POST", "gehoert", json={"wort_id": wort, "ergebnisse": ergebnisse}, timeout=60)
+        r.raise_for_status()
+        return r.json()

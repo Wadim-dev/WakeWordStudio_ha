@@ -93,3 +93,14 @@ def test_audio_aus_antwort() -> None:
     assert _audio_aus_antwort("nein") == (b"", 1)
     assert _audio_aus_antwort({"audio": "%%%"})[0] == b""
     assert _audio_aus_antwort({"pages": 2}) == (b"", 2)
+
+
+async def test_holen_gleicher_ton(hass: HomeAssistant, geladen, geraet) -> None:
+    """The same audio under a new name (e.g. sent directly before) is kept once."""
+    z = geladen.runtime_data
+    g = geraet("kueche", "Kitchen")
+    await z.wort_neu({"wort": "Hey Lumi", "geraete": {"kueche": "1"}})
+    g.clip("a")
+    g.clip("b", daten=g.audio["a"])
+    assert await z.sammler.holen() == 1
+    assert await z.sammler.holen() == 0  # b counts as seen, not fetched again

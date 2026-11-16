@@ -109,7 +109,7 @@ class Geraet:
     def clip(self, cid: str, art: str = "wake", slot: str = "1", score: float = 0.99, zeit: str = "2026-11-16T06:00:00+00:00",
              daten: bytes | None = None, model: str | None = None) -> None:
         self.clips.insert(0, {"id": cid, "kind": art, "slot": slot, "score": score, "cutoff": 0.97, "at": zeit, "model": model})
-        self.audio[cid] = wav() if daten is None else daten
+        self.audio[cid] = wav(ton=1000 + len(self.audio)) if daten is None else daten
 
     async def _liste(self, call: ServiceCall) -> dict[str, Any]:
         self.aufrufe.append("liste")

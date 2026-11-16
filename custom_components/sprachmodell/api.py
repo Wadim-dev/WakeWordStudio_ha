@@ -18,6 +18,12 @@ token of an administrator, e.g. the one a Home Assistant app gets from the Super
     GET  /api/sprachmodell/trainer/modell?wort=  aktive Version (Ausgangspunkt fuers Feintuning)
     POST /api/sprachmodell/trainer/status        {wort_id, phase, prozent, schritt, ...}
     POST /api/sprachmodell/trainer/ergebnis?wort= multipart: modell (tflite), bericht (json)
+    POST /api/sprachmodell/trainer/gehoert       {wort_id, ergebnisse: {id: heard text}} (pre-review)
+
+Devices (header "Authorization: Bearer <trainer key>"), the clip upload format of TECHO5's "Send wake clips to":
+    POST /api/sprachmodell/clips                 multipart: audio (16 kHz mono WAV, max 2 MB), meta (JSON: name,
+                                                 device, kind, at, model, slot, score, cutoff)
+    GET  /api/sprachmodell/clips/ping            checks the key
 """
 
 from __future__ import annotations
@@ -37,7 +43,7 @@ from homeassistant.helpers.http import KEY_AUTHENTICATED, KEY_HASS, HomeAssistan
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from . import zentrale_holen
-from .const import DOMAIN, KEIN_WORT, SPRACHEN, STANDARD_WORT, STANDARD_ZENTRALE, WORT
+from .const import DOMAIN, KEIN_WORT, LAEUFT, SPRACHEN, STANDARD_WORT, STANDARD_ZENTRALE, VORPRUEFEN_JE_MAL, WORT
 from .speicher import sichere_id
 from .zentrale import Wort, Zentrale
 
@@ -244,7 +250,7 @@ async def _json(request: web.Request) -> dict[str, Any]:
     return daten
 
 
-async def _multipart(request: web.Request, grenze: int) -> tuple[dict[str, str], bytes]:
+async def _multipart(request: web.Request, grenze: int, feld: str = "datei") -> tuple[dict[str, str], bytes]:
     felder: dict[str, str] = {}
     inhalt = b""
     if not request.content_type.startswith("multipart/"):
@@ -252,7 +258,7 @@ async def _multipart(request: web.Request, grenze: int) -> tuple[dict[str, str],
     async for teil in await request.multipart():
         if not isinstance(teil, BodyPartReader):
             continue
-        if teil.name == "datei":
+        if teil.name == feld:
             stuecke, groesse = [], 0
             while stueck := await teil.read_chunk(1 << 20):
                 groesse += len(stueck)
@@ -364,6 +370,11 @@ class AktionAnsicht(HomeAssistantView):
             return {"gesetzt": await z.auswaehlen(wort)}
         elif aktion == "schwelle":
             return {"gesetzt": await z.schwelle_setzen(wort, float(daten["wert"]))}
+        elif aktion == "schnitt":
+            von, bis = daten.get("von"), daten.get("bis")
+            await hass.async_add_executor_job(
+                wort.speicher.schnitt_setzen, sichere_id(str(daten["id"])),
+                None if von is None else float(von), None if bis is None else float(bis))
         elif aktion == "vorschlaege_uebernehmen":
             offen = [a for a in wort.speicher.offen() if a.get("vorschlag")]
             if daten.get("ids"):
@@ -416,8 +427,15 @@ class TrainerAuftrag(_TrainerAnsicht):
                 "anzeige": wort.anzeige,
                 "aktiv": wort.speicher.daten["aktiv"],
             }
+        vorpruefen = []
+        if auftrag is None and not any(w.speicher.daten["training"].get("phase") in LAEUFT for w in z.woerter.values()):
+            # nothing to train: the trainer may listen to new recordings meanwhile
+            for w in z.woerter.values():
+                if w.cfg.get("vorpruefen") and (ids := w.speicher.zum_hoeren(VORPRUEFEN_JE_MAL)):
+                    vorpruefen.append({"wort_id": w.id, "wort": w.wort, "sprache": w.sprache, "ids": ids})
         return self.json({
             "auftrag": auftrag,
+            "vorpruefen": vorpruefen,
             "abbrechen": abbrechen,
             "woerter": [{"id": w.id, "wort": w.wort, "sprache": w.sprache} for w in z.woerter.values()],
         })
@@ -492,6 +510,73 @@ class TrainerErgebnis(_TrainerAnsicht):
         return self.json({"version": eintrag["nr"], "status": eintrag["status"]})
 
 
+class TrainerGehoert(_TrainerAnsicht):
+    url = "/api/sprachmodell/trainer/gehoert"
+    name = "api:sprachmodell:trainer:gehoert"
+
+    async def post(self, request: web.Request) -> web.Response:
+        z = self._pruefen(request)
+        daten = await _json(request)
+        wort = _wort(z, daten.get("wort_id"))
+        ergebnisse = daten.get("ergebnisse")
+        if not isinstance(ergebnisse, dict):
+            return self.json_message("ungueltig", HTTPStatus.BAD_REQUEST)
+        hass = request.app[KEY_HASS]
+        n = await hass.async_add_executor_job(
+            wort.speicher.gehoert_setzen, {str(k): str(v) for k, v in ergebnisse.items()}, wort.wort,
+            bool(wort.cfg.get("vorpruefen")))
+        z.geaendert()
+        z.erinnern()
+        return self.json({"bestaetigt": n})
+
+
+GROESSTER_CLIP = 2 * 1024 * 1024
+
+
+class _GeraetAnsicht(HomeAssistantView):
+    requires_auth = False
+
+    def _pruefen(self, request: web.Request) -> Zentrale:
+        z = _zentrale(request)
+        art, _, schluessel = request.headers.get("Authorization", "").partition(" ")
+        if art.lower() != "bearer" or not schluessel or not hmac.compare_digest(schluessel.encode(), z.schluessel.encode()):
+            # 403, not 401: a device with an old key must not get Home Assistant to ban its address
+            raise _fehler(web.HTTPForbidden, "falscher_schluessel")
+        return z
+
+
+class ClipsPing(_GeraetAnsicht):
+    url = "/api/sprachmodell/clips/ping"
+    name = "api:sprachmodell:clips:ping"
+
+    async def get(self, request: web.Request) -> web.Response:
+        self._pruefen(request)
+        return self.json({"ok": True})
+
+
+class ClipsAnsicht(_GeraetAnsicht):
+    url = "/api/sprachmodell/clips"
+    name = "api:sprachmodell:clips"
+
+    async def post(self, request: web.Request) -> web.Response:
+        z = self._pruefen(request)
+        try:
+            felder, audio = await _multipart(request, GROESSTER_CLIP, "audio")
+        except web.HTTPRequestEntityTooLarge:
+            return self.json_message("audio_zu_gross", HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+        try:
+            meta = json.loads(felder.get("meta") or "")
+        except ValueError:
+            return self.json_message("meta_kein_json", HTTPStatus.BAD_REQUEST)
+        if not isinstance(meta, dict) or not audio:
+            return self.json_message("meta_unvollstaendig" if audio else "keine_datei", HTTPStatus.BAD_REQUEST)
+        try:
+            ergebnis = await z.sammler.annehmen(meta, audio)
+        except ValueError as err:
+            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+        return self.json({"ok": True, "stored": ergebnis, **({"duplicate": True} if ergebnis == "doppelt" else {})})
+
+
 @callback
 def ansichten_anmelden(hass: HomeAssistant) -> None:
     if hass.data.get(_ANGEMELDET):
@@ -500,6 +585,6 @@ def ansichten_anmelden(hass: HomeAssistant) -> None:
     for ansicht in (
         DatenAnsicht, ListeAnsicht, AudioAnsicht, UrteilAnsicht, HochladenAnsicht, AufnahmeAnsicht,
         AktionAnsicht, TrainerAuftrag, TrainerListe, TrainerAudio, TrainerModell, TrainerStatus,
-        TrainerErgebnis,
+        TrainerErgebnis, TrainerGehoert, ClipsAnsicht, ClipsPing,
     ):
         hass.http.register_view(ansicht())
