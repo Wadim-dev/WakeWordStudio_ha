@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.11
+- Time left: during training (and other long steps) the trainer measures its pace over the last 15 minutes and shows how long the step still takes. Progress now moves with every training step, not only every 500.
+
 ## 1.0.10
 - The training view also shows waiting for memory and for the processor, so a slow run shows its cause.
 
