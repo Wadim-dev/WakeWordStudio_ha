@@ -104,6 +104,7 @@ class Lauf:
         self._zuletzt = 0.0
         self.start = time.time()
         self.phase = "vorbereiten"
+        self.letzter: dict[str, Any] = {"wort_id": self.wort_id}  # last reported state, repeated as heartbeat
 
     # --- Steuerung --------------------------------------------------------
 
@@ -122,9 +123,9 @@ class Lauf:
         if not sofort and time.time() - self._zuletzt < 10:
             return
         self._zuletzt = time.time()
-        self.ha.status({"wort_id": self.wort_id, "phase": phase,
-                        "prozent": None if prozent is None else round(prozent, 1),
-                        "schritt": schritt, "info": info(), **mehr})
+        self.letzter = {"wort_id": self.wort_id, "phase": phase,
+                        "prozent": None if prozent is None else round(prozent, 1), "schritt": schritt, **mehr}
+        self.ha.status({**self.letzter, "info": info()})
 
     def _abschnitt(self, name: str, anteil: float, schritt: str, sofort: bool = False, **mehr: Any) -> None:
         phase = {"stimmen": "daten"}.get(name, name)
@@ -201,6 +202,7 @@ class Lauf:
         bericht = self._test(tflite, echt, tts, bg, gerede)
         self._abschnitt("test", 1, "senden", True)
         self.ha.ergebnis(self.wort_id, tflite.read_bytes(), bericht)
+        self.letzter = {"wort_id": self.wort_id}  # HA now shows the result; the heartbeat must not report "testing" again
         _LOG.info("Done: %s", json.dumps(bericht, ensure_ascii=False))
 
     # --- eigene Aufnahmen ---------------------------------------------------
