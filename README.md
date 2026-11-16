@@ -97,7 +97,7 @@ Recall in quiet and with music, false wakes per hour of speech, results per pers
 
 ## The trainer
 
-Training needs a lot of computing power, so it runs in its own container. It adapts to its machine (cores, memory limit and free memory decide how many workers run: less memory = slower, but it finishes). 4 GB free memory minimum, 8 GB or more is much faster; the first run downloads about 8 GB of base data once.
+Training needs a lot of computing power, so it runs in its own container. It adapts to its machine (cores, memory limit and free memory decide how many workers run: less memory = slower, but it finishes). 4 GB free memory minimum, 8 GB or more is much faster; the first run downloads about 8 GB of base data once. A watchdog makes sure it never hangs: a step that stops computing or runs short of memory is stopped and run again with fewer processes or smaller batches.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/docs/images/trainer.png" alt="Trainer setup" width="900"></p>
 

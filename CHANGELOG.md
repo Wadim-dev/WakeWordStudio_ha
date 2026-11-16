@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.5
+- Trainer never hangs: every step runs in its own process group under a watchdog.
+  - No output and no computing for 10 minutes: the step is stopped.
+  - Less than 0.25 GB memory left for 30 seconds: the step is stopped before the system's out-of-memory killer picks a process.
+  - Killed by the system: recognised as out of memory.
+- A stopped step runs again, slower but safer: features with half the processes and then one, training with smaller batches and fewer threads (continuing from its last checkpoint), voices and tests simply again. Only after three attempts the run ends with a clear error.
+- Fewer parallel processes from the start (2 GB memory per process instead of 1.5).
+- Cancelling stops all workers of a step, none are left behind.
+
 ## 1.0.4
 - Trainer: if a worker process is stopped while computing features (usually out of memory), the step no longer hangs forever. It reports a clear error and runs again with a single process.
 - Training page shows the run in detail: every step with start time and duration, the trainer's processor, memory and free space, and a live log of the last 80 messages (kept after an error).
