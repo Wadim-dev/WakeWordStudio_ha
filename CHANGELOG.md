@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.12
+- Proxmox setup: the trainer container is always placed on a local disk (most free space), never on network storage – before, the first storage in the list was taken, which could be a NAS and made training very slow.
+
 ## 1.0.11
 - Time left: during training (and other long steps) the trainer measures its pace over the last 15 minutes and shows how long the step still takes. Progress now moves with every training step, not only every 500.
 

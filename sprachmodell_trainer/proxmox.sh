@@ -103,7 +103,13 @@ HA_URL="${1:-}"; KEY="${2:-}"
 if [ -z "$HA_URL" ] || [ -z "$KEY" ]; then echo "Usage: proxmox.sh <HA_URL> <KEY>   or   proxmox.sh update"; exit 1; fi
 
 CORES="${CT_CORES:-4}"; RAM="${CT_RAM_MB:-6144}"; DISK="${CT_DISK_GB:-40}"; BRIDGE="${CT_BRIDGE:-vmbr0}"
-STORAGE="${CT_STORAGE:-$(pvesm status --content rootdir --enabled 1 | awk 'NR>1{print $1; exit}')}"
+# Training reads its data at random all the time: only a disk inside this machine is fast enough (and a NAS would be
+# busy all day). Network storage (nfs, cifs, ...) is never chosen; among local ones the one with most free space wins.
+STORAGE="${CT_STORAGE:-$(pvesm status --content rootdir --enabled 1 | awk 'NR>1 && $2 ~ /^(lvmthin|lvm|zfspool|dir|btrfs)$/ {print $6, $1}' | sort -rn | awk '{print $2; exit}')}"
+if [ -z "$STORAGE" ]; then echo "No local storage for containers found. Set CT_STORAGE=<name> to choose one."; exit 1; fi
+if pvesm status --storage "$STORAGE" | awk 'NR>1{print $2}' | grep -qvE '^(lvmthin|lvm|zfspool|dir|btrfs)$'; then
+  echo "Note: $STORAGE is network storage - training will be slow and keep the storage busy."
+fi
 if pct list | awk 'NR>1{print $NF}' | grep -qxE "$NAME|$ALT"; then
   echo "A trainer container already exists - nothing changed. To update it: run this script with the argument update."; exit 1
 fi
