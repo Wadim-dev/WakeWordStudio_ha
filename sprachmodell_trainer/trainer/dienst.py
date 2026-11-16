@@ -70,7 +70,7 @@ def main() -> None:
         if faden is not None and not faden.is_alive():
             faden, lauf = None, None
         if lauf is not None:  # heartbeat with the full state: after a restart HA shows the run again at once
-            ha.status({**lauf.letzter, "info": info()})
+            ha.status({**lauf.letzter, "live": lauf.live(), "info": info()})
         if faden is None:
             auftrag = antwort.get("auftrag")
             if auftrag:
@@ -80,9 +80,11 @@ def main() -> None:
                     try:
                         l.ausfuehren()
                     except Abgebrochen:
+                        l.notiz("Cancelled", "warnung")
                         l.melden("bereit", 0, "abgebrochen")
                     except Exception as err:  # noqa: BLE001
                         _LOG.error("Training failed:\n%s", traceback.format_exc())
+                        l.notiz(f"Training failed: {err}", "fehler")
                         l.melden("fehler", None, str(err) if isinstance(err, RuntimeError) else f"{type(err).__name__}: {err}")
 
                 faden = threading.Thread(target=arbeiten, daemon=True)

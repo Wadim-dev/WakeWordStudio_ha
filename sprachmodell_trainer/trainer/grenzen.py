@@ -72,3 +72,46 @@ def prozesse(gewuenscht: int | None = None) -> int:
         if gb:
             n = min(n, int(gb / GB_JE_PROZESS))
     return max(1, n)
+
+
+_CPU_VORHER: tuple[float, float] | None = None
+
+
+def _cpu_sekunden() -> float | None:
+    """CPU-Zeit des Containers (cgroup v2), sonst des ganzen Rechners."""
+    try:
+        for zeile in open("/sys/fs/cgroup/cpu.stat", encoding="utf-8"):
+            if zeile.startswith("usage_usec "):
+                return int(zeile.split()[1]) / 1e6
+    except (OSError, ValueError):
+        pass
+    try:
+        werte = [int(x) for x in open("/proc/stat", encoding="utf-8").readline().split()[1:]]
+        return (sum(werte) - werte[3] - (werte[4] if len(werte) > 4 else 0)) / (os.sysconf("SC_CLK_TCK") or 100)
+    except (OSError, ValueError, IndexError):
+        return None
+
+
+def auslastung(platz_pfad: str | None = None) -> dict:
+    """Jetzt: CPU in % aller erlaubten Kerne (seit dem letzten Aufruf), Speicher belegt/gesamt, freier Plattenplatz."""
+    global _CPU_VORHER  # noqa: PLW0603
+    import shutil
+    import time
+
+    aus: dict = {"kerne": kerne()}
+    jetzt, cpu = time.monotonic(), _cpu_sekunden()
+    if cpu is not None:
+        if _CPU_VORHER and jetzt - _CPU_VORHER[0] > 0.5:
+            aus["cpu"] = round(max(0.0, min(100.0, (cpu - _CPU_VORHER[1]) / (jetzt - _CPU_VORHER[0]) / aus["kerne"] * 100)))
+        _CPU_VORHER = (jetzt, cpu)
+    gesamt, frei = ram_gb(), frei_gb()
+    if gesamt:
+        aus["ram_gb"] = gesamt
+        if frei is not None:
+            aus["ram_belegt_gb"] = round(max(0.0, gesamt - frei), 1)
+    if platz_pfad:
+        try:
+            aus["platz_frei_gb"] = round(shutil.disk_usage(platz_pfad).free / 1024 ** 3, 1)
+        except OSError:
+            pass
+    return aus

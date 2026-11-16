@@ -4,7 +4,7 @@
 // No polling: the page reloads only when one of the integration's sensors changes.
 import { TEXTE, SPRACHNAMEN } from './sprachmodell-texte.js';
 
-const VERSION = '1.0.3';
+const VERSION = '1.0.4';
 const REPO = 'https://github.com/Wadim-dev/wake-word-studio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -60,6 +60,12 @@ button.k:disabled{opacity:.45;cursor:default}
 button.k.haupt{background:var(--primary-color);color:var(--text-primary-color,#fff)}
 button.k.gut{background:rgba(var(--rgb-success-color,76,175,80),.2);color:var(--success-color,#4caf50)}
 button.k.schlecht{background:rgba(var(--rgb-error-color,244,67,54),.18);color:var(--error-color,#f44336)}
+button.k.gut.gewaehlt{background:var(--success-color,#4caf50);color:#fff}button.k.schlecht.gewaehlt{background:var(--error-color,#f44336);color:#fff}button.k.leise.gewaehlt{background:var(--secondary-text-color);color:var(--card-background-color,#fff)}
+.ablauf{display:grid;grid-template-columns:22px 1fr auto;gap:6px 10px;align-items:center;font-size:14px}.ablauf .klein{text-align:right;white-space:nowrap}.ablauf ha-icon{--mdc-icon-size:18px}.ablauf .spaeter{opacity:.45}
+.drehen{animation:drehen 1.2s linear infinite}@keyframes drehen{to{transform:rotate(360deg)}}
+.last{display:grid;grid-template-columns:auto 1fr auto;gap:8px 12px;align-items:center;font-size:14px}.last .fortschritt{margin:0;height:8px}
+.protokoll{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;max-height:340px;overflow:auto;background:rgba(var(--rgb-primary-text-color,0,0,0),.05);border-radius:8px;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
+.protokoll .z{color:var(--secondary-text-color);margin-right:8px}.protokoll .aus,.protokoll .balken,.protokoll .schritt{color:var(--secondary-text-color)}.protokoll .warnung,.protokoll .warnung_aus{color:var(--warning-color,#ff9800)}.protokoll .fehler{color:var(--error-color,#f44336)}
 button.k.leise{background:none;color:var(--secondary-text-color)}
 button.k ha-icon{--mdc-icon-size:18px}
 button.k kbd{font:11px monospace;opacity:.6;border:1px solid currentColor;border-radius:4px;padding:0 4px}
@@ -178,9 +184,12 @@ class SprachmodellPanel extends HTMLElement {
     const erstes = !this._hass;
     this._hass = h;
     if (erstes) { this._aufbauen(); this._laden(); return; }
-    const st = Object.values(h.entities || {}).filter((e) => e.platform === 'sprachmodell')
-      .map((e) => h.states[e.entity_id]).filter(Boolean).map((s) => s.state + s.last_updated + (s.attributes.prozent ?? '')).join('|');
-    if (st !== this._stempel) { const war = this._stempel; this._stempel = st; if (war && !this._rec.an && !this._bearbeitet()) this._laden(); }
+    const zust = Object.values(h.entities || {}).filter((e) => e.platform === 'sprachmodell').map((e) => h.states[e.entity_id]).filter(Boolean);
+    // last_contact changes with every trainer report: it only refreshes the training page (live log), not lists you work in
+    const st = zust.map((s) => s.state + JSON.stringify({ ...s.attributes, last_contact: undefined })).join('|');
+    const live = zust.map((s) => s.attributes.last_contact || '').join('|');
+    if (st !== this._stempel) { const war = this._stempel; this._stempel = st; this._liveStempel = live; if (war && !this._rec.an && !this._bearbeitet()) this._laden(); }
+    else if (live !== this._liveStempel) { this._liveStempel = live; if (this._reiter === 'training' && !this._bearbeitet()) this._laden(); }
     const m = this.shadowRoot.querySelector('ha-menu-button'); if (m) m.hass = h;
   }
   get hass() { return this._hass; }
@@ -282,7 +291,9 @@ class SprachmodellPanel extends HTMLElement {
     let f = seiten[this._reiter] || this._zentrale;
     if (!OHNE_WORT.includes(this._reiter) && !this._daten.wort) f = this._zentrale;
     const scroll = window.scrollY;
+    const log = main.querySelector('.protokoll'), unten = !log || log.scrollHeight - log.scrollTop - log.clientHeight < 30, logPos = log ? log.scrollTop : 0;
     main.innerHTML = f.call(this);
+    const logNeu = main.querySelector('.protokoll'); if (logNeu) logNeu.scrollTop = unten ? logNeu.scrollHeight : logPos;
     if (this._reiter === 'pruefen') this._markieren(false);
     if (this._reiter === 'aufnehmen') this._recZeichnen();
     window.scrollTo(0, scroll);
@@ -382,9 +393,9 @@ ${l.gesamt > l.eintraege.length ? `<div class="leer klein">${esc(this.t('pr_weit
 ${sc != null ? `<div class="balken"><i style="width:${Math.min(100, sc * 100)}%"></i>${cu != null ? `<b style="left:${cu * 100}%"></b>` : ''}</div><div class="klein">${esc(this.t('pr_wert', { w: this._zahl(sc) }))}${cu != null ? ' · ' + esc(this.t('pr_schwelle', { w: this._zahl(cu) })) : ''}</div>` : a.notiz ? `<div class="klein">${esc(a.notiz)}</div>` : ''}
 ${pruefen && a.vorschlag ? `<div class="vorschlag">${esc(this.t('pr_vorschlag'))}: <strong>${esc(a.vorschlag === 'wort' ? this.t('pr_gesagt', { w: wort }) : this.t('pr_nicht'))}</strong>${grund ? ' – ' + esc(grund) : ''}</div>` : !pruefen ? `<div class="vorschlag">${urteil}${a.person ? ' · ' + esc(a.person) : ''}${a.quelle === 'hochgeladen' ? ' · ' + esc(this.t('pr_hochgeladen')) : a.quelle === 'browser' ? ' · ' + esc(this.t('pr_aufgenommen')) : ''}</div>` : ''}
 <div class="knoepfe">
-<button class="k gut" data-urteil="wort" data-id="${esc(a.id)}"><ha-icon icon="mdi:check"></ha-icon>${esc(pruefen ? this.t('pr_gesagt', { w: wort }) : this.t('pr_wort_k'))} <kbd>1</kbd></button>
-<button class="k schlecht" data-urteil="kein_wort" data-id="${esc(a.id)}"><ha-icon icon="mdi:close"></ha-icon>${esc(this.t('pr_nicht_k'))} <kbd>2</kbd></button>
-<button class="k leise" data-urteil="verworfen" data-id="${esc(a.id)}" title="${esc(this.t('pr_unbrauchbar_t'))}"><ha-icon icon="mdi:delete-outline"></ha-icon>${esc(this.t('u_verworfen'))} <kbd>0</kbd></button>
+<button class="k gut ${!pruefen && a.urteil === 'wort' ? 'gewaehlt' : ''}" data-urteil="wort" data-id="${esc(a.id)}"><ha-icon icon="mdi:check"></ha-icon>${esc(pruefen ? this.t('pr_gesagt', { w: wort }) : this.t('pr_wort_k'))} <kbd>1</kbd></button>
+<button class="k schlecht ${!pruefen && a.urteil === 'kein_wort' ? 'gewaehlt' : ''}" data-urteil="kein_wort" data-id="${esc(a.id)}"><ha-icon icon="mdi:close"></ha-icon>${esc(this.t('pr_nicht_k'))} <kbd>2</kbd></button>
+<button class="k leise ${!pruefen && a.urteil === 'verworfen' ? 'gewaehlt' : ''}" data-urteil="verworfen" data-id="${esc(a.id)}" title="${esc(this.t('pr_unbrauchbar_t'))}"><ha-icon icon="mdi:delete-outline"></ha-icon>${esc(this.t('u_verworfen'))} <kbd>0</kbd></button>
 ${this._personWahl(a.person || (pruefen ? this._person : ''), a.id)}
 </div></div></div>`;
   }
@@ -445,6 +456,7 @@ ${this._personWahl(a.person || (pruefen ? this._person : ''), a.id)}
     const zeile = this.shadowRoot.querySelector(`.eintrag[data-id="${CSS.escape(id)}"]`);
     const sel = zeile && zeile.querySelector('select[data-person]');
     const person = urteil === 'wort' ? (sel ? sel.value : this._person) : '';
+    if (zeile && this._reiter !== 'pruefen') zeile.querySelectorAll('[data-urteil]').forEach((b) => b.classList.toggle('gewaehlt', b.dataset.urteil === urteil));
     try { await this._api('POST', 'urteil', { wort: this._wortId, ids: [id], urteil, person }); }
     catch (e) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(e) })); return; }
     if (this._reiter === 'pruefen' && zeile) {
@@ -613,6 +625,35 @@ ${l.seiten > 1 ? `<div class="zeile" style="justify-content:center;margin-top:12
   // ---------- Training ----------
   _ergebnisText(e) { return this.t({ eingespielt: 'e_eingespielt', besser: 'e_besser', nicht_besser: 'e_nicht_besser', 'nicht besser': 'e_nicht_besser', fehler: 'e_fehler' }[e] || e); }
 
+  _uhr(sek) { return new Date(sek * 1000).toLocaleTimeString(this._loc, { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
+  _spanne(sek) { sek = Math.max(0, Math.round(sek)); const h = Math.floor(sek / 3600), m = Math.floor(sek / 60) % 60, s = sek % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`; }
+
+  // Everything the trainer reports about the current (or last) run: steps with times, load, live log
+  _details(w, laeuft) {
+    const l = w.live;
+    if (!l || !(l.protokoll || []).length && !(l.schritte || []).length) return '';
+    const jetzt = Date.now() / 1000, fehler = w.training.phase === 'fehler', schritte = l.schritte || [];
+    const aktuell = schritte.length ? schritte[schritte.length - 1] : null;
+    const reihe = LAEUFT.slice(LAEUFT.indexOf(aktuell ? aktuell.phase : 'vorbereiten') + 1);
+    const zeilen = schritte.map((x, i) => {
+      const letzte = i === schritte.length - 1, offen = letzte && laeuft && !x.ende;
+      const icon = offen ? '<ha-icon class="drehen" icon="mdi:loading"></ha-icon>' : letzte && fehler ? '<ha-icon class="rot" icon="mdi:close-circle"></ha-icon>' : '<ha-icon class="gruen" icon="mdi:check-circle"></ha-icon>';
+      const ende = x.ende || (offen ? jetzt : x.start);
+      return `${icon}<span>${esc(this._schritt(x.detail || x.schritt))}</span><span class="klein">${this._uhr(x.start)} · ${this._spanne(ende - x.start)}</span>`;
+    }).join('') + (laeuft ? reihe.map((p) => `<ha-icon class="spaeter" icon="mdi:circle-outline"></ha-icon><span class="spaeter">${esc(this.t('p_' + p))}</span><span></span>`).join('') : '');
+    const s = l.system || {};
+    const balken = (wert, max) => `<div class="fortschritt"><i style="width:${Math.min(100, Math.max(0, (wert / max) * 100))}%"></i></div>`;
+    const last = laeuft && (s.cpu != null || s.ram_gb) ? `<ha-card><h2>${esc(this.t('t_last'))}</h2><div class="last">
+${s.cpu != null ? `<span>${esc(this.t('t_cpu'))}</span>${balken(s.cpu, 100)}<span class="klein">${s.cpu} % · ${esc(this.t('t_kerne', { n: s.kerne }))}</span>` : ''}
+${s.ram_gb ? `<span>${esc(this.t('t_ram'))}</span>${balken(s.ram_belegt_gb || 0, s.ram_gb)}<span class="klein">${this._zahl(s.ram_belegt_gb, 1)} / ${this._zahl(s.ram_gb, 1)} GB</span>` : ''}
+${s.platz_frei_gb != null ? `<span>${esc(this.t('t_platz'))}</span><span></span><span class="klein">${this._zahl(s.platz_frei_gb, 1)} GB</span>` : ''}
+</div></ha-card>` : '';
+    const log = (l.protokoll || []).map(([z, art, text]) => `<div class="${esc(art)}"><span class="z">${this._uhr(z)}</span>${esc(text)}</div>`).join('');
+    return `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('t_ablauf'))}</h2><span class="klein">${l.start ? esc(this.t('t_laeuft_seit', { z: this._spanne((aktuell && !laeuft && aktuell.ende ? aktuell.ende : jetzt) - l.start) })) : ''}</span></div><div class="ablauf" style="margin-top:10px">${zeilen}</div></ha-card>
+${last}
+<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('t_protokoll'))}</h2><span class="klein">${l.zeit ? esc(this.t('t_stand', { z: this._zeit(l.zeit) })) : ''}</span></div><div class="protokoll" style="margin-top:10px">${log || esc(this.t('t_protokoll_leer'))}</div></ha-card>`;
+  }
+
   _training() {
     const d = this._daten, w = d.wort, t = w.training, e = w.einstellungen, tr = d.trainer;
     const laeuft = LAEUFT.includes(t.phase);
@@ -625,6 +666,7 @@ ${t.phase === 'wartet' ? `<p class="klein">${esc(this.t('t_auftrag', { g: this.t
 ${t.phase === 'fertig' && t.version ? `<p>v${t.version}: ${t.besser ? `<span class="gruen">${esc(this.t('t_besser'))}</span>` : `<span class="gelb">${esc(this.t('t_nicht_besser'))}</span>`}.</p>` : ''}
 ${t.phase === 'fehler' ? `<p class="rot">${esc(this._schritt(t.schritt || t.hinweis) || this.t('p_fehler'))}</p>` : ''}
 <div class="zeile" style="margin-top:12px">${laeuft || t.phase === 'wartet' ? `<button class="k schlecht" data-a="abbrechen"><ha-icon icon="mdi:stop"></ha-icon>${esc(this.t('t_abbrechen'))}</button>` : `<button class="k haupt" data-a="trainieren"><ha-icon icon="mdi:play"></ha-icon>${esc(this.t('t_jetzt'))}</button><span class="klein">${esc(w.neu_seit_lauf > 0 ? this.t('t_neue', { n: w.neu_seit_lauf }) : this.t('t_keine_neuen'))}</span>`}</div></ha-card>
+${this._details(w, laeuft)}
 <ha-card><h2>${esc(this.t('t_auto'))}</h2>
 <div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="nachts" ${e.nachts ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_nachts'))} · ${esc(String(d.einstellungen.uhrzeit).slice(0, 5))}</label></div>
 <div class="zeile"><label><input type="checkbox" data-wopt="automatisch_einspielen" ${e.automatisch_einspielen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_einspielen'))}</label></div>

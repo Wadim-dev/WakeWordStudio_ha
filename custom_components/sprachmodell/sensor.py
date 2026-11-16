@@ -51,6 +51,8 @@ class Trainer(SprachEntitaet, SensorEntity):
     _attr_device_class = SensorDeviceClass.ENUM
     _attr_options = ["disconnected", "ready", "training"]  # noqa: RUF012 - HA attribute
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    # changes with every trainer report (every 20 s): not worth keeping in the history
+    _unrecorded_attributes = frozenset({"last_contact"})
 
     def __init__(self, z: Zentrale) -> None:
         super().__init__(z, "trainer")

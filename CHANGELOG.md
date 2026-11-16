@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.4
+- Trainer: if a worker process is stopped while computing features (usually out of memory), the step no longer hangs forever. It reports a clear error and runs again with a single process.
+- Training page shows the run in detail: every step with start time and duration, the trainer's processor, memory and free space, and a live log of the last 80 messages (kept after an error).
+- Progress shows every step change right away, and the trainer log lists each step.
+- History: the chosen answer (word / not the word / unusable) is highlighted and changes at once when tapped; trainer reports no longer reload the list you are working in.
+- `last_contact` of the trainer sensor is no longer written to the history (it changes every 20 seconds).
+- No more deprecation warning about `via_device` on Home Assistant 2026.11 (the link from word devices to the hub is set in the device registry).
+
 ## 1.0.3
 - Trainer: a recording deleted while a run fetches the data is skipped instead of stopping the run (it used to wait for Home Assistant for up to 30 minutes and then fail).
 - "Recording not found" and "version not found" answers are JSON with a translated message.

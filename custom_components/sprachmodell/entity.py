@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity import Entity
@@ -41,7 +42,6 @@ def wort_geraet(wort: Wort) -> DeviceInfo:
         manufacturer=NAME,
         model="Wake word",
         entry_type=DeviceEntryType.SERVICE,
-        via_device=GERAET_ZENTRALE,
         configuration_url=f"homeassistant://{PANEL_URL}/uebersicht?wort={wort.id}",
     )
 
@@ -75,6 +75,14 @@ class SprachEntitaet(Entity):
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(async_dispatcher_connect(self.hass, SIGNAL_NEU, self.async_write_ha_state))
+        if self.w is not None:
+            # Word device "via" the hub. Set in the registry, because DeviceInfo.via_device is
+            # deprecated (HA 2026.11) and via_device_id does not exist in older versions.
+            reg = dr.async_get(self.hass)
+            geraet = reg.async_get_device(identifiers={(DOMAIN, f"wort_{self.w.id}")})
+            hub = reg.async_get_device(identifiers={GERAET_ZENTRALE})
+            if geraet and hub and geraet.via_device_id != hub.id:
+                reg.async_update_device(geraet.id, via_device_id=hub.id)
 
 
 def plattform_anmelden(

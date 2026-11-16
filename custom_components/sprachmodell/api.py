@@ -147,6 +147,7 @@ def _wort_daten(z: Zentrale, wort: Wort) -> dict[str, Any]:
         "einstellungen": {**wort.cfg, "anzeige": wort.anzeige, "modell_id": wort.modell_id},
         "statistik": sp.statistik(),
         "training": sp.daten["training"],
+        "live": wort.live,
         "auftrag": sp.daten["auftrag"],
         "laeufe": list(reversed(sp.daten["laeufe"][-50:])),
         "versionen": sorted(sp.daten["versionen"], key=lambda v: v["nr"], reverse=True),
