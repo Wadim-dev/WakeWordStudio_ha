@@ -1,6 +1,7 @@
-# Trainer-Bild fuer Docker-Nutzer (amd64 + arm64) nach ghcr.io bauen.
-# Die Home-Assistant-App baut ihr Bild selbst aus sprachmodell_trainer/.
-name: Trainer-Bild
+# Trainer image for Docker and Proxmox users (amd64 + arm64) on ghcr.io.
+# The Home Assistant app builds its own image from sprachmodell_trainer/.
+# Also published under the earlier name sprachmodell-trainer, so existing installations keep updating.
+name: Trainer image
 
 on:
   push:
@@ -18,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Version lesen
+      - name: Read version
         id: v
         run: |
           echo "version=$(grep -E '^version:' sprachmodell_trainer/config.yaml | tr -d '\" ' | cut -d: -f2)" >> "$GITHUB_OUTPUT"
@@ -29,10 +30,11 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Name in Kleinbuchstaben
+      - name: Image names in lower case
         id: n
         run: |
-          echo "bild=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/sprachmodell-trainer" >> "$GITHUB_OUTPUT"
+          echo "bild=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/wake-word-studio-trainer" >> "$GITHUB_OUTPUT"
+          echo "alt=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/sprachmodell-trainer" >> "$GITHUB_OUTPUT"
       - uses: docker/build-push-action@v6
         with:
           context: sprachmodell_trainer
@@ -40,9 +42,10 @@ jobs:
           push: true
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.description=Sprachmodell Trainer: own wake words for TECHO5 / microWakeWord
+            org.opencontainers.image.description=Wake Word Studio Trainer: your own wake words for ESPHome voice devices (microWakeWord)
           tags: |
             ${{ steps.n.outputs.bild }}:latest
             ${{ steps.n.outputs.bild }}:${{ steps.v.outputs.version }}
+            ${{ steps.n.outputs.alt }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max

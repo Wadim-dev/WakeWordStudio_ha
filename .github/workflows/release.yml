@@ -1,5 +1,5 @@
-# Neue Version in custom_components/sprachmodell/manifest.json auf main
-# -> Tag v<Version> und GitHub-Release mit dem Abschnitt aus CHANGELOG.md.
+# New version in custom_components/sprachmodell/manifest.json on main
+# -> tag v<version> and a GitHub release with the section from CHANGELOG.md.
 name: Release
 
 on:
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Version und Hinweise lesen
+      - name: Read version and notes
         id: v
         run: |
           VERSION=$(python3 -c "import json;print(json.load(open('custom_components/sprachmodell/manifest.json'))['version'])")
@@ -27,15 +27,15 @@ jobs:
           v = sys.argv[1]
           t = open("CHANGELOG.md", encoding="utf-8").read()
           m = re.search(r"^## \[?" + re.escape(v) + r"\b.*?(?=^## |\Z)", t, re.M | re.S)
-          print("\n".join(m.group(0).splitlines()[1:]).strip() if m else "Siehe CHANGELOG.md")
+          print("\n".join(m.group(0).splitlines()[1:]).strip() if m else "See CHANGELOG.md")
           PY
-      - name: Release anlegen (nur wenn es die Version noch nicht gibt)
+      - name: Create release (only if the version does not exist yet)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           V=${{ steps.v.outputs.version }}
           if gh release view "v$V" >/dev/null 2>&1; then
-            echo "v$V gibt es schon"
+            echo "v$V exists already"
           else
             gh release create "v$V" --target "$GITHUB_SHA" --title "$V" --notes-file notes.md
           fi

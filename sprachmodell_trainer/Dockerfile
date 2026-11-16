@@ -1,4 +1,4 @@
-# Sprachmodell Trainer – laeuft als Home-Assistant-App oder als normaler Docker-Container.
+# Wake Word Studio Trainer – runs as a Home Assistant app or as a plain Docker container.
 FROM python:3.11-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 PIP_DISABLE_PIP_VERSION_CHECK=1 TF_CPP_MIN_LOG_LEVEL=2

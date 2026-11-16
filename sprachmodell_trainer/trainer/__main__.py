@@ -1,4 +1,4 @@
-"""Sprachmodell Trainer: holt Auftraege aus Home Assistant und trainiert eigene Aktivierungswoerter."""
+"""Wake Word Studio Trainer: fetches jobs from Home Assistant and trains your own wake words."""
 
 from .dienst import main
 

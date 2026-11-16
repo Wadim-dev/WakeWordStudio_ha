@@ -52,7 +52,7 @@ def main() -> None:
         os.environ["TF_NUM_INTRAOP_THREADS"] = str(o["threads"])
     daten = os.environ.get("DATEN", "/data")
     os.makedirs(daten, exist_ok=True)
-    _LOG.info("Sprachmodell Trainer %s startet, Daten in %s", __version__, daten)
+    _LOG.info("Wake Word Studio Trainer %s starting, data in %s", __version__, daten)
     lauf: Lauf | None = None
     faden: threading.Thread | None = None
     # Erste Meldung nach dem Start: ein Lauf, den HA noch fuer aktiv haelt, ist verloren (Absturz, Neustart)
@@ -61,11 +61,11 @@ def main() -> None:
         try:
             antwort = ha.auftrag()
         except Exception as err:  # noqa: BLE001
-            _LOG.warning("Auftrag nicht abgeholt: %s", err)
+            _LOG.warning("Could not fetch a job: %s", err)
             time.sleep(TAKT_S)
             continue
         if lauf is not None and antwort.get("abbrechen") == lauf.wort_id:
-            _LOG.info("Abbruch fuer %s", lauf.wort_id)
+            _LOG.info("Cancelled: %s", lauf.wort_id)
             lauf.abbrechen()
         if faden is not None and not faden.is_alive():
             faden, lauf = None, None
@@ -82,7 +82,7 @@ def main() -> None:
                     except Abgebrochen:
                         l.melden("bereit", 0, "abgebrochen")
                     except Exception as err:  # noqa: BLE001
-                        _LOG.error("Training fehlgeschlagen:\n%s", traceback.format_exc())
+                        _LOG.error("Training failed:\n%s", traceback.format_exc())
                         l.melden("fehler", None, str(err) if isinstance(err, RuntimeError) else f"{type(err).__name__}: {err}")
 
                 faden = threading.Thread(target=arbeiten, daemon=True)

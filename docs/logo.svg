@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 120 120">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#22d3ee"/></linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d2230"/><stop offset="1" stop-color="#121620"/></linearGradient>
+    <linearGradient id="g2" gradientUnits="userSpaceOnUse" x1="60" y1="37" x2="60" y2="83"><stop offset="0" stop-color="#22d3ee"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#7c5cff" stop-opacity=".35"/><stop offset="1" stop-color="#7c5cff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="120" height="120" rx="28" fill="url(#bg)"/>
+  <circle cx="60" cy="60" r="46" fill="url(#glow)"/>
+  <circle cx="60" cy="60" r="38" fill="none" stroke="url(#g)" stroke-width="7" stroke-linecap="round" stroke-dasharray="200 39" transform="rotate(-66 60 60)"/>
+  <circle cx="60" cy="22" r="4.2" fill="#22d3ee"/>
+  <g stroke-linecap="round" stroke-width="7">
+    <line x1="38" y1="54" x2="38" y2="66" stroke="#e8ebff"/>
+    <line x1="49" y1="45" x2="49" y2="75" stroke="#e8ebff"/>
+    <line x1="60" y1="37" x2="60" y2="83" stroke="url(#g2)"/>
+    <line x1="71" y1="45" x2="71" y2="75" stroke="#e8ebff"/>
+    <line x1="82" y1="54" x2="82" y2="66" stroke="#e8ebff"/>
+  </g>
+</svg>

@@ -1,7 +1,7 @@
-"""Verbindung zur Integration Sprachmodell in Home Assistant.
+"""Connection to the Wake Word Studio integration in Home Assistant.
 
-Als Home-Assistant-App: ueber den Supervisor (SUPERVISOR_TOKEN), nichts einzustellen.
-Als Docker-Container: HA_URL und SCHLUESSEL (aus der App: Einstellungen -> Trainer).
+As a Home Assistant app: through the Supervisor (SUPERVISOR_TOKEN), nothing to set.
+As a Docker container: HA_URL and KEY (shown in the panel: Settings -> Trainer; SCHLUESSEL also works).
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ class HA:
         self.sitzung = requests.Session()
         if os.environ.get("HA_URL"):
             self.basis = os.environ["HA_URL"].rstrip("/") + "/api/sprachmodell/trainer"
-            schluessel = os.environ.get("SCHLUESSEL", "")
+            schluessel = os.environ.get("KEY") or os.environ.get("SCHLUESSEL", "")
             if schluessel:
                 self.sitzung.headers["X-Sprachmodell-Schluessel"] = schluessel
             elif os.environ.get("HA_TOKEN"):
@@ -32,7 +32,7 @@ class HA:
             self.basis = "http://supervisor/core/api/sprachmodell/trainer"
             self.sitzung.headers["Authorization"] = "Bearer " + token
         else:
-            raise SystemExit("HA_URL und SCHLUESSEL fehlen (siehe Sprachmodell -> Einstellungen -> Trainer).")
+            raise SystemExit("HA_URL and KEY are missing (see Wake Word Studio -> Settings -> Trainer).")
 
     def _url(self, pfad: str) -> str:
         return f"{self.basis}/{pfad}"
@@ -42,12 +42,12 @@ class HA:
             try:
                 r = self.sitzung.get(self._url(pfad), timeout=60, **kw)
                 if r.status_code == 401:
-                    raise SystemExit("Falscher Schlüssel – in der App unter Einstellungen → Trainer nachsehen.")
+                    raise SystemExit("Wrong key - see Wake Word Studio -> Settings -> Trainer.")
                 return r
             except requests.RequestException as err:
-                _LOG.warning("HA nicht erreichbar (%s), neuer Versuch", err)
+                _LOG.warning("Home Assistant not reachable (%s), trying again", err)
                 time.sleep(5 * (versuch + 1))
-        raise ConnectionError("Home Assistant nicht erreichbar")
+        raise ConnectionError("Home Assistant not reachable")
 
     def auftrag(self) -> dict[str, Any]:
         r = self._get("auftrag")
@@ -72,7 +72,7 @@ class HA:
         try:
             self.sitzung.post(self._url("status"), json=daten, timeout=30)
         except requests.RequestException as err:
-            _LOG.warning("Status nicht gesendet: %s", err)
+            _LOG.warning("Status not sent: %s", err)
 
     def ergebnis(self, wort: str, tflite: bytes, bericht: dict[str, Any]) -> dict[str, Any]:
         r = self.sitzung.post(

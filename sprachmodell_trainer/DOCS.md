@@ -1,6 +1,6 @@
-# Sprachmodell Trainer
+# Wake Word Studio Trainer
 
-Trains your own wake words for the **Sprachmodell** integration. It runs on its own: every 20 seconds it asks Home
+Trains your own wake words for the **Wake Word Studio** integration. It runs on its own: every 20 seconds it asks Home
 Assistant whether a word should be trained (button *Train now*, or at night when there are new ratings), does the
 whole job and sends the result back. The app in the sidebar shows progress, and if the new model is better in an
 honest test it is put on your voice satellites automatically.
@@ -29,20 +29,26 @@ honest test it is put on your voice satellites automatically.
 
 ## Requirements
 
-- 64-bit system (amd64 or aarch64), at least 4 GB free RAM, 10 GB free disk.
+- 64-bit system (amd64 or aarch64), at least 4 GB free RAM (it adapts: less memory = slower), 10 GB free disk.
 - A full first run takes a few hours on a small PC, later runs are shorter.
 
 ## Running it on another computer (Docker)
 
 A faster computer in your network can do the training instead. Take the key from
-**Sprachmodell → Settings → Trainer** and start:
+**Wake Word Studio → Settings → Trainer** and start:
 
 ```bash
-docker run -d --name sprachmodell-trainer --restart unless-stopped \
+docker run -d --name wake-word-studio-trainer --restart unless-stopped \
   -e HA_URL=http://homeassistant.local:8123 \
-  -e SCHLUESSEL=<key from the app> \
-  -v sprachmodell-trainer:/data \
-  ghcr.io/wadim-dev/sprachmodell-trainer:latest
+  -e KEY=<key from the panel> \
+  -v wake-word-studio-trainer:/data \
+  ghcr.io/wadim-dev/wake-word-studio-trainer:latest
+```
+
+On **Proxmox VE** one line in the Proxmox shell creates its own container that updates itself on every restart:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/sprachmodell_trainer/proxmox.sh)" -- http://homeassistant.local:8123 <key>
 ```
 
 Optional variables: `THREADS`, `ZIEL_FEHLAUSLOESER`, `SCHRITTE`, `TRAINER_NAME`. Only one trainer should run at a time.
@@ -60,5 +66,5 @@ Stimmen). Danach trainiert er auf den bewerteten Aufnahmen plus künstlichen Sti
 denselben Testaufnahmen und wählt die Schwelle so, dass die Fehlauslöser unter dem Ziel bleiben.
 
 Einstellungen: `threads` (0 = alle), `ziel_fehlausloeser` (pro Stunde Gerede, Standard 1,0),
-`schritte` (0 = automatisch). Für einen anderen Rechner den Docker-Befehl oben nehmen, Schlüssel aus
-**Sprachmodell → Einstellungen → Trainer**.
+`schritte` (0 = automatisch). Für einen anderen Rechner den Docker- oder Proxmox-Befehl oben nehmen, Schlüssel aus
+**Wake Word Studio → Einstellungen → Trainer**.

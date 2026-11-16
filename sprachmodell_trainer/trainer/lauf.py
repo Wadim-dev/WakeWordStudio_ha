@@ -171,7 +171,7 @@ class Lauf:
         self._prozess = None
         self._pruefen()
         if code != 0:
-            _LOG.error("Schritt fehlgeschlagen:\n%s", "\n".join(letzte))
+            _LOG.error("Step failed:\n%s", "\n".join(letzte))
             raise RuntimeError(next((z for z in reversed(letzte) if z.strip()), f"exit {code}")[:300])
         return ergebnis
 
@@ -183,7 +183,7 @@ class Lauf:
         g = Grunddaten(self.daten, lambda s: (self._pruefen(), self._abschnitt("vorbereiten", 0.3, s, True)))
         noetig = PLATZ_GB if not (g.o / "neg" / "speech" / "fertig").exists() else min(PLATZ_GB, 3)
         if platz_frei(self.daten) < noetig:
-            raise RuntimeError(f"Zu wenig Speicherplatz: mindestens {noetig:g} GB frei nötig")
+            raise RuntimeError(f"Not enough disk space: at least {noetig:g} GB free needed")
         neg = g.negative()
         bg = g.hintergrund()
         rir = g.raumklang()
@@ -192,7 +192,7 @@ class Lauf:
         g.aufraeumen()
         self._pruefen()
         if not stimmen.get(self.sprache):
-            raise RuntimeError(f"Keine Stimme für Sprache {self.sprache}")
+            raise RuntimeError(f"No voice for language {self.sprache}")
 
         echt = self._echte_aufnahmen()
         tts = self._stimmen(stimmen, gerede)
@@ -201,7 +201,7 @@ class Lauf:
         bericht = self._test(tflite, echt, tts, bg, gerede)
         self._abschnitt("test", 1, "senden", True)
         self.ha.ergebnis(self.wort_id, tflite.read_bytes(), bericht)
-        _LOG.info("Fertig: %s", json.dumps(bericht, ensure_ascii=False))
+        _LOG.info("Done: %s", json.dumps(bericht, ensure_ascii=False))
 
     # --- eigene Aufnahmen ---------------------------------------------------
 
@@ -402,7 +402,7 @@ class Lauf:
         self._ausfuehren(args, "training", 0, 1, text, cwd=str(self.ordner), schritte_gesamt=sum(schritte))
         modell = train / MODELL_DATEI
         if not modell.exists():
-            raise RuntimeError("Training lieferte kein Modell")
+            raise RuntimeError("Training produced no model")
         return modell
 
     # --- ehrlicher Test -----------------------------------------------------

@@ -1,11 +1,13 @@
-// Sprachmodell – App in der Seitenleiste: eigene Aktivierungswörter anlegen, prüfen, aufnehmen,
-// trainieren lassen und einspielen. Alles ist hier einstellbar (Wörter, Geräte, Plätze, Trainer).
-// Adressen: /sprachmodell/<reiter>?wort=<id>   Reiter ohne Wort: zentrale, geraete, einstellungen, neu
-// Kein Abfragen im Takt: neu geladen wird nur, wenn sich ein Sprachmodell-Sensor ändert.
+// Wake Word Studio – sidebar panel: create own wake words, review, record, train and roll out.
+// Everything is set here (words, devices, slots, trainer). Changing the setup needs an administrator.
+// Addresses: /wake-word-studio/<tab>?wort=<id>   tabs without a word: zentrale, geraete, einstellungen, neu
+// No polling: the page reloads only when one of the integration's sensors changes.
 import { TEXTE, SPRACHNAMEN } from './sprachmodell-texte.js';
 
-const VERSION = '0.2.0';
-const REPO = 'https://github.com/Wadim-dev/sprachmodell_ha';
+const VERSION = '1.0.0';
+const REPO = 'https://github.com/Wadim-dev/wake-word-studio_ha';
+const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
+const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/wake-word-studio_ha/main/sprachmodell_trainer/proxmox.sh';
 const WORT_REITER = [
   ['uebersicht', 'mdi:view-dashboard-outline'],
   ['pruefen', 'mdi:playlist-check'],
@@ -164,6 +166,9 @@ class SprachmodellPanel extends HTMLElement {
   }
   _datum(iso) { return iso ? new Date(iso).toLocaleString(this._loc, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '–'; }
   _dauer(min) { return min >= 90 ? this._zahl(min / 60, 1) + ' ' + this.t('std') : Math.round(min) + ' ' + this.t('min'); }
+  get _basis() { return '/' + ((this._panel && this._panel.url_path) || 'wake-word-studio'); }
+  get _admin() { return !!(this._daten && this._daten.admin); }
+  _fehlerText(e) { const c = (e && e.body && e.body.message) || (e && e.message) || String(e); const s = this.t('f_' + c); return s === 'f_' + c ? c : s; }
   _wortKurz() { return this._daten && this._daten.woerter.find((w) => w.id === this._wortId); }
   _wortName() { const w = this._wortKurz(); return w ? w.wort : ''; }
   _farbe(w, i) { if (!w) return FARBEN[0]; return w.farbe || FARBEN[(i ?? this._daten.woerter.indexOf(w)) % FARBEN.length]; }
@@ -200,7 +205,7 @@ class SprachmodellPanel extends HTMLElement {
   _gehe(reiter, wort) {
     if (wort) { this._wortId = wort; this._merk('wort', wort); }
     const q = !OHNE_WORT.includes(reiter) && this._wortId ? '?wort=' + encodeURIComponent(this._wortId) : '';
-    history.pushState(null, '', '/sprachmodell/' + reiter + q);
+    history.pushState(null, '', this._basis + '/' + reiter + q);
     window.dispatchEvent(new CustomEvent('location-changed'));
   }
 
@@ -231,10 +236,10 @@ class SprachmodellPanel extends HTMLElement {
     const mit = this._mitWort();
     wn.innerHTML = `<a data-reiter="zentrale" class="${this._reiter === 'zentrale' ? 'an' : ''}"><ha-icon icon="mdi:view-grid-outline"></ha-icon>${esc(this.t('alle_woerter'))}${d && d.offen ? `<span class="zahl">${d.offen}</span>` : ''}</a>`
       + woerter.map((w, i) => `<a class="wortchip ${mit && w.id === this._wortId ? 'an' : ''}" data-reiter="${mit ? this._reiter : 'uebersicht'}" data-wort="${esc(w.id)}"><span class="farbe" style="background:${this._farbe(w, i)}"></span>${esc(w.wort)}${w.offen ? `<span class="zahl">${w.offen}</span>` : ''}</a>`).join('')
-      + `<a data-reiter="neu" class="${this._reiter === 'neu' ? 'an' : ''}"><ha-icon icon="mdi:plus"></ha-icon>${esc(this.t('neues_wort'))}</a>`;
+      + (this._admin ? `<a data-reiter="neu" class="${this._reiter === 'neu' ? 'an' : ''}"><ha-icon icon="mdi:plus"></ha-icon>${esc(this.t('neues_wort'))}</a>` : '');
     const w = this._wortKurz();
     rn.style.display = mit ? '' : 'none';
-    rn.innerHTML = mit ? WORT_REITER.map(([id, i]) => `<a data-reiter="${id}" class="${id === this._reiter ? 'an' : ''}"><ha-icon icon="${i}"></ha-icon>${esc(this.t('r_' + id))}${id === 'pruefen' && w && w.offen ? `<span class="zahl">${w.offen}</span>` : ''}</a>`).join('') : '';
+    rn.innerHTML = mit ? WORT_REITER.filter(([id]) => id !== 'wort' || this._admin).map(([id, i]) => `<a data-reiter="${id}" class="${id === this._reiter ? 'an' : ''}"><ha-icon icon="${i}"></ha-icon>${esc(this.t('r_' + id))}${id === 'pruefen' && w && w.offen ? `<span class="zahl">${w.offen}</span>` : ''}</a>`).join('') : '';
     sr.querySelectorAll('.kopf .ikon').forEach((b) => b.classList.toggle('an', b.dataset.reiter === this._reiter));
   }
 
@@ -251,7 +256,7 @@ class SprachmodellPanel extends HTMLElement {
         const w = this._daten.woerter.find((x) => x.offen) || this._daten.woerter[0];
         if (w && w.id !== this._wortId) {
           this._wortId = w.id; this._merk('wort', w.id);
-          history.replaceState(null, '', '/sprachmodell/' + this._reiter + '?wort=' + encodeURIComponent(w.id));
+          history.replaceState(null, '', this._basis + '/' + this._reiter + '?wort=' + encodeURIComponent(w.id));
           return this._laden();
         }
       }
@@ -260,7 +265,7 @@ class SprachmodellPanel extends HTMLElement {
       if (this._daten.wort && this._reiter === 'pruefen') this._liste = await this._api('GET', 'liste?filter=offen' + ew + ef);
       if (this._daten.wort && this._reiter === 'verlauf') this._liste = await this._api('GET', `liste?filter=${this._filter.verlauf}&seite=${this._filter.seite}` + ew + ef);
       this._fehler = null;
-    } catch (e) { this._fehler = (e && (e.body && e.body.message)) || e.message || String(e); }
+    } catch (e) { this._fehler = this._fehlerText(e); }
     this._kopfZeichnen();
     this._zeichnen();
   }
@@ -297,20 +302,20 @@ class SprachmodellPanel extends HTMLElement {
   _zentrale() {
     const d = this._daten;
     if (!d.woerter.length) {
-      return `<ha-card><div class="leer" style="padding:28px 12px"><ha-icon icon="mdi:waveform"></ha-icon><h2 style="margin-top:12px;color:var(--primary-text-color)">${esc(this.t('z_leer_titel'))}</h2><p style="max-width:560px;margin:0 auto 16px;line-height:1.5">${esc(this.t('z_leer_text'))}</p><button class="k haupt" data-reiter="neu"><ha-icon icon="mdi:plus"></ha-icon>${esc(this.t('z_wort_anlegen'))}</button></div></ha-card>
+      return `<ha-card><div class="leer" style="padding:28px 12px"><ha-icon icon="mdi:waveform"></ha-icon><h2 style="margin-top:12px;color:var(--primary-text-color)">${esc(this.t('z_leer_titel'))}</h2><p style="max-width:560px;margin:0 auto 16px;line-height:1.5">${esc(this.t('z_leer_text'))}</p>${this._admin ? `<button class="k haupt" data-reiter="neu"><ha-icon icon="mdi:plus"></ha-icon>${esc(this.t('z_wort_anlegen'))}</button>` : `<p class="klein">${esc(this.t('nur_admin_hinweis'))}</p>`}</div></ha-card>
 <div class="raster">${this._trainerKachel()}${this._geraeteKachel()}</div>`;
     }
     const karten = d.woerter.map((w, i) => {
       const t = w.training || {}, laeuft = LAEUFT.includes(t.phase), n = Object.keys(w.geraete || {}).length;
       return `<ha-card class="kachel wortkarte ${laeuft ? 'laeuft' : ''}" style="--wf:${this._farbe(w, i)}" data-reiter="${w.offen ? 'pruefen' : 'uebersicht'}" data-wort="${esc(w.id)}">
-<div class="klein">${esc(SPRACHNAMEN[this._spr][w.sprache] || w.sprache)} · ${esc(n ? this.t('z_geraete', { n }) : this.t('z_kein_geraet'))}</div>
+<div class="klein">${esc(SPRACHNAMEN[this._spr][w.sprache] || w.sprache)} · ${esc(n === 1 ? this.t('z_geraet') : n ? this.t('z_geraete', { n }) : this.t('z_kein_geraet'))}</div>
 <div class="name">${esc(w.wort)}</div>
 <div class="zeile weit"><span class="${w.offen ? 'gelb' : 'klein'}">${w.offen} ${esc(this.t('z_offen'))}</span><span class="klein">${w.aktiv ? 'v' + w.aktiv : esc(this.t('z_keine_version'))}</span></div>
 ${laeuft ? `<div class="fortschritt"><i style="width:${t.prozent ?? 3}%"></i></div><div class="klein">${esc(this.t('p_' + t.phase))}${t.prozent != null ? ' · ' + Math.round(t.prozent) + ' %' : ''}</div>` : `<div class="reihe klein">${w.trefferquote != null ? `<span>${esc(this.t('z_erkennt', { q: this._pct(w.trefferquote) }))}</span>` : ''}${w.fehlausloeser != null ? `<span>${esc(this.t('z_fehl', { n: this._zahl(w.fehlausloeser, 1) }))}</span>` : ''}${t.phase === 'wartet' ? `<span class="gelb">${esc(this.t('p_wartet'))}</span>` : ''}${t.phase === 'fehler' ? `<span class="rot">${esc(this.t('p_fehler'))}</span>` : ''}</div>`}
 </ha-card>`;
     }).join('');
     const reihe = d.reihe.map((id) => (d.woerter.find((w) => w.id === id) || {}).wort).filter(Boolean);
-    return `<div class="raster">${karten}<ha-card class="kachel" data-reiter="neu" style="display:flex;align-items:center;justify-content:center;min-height:130px;color:var(--secondary-text-color)"><div style="text-align:center"><ha-icon icon="mdi:plus-circle-outline" style="--mdc-icon-size:36px"></ha-icon><div>${esc(this.t('neues_wort'))}</div></div></ha-card></div>
+    return `<div class="raster">${karten}${this._admin ? `<ha-card class="kachel" data-reiter="neu" style="display:flex;align-items:center;justify-content:center;min-height:130px;color:var(--secondary-text-color)"><div style="text-align:center"><ha-icon icon="mdi:plus-circle-outline" style="--mdc-icon-size:36px"></ha-icon><div>${esc(this.t('neues_wort'))}</div></div></ha-card>` : ''}</div>
 <div class="raster">${this._trainerKachel()}
 <ha-card class="kachel" data-reiter="einstellungen"><div class="klein"><ha-icon icon="mdi:format-list-numbered"></ha-icon> ${esc(this.t('z_reihe'))}</div><div class="wert" style="font-size:22px">${reihe.length}</div><div class="klein">${reihe.length ? reihe.map(esc).join(' → ') : esc(this.t('z_reihe_leer'))}</div></ha-card>
 ${this._geraeteKachel()}</div>`;
@@ -327,7 +332,7 @@ ${this._geraeteKachel()}</div>`;
   <ha-card class="kachel" data-reiter="pruefen"><div class="klein"><ha-icon icon="mdi:playlist-check"></ha-icon> ${esc(this.t('ue_warten'))}</div><div class="wert ${s.offen ? 'gelb' : ''}">${s.offen}</div><div class="klein">${s.offen ? esc(this.t('ue_aelteste', { z: this._zeit(s.aeltestes_offen) })) : esc(this.t('ue_alles'))}</div></ha-card>
   <ha-card class="kachel" data-reiter="qualitaet"><div class="klein"><ha-icon icon="mdi:bullseye-arrow"></ha-icon> ${esc(this.t('ue_aktiv'))}</div><div class="wert">${v ? 'v' + v.nr : '–'}</div><div class="klein">${b.trefferquote != null ? esc(this.t('z_erkennt', { q: this._pct(b.trefferquote) }) + ' · ' + this.t('z_fehl', { n: this._zahl(b.fehlausloeser_pro_stunde, 1) })) : v ? esc(this.t('ue_eingespielt', { z: this._zeit(v.eingespielt) })) : esc(this.t('q_keine'))}</div></ha-card>
   <ha-card class="kachel ${laeuft ? 'laeuft' : ''}" data-reiter="training"><div class="klein"><ha-icon icon="mdi:school-outline"></ha-icon> ${esc(this.t('r_training'))}</div><div class="wert" style="font-size:22px">${esc(this.t('p_' + t.phase))}</div>${laeuft && t.prozent != null ? `<div class="fortschritt"><i style="width:${t.prozent}%"></i></div>` : ''}<div class="klein">${laeuft ? esc(this._schritt(t.schritt)) : `<span class="punkt ${d.trainer.online ? 'an' : ''}"></span>${esc(d.trainer.online ? this.t('t_trainer_an') : this.t('t_kein_trainer'))}`}${!laeuft && w.neu_seit_lauf > 0 ? ' · ' + esc(this.t('ue_neue_bew', { n: w.neu_seit_lauf })) : ''}</div></ha-card>
-  <ha-card class="kachel" data-reiter="wort"><div class="klein"><ha-icon icon="mdi:speaker-wireless"></ha-icon> ${esc(this.t('ue_geraete'))}</div><div class="wert">${geraete.length}</div><div class="klein">${geraete.map(esc).join(', ') || esc(this.t('z_kein_geraet'))}</div></ha-card>
+  <ha-card class="kachel" data-reiter="${this._admin ? 'wort' : 'geraete'}"><div class="klein"><ha-icon icon="mdi:speaker-wireless"></ha-icon> ${esc(this.t('ue_geraete'))}</div><div class="wert">${geraete.length}</div><div class="klein">${geraete.map(esc).join(', ') || esc(this.t('z_kein_geraet'))}</div></ha-card>
 </div>
 <ha-card><h2>${esc(this.t('ue_alltag'))}</h2>${this._alltag()}</ha-card>
 <ha-card><h2>${esc(this.t('ue_so'))}</h2><div class="klein" style="line-height:1.6">
@@ -441,7 +446,7 @@ ${this._personWahl(a.person || (pruefen ? this._person : ''), a.id)}
     const sel = zeile && zeile.querySelector('select[data-person]');
     const person = urteil === 'wort' ? (sel ? sel.value : this._person) : '';
     try { await this._api('POST', 'urteil', { wort: this._wortId, ids: [id], urteil, person }); }
-    catch (e) { this._meldung(this.t('ging_nicht', { f: e.body?.message || e.message })); return; }
+    catch (e) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(e) })); return; }
     if (this._reiter === 'pruefen' && zeile) {
       zeile.classList.add('weg');
       if (this._spielt === id) this._audio.pause();
@@ -595,7 +600,7 @@ ${l.seiten > 1 ? `<div class="zeile" style="justify-content:center;margin-top:12
         fd.append('datei', f, f.name);
         const r = await this._hass.fetchWithAuth('/api/sprachmodell/' + (wav ? 'aufnahme' : 'hochladen'), { method: 'POST', body: fd });
         const j = await r.json();
-        if (!r.ok) throw new Error(j.message || r.statusText);
+        if (!r.ok) throw new Error(this._fehlerText({ message: j.message || r.statusText }));
         const w = wav ? 1 : j.wort, k = wav ? 0 : j.kein_wort;
         text += `<div class="hinweis ok"><b>${esc(f.name)}</b>: ${esc(this.t('h_ergebnis', { w, k }))}${j.doppelt ? ', ' + esc(this.t('h_doppelt', { n: j.doppelt })) : ''}${j.kaputt ? ', ' + esc(this.t('h_kaputt', { n: j.kaputt })) : ''}${person ? ' · ' + esc(person) : ''}</div>`;
       } catch (e) { text += `<div class="hinweis"><b>${esc(f.name)}</b>: ${esc(e.message)}</div>`; }
@@ -622,8 +627,8 @@ ${t.phase === 'fehler' ? `<p class="rot">${esc(this._schritt(t.schritt || t.hinw
 ${t.hinweis === 'neustart' ? `<p class="klein">${esc(this.t('neustart'))}</p>` : ''}
 <div class="zeile" style="margin-top:12px">${laeuft || t.phase === 'wartet' ? `<button class="k schlecht" data-a="abbrechen"><ha-icon icon="mdi:stop"></ha-icon>${esc(this.t('t_abbrechen'))}</button>` : `<button class="k haupt" data-a="trainieren"><ha-icon icon="mdi:play"></ha-icon>${esc(this.t('t_jetzt'))}</button><span class="klein">${esc(w.neu_seit_lauf > 0 ? this.t('t_neue', { n: w.neu_seit_lauf }) : this.t('t_keine_neuen'))}</span>`}</div></ha-card>
 <ha-card><h2>${esc(this.t('t_auto'))}</h2>
-<div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="nachts" ${e.nachts ? 'checked' : ''}> ${esc(this.t('t_nachts'))} · ${esc(String(d.einstellungen.uhrzeit).slice(0, 5))}</label></div>
-<div class="zeile"><label><input type="checkbox" data-wopt="automatisch_einspielen" ${e.automatisch_einspielen ? 'checked' : ''}> ${esc(this.t('t_einspielen'))}</label></div>
+<div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="nachts" ${e.nachts ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_nachts'))} · ${esc(String(d.einstellungen.uhrzeit).slice(0, 5))}</label></div>
+<div class="zeile"><label><input type="checkbox" data-wopt="automatisch_einspielen" ${e.automatisch_einspielen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_einspielen'))}</label></div>
 <p class="klein">${esc(this.t('t_besser_heisst'))}</p></ha-card>
 <ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
   }
@@ -644,9 +649,9 @@ ${Object.keys(personen).length ? `<h3>${esc(this.t('q_je_person'))}</h3><table><
 <div class="klein" style="margin-top:10px">${esc(this.t('ue_eingespielt', { z: this._zeit(v.eingespielt) }))}${b.cutoff ? ' · ' + esc(this.t('q_modell_schwelle', { w: this._zahl(b.cutoff) })) : ''}${herkunft ? ' · ' + esc(herkunft) : ''}</div>` : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>
 <ha-card><h2>${esc(this.t('q_alltag'))}</h2>${this._alltag()}</ha-card>
 <ha-card><h2>${esc(this.t('q_schwelle'))}</h2>${this._verteilung(sj, s.schwelle_vorschlag)}
-${s.schwelle_vorschlag != null ? `<div class="zeile weit" style="margin-top:10px"><span>${this.t('q_vorschlag', { w: this._zahl(s.schwelle_vorschlag) })} ${sj != null ? esc(this.t('q_jetzt', { w: this._zahl(sj) })) : ''}</span><button class="k haupt" data-a="schwelle" data-wert="${s.schwelle_vorschlag}" ${sj != null && Math.abs(sj - s.schwelle_vorschlag) < 0.005 ? 'disabled' : ''}>${esc(this.t('q_uebernehmen'))}</button></div>` : `<div class="klein">${esc(this.t('q_vorschlag_spaeter'))}</div>`}
+${s.schwelle_vorschlag != null ? `<div class="zeile weit" style="margin-top:10px"><span>${this.t('q_vorschlag', { w: this._zahl(s.schwelle_vorschlag) })} ${sj != null ? esc(this.t('q_jetzt', { w: this._zahl(sj) })) : ''}</span><button class="k haupt" data-a="schwelle" data-wert="${s.schwelle_vorschlag}" ${!this._admin || (sj != null && Math.abs(sj - s.schwelle_vorschlag) < 0.005) ? 'disabled' : ''}>${esc(this.t('q_uebernehmen'))}</button></div>` : `<div class="klein">${esc(this.t('q_vorschlag_spaeter'))}</div>`}
 <div class="klein" style="margin-top:8px">${esc(this.t('q_legende'))}</div></ha-card>
-<ha-card><h2>${esc(this.t('q_versionen'))}</h2>${w.versionen.length ? `<table><tr><th>${esc(this.t('q_version'))}</th><th>${esc(this.t('q_erkannt'))}</th><th>${esc(this.t('q_fehl'))}</th><th>${esc(this.t('q_stand'))}</th><th></th></tr>${w.versionen.map((x) => { const n = (x.bericht && x.bericht.neu) || {}; return `<tr><td>v${x.nr}<div class="klein">${this._datum(x.zeit)}</div></td><td>${this._pct(n.trefferquote)}</td><td>${this._zahl(n.fehlausloeser_pro_stunde, 1)}/${esc(this.t('std'))}</td><td class="${x.status === 'aktiv' ? 'gruen' : ''}">${esc(this.t('s_' + x.status))}</td><td class="z">${x.status !== 'aktiv' ? `<button class="k" data-a="einspielen" data-nr="${x.nr}">${esc(this.t('q_einspielen'))}</button>` : ''}</td></tr>`; }).join('')}</table>` : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>`;
+<ha-card><h2>${esc(this.t('q_versionen'))}</h2>${w.versionen.length ? `<table><tr><th>${esc(this.t('q_version'))}</th><th>${esc(this.t('q_erkannt'))}</th><th>${esc(this.t('q_fehl'))}</th><th>${esc(this.t('q_stand'))}</th><th></th></tr>${w.versionen.map((x) => { const n = (x.bericht && x.bericht.neu) || {}; return `<tr><td>v${x.nr}<div class="klein">${this._datum(x.zeit)}</div></td><td>${this._pct(n.trefferquote)}</td><td>${this._zahl(n.fehlausloeser_pro_stunde, 1)}/${esc(this.t('std'))}</td><td class="${x.status === 'aktiv' ? 'gruen' : ''}">${esc(this.t('s_' + x.status))}</td><td class="z">${x.status !== 'aktiv' && this._admin ? `<button class="k" data-a="einspielen" data-nr="${x.nr}">${esc(this.t('q_einspielen'))}</button>` : ''}</td></tr>`; }).join('')}</table>` : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>`;
   }
 
   _verteilung(jetzt, vorschlag) {
@@ -679,10 +684,11 @@ ${s.schwelle_vorschlag != null ? `<div class="zeile weit" style="margin-top:10px
     const name = (id) => (d.woerter.find((w) => w.id === id) || {}).wort || id;
     return d.geraete.map((g) => {
       const jetzt = (e.geraete || {})[g.knoten] || '';
-      const belegt = ['1', '2'].map((p) => { const w = g.plaetze[p].wort; return w && w !== eigeneId ? ' – ' + this.t('w_belegt', { w: name(w) }) : ''; });
+      const plaetze = Object.keys(g.plaetze);
+      const belegt = plaetze.map((p) => { const w = g.plaetze[p].wort; return w && w !== eigeneId ? ' – ' + this.t('w_belegt', { w: name(w) }) : ''; });
       const gewaehlt = jetzt && g.plaetze[jetzt] && g.plaetze[jetzt].auswahl;
-      return `<div class="platz"><div><div>${esc(g.name)}</div><div class="klein">${esc(g.knoten)}${gewaehlt ? ' · ' + esc(this.t('w_auswahl', { w: gewaehlt })) : ''}${g.fehler ? ' · <span class="rot">' + esc(this.t('ge_nicht_gefunden')) + '</span>' : ''}</div></div>
-<select data-platz="${esc(g.knoten)}"><option value="">${esc(this.t('w_platz_aus'))}</option>${['1', '2'].map((p, i) => `<option value="${p}" ${jetzt === p ? 'selected' : ''}>${esc(this.t('w_platz', { n: p }) + belegt[i])}</option>`).join('')}</select></div>`;
+      return `<div class="platz"><div><div>${esc(g.name)}</div><div class="klein">${esc(g.knoten)}${gewaehlt ? ' · ' + esc(this.t('w_auswahl', { w: gewaehlt })) : ''}${g.fehler ? ' · <span class="rot">' + esc(this.t('ge_nicht_gefunden')) + '</span>' : ''}${g.clips ? '' : ' · ' + esc(this.t('ge_ohne_clips'))}</div></div>
+<select data-platz="${esc(g.knoten)}"><option value="">${esc(this.t('w_platz_aus'))}</option>${plaetze.map((p, i) => `<option value="${p}" ${jetzt === p ? 'selected' : ''}>${esc(this.t('w_platz', { n: p }) + belegt[i])}</option>`).join('')}</select></div>`;
     }).join('');
   }
 
@@ -731,17 +737,22 @@ ${modelle.length ? `<label class="feld">${esc(this.t('w_vorhanden'))}</label><se
     const d = this._daten;
     if (!d.geraete.length) return `<ha-card><div class="leer"><ha-icon icon="mdi:speaker-off"></ha-icon><p>${esc(this.t('z_geraete_leer'))}</p></div></ha-card>`;
     const wort = (id) => d.woerter.find((w) => w.id === id);
-    return d.geraete.map((g) => `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(g.name)}</h2><span class="klein">${esc(g.knoten)}${g.zaehler != null ? ' · ' + esc(this.t('ge_zaehler', { n: g.zaehler })) : ''}</span></div>
+    return d.geraete.map((g) => `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(g.name)}</h2><span class="klein">${esc(g.knoten)}${g.clips ? ' · ' + esc(this.t('ge_mit_clips')) : ''}${g.zaehler != null ? ' · ' + esc(this.t('ge_zaehler', { n: g.zaehler })) : ''}</span></div>
+${g.clips ? '' : `<div class="klein" style="margin-top:8px">${esc(this.t('ge_ohne_clips'))}</div>`}
 ${g.fehler ? `<div class="hinweis" style="margin-top:10px">${esc(String(g.fehler).slice(0, 160))}<br>${esc(this.t('ge_fehler_hinweis'))}</div>` : ''}
 <table style="margin-top:8px"><tr><th></th><th>${esc(this.t('ge_wort'))}</th><th>${esc(this.t('ge_gewaehlt'))}</th><th class="z">${esc(this.t('ge_schwelle'))}</th></tr>
-${['1', '2'].map((p) => { const pl = g.plaetze[p], w = wort(pl.wort); return `<tr><td>${esc(this.t('ge_platz', { n: p }))}</td><td>${w ? `<a class="chip" data-reiter="wort" data-wort="${esc(w.id)}"><span class="punkt" style="background:${this._farbe(w)}"></span>${esc(w.wort)}</a>` : `<span class="klein">${esc(this.t('ge_nicht'))}</span>`}</td><td>${esc(pl.auswahl || '–')}</td><td class="z">${pl.schwelle != null ? this._zahl(pl.schwelle) : '–'}</td></tr>`; }).join('')}</table></ha-card>`).join('') + `<div class="klein">${esc(this.t('ge_hilfe'))}</div>`;
+${Object.keys(g.plaetze).map((p) => { const pl = g.plaetze[p], w = wort(pl.wort); return `<tr><td>${esc(this.t('ge_platz', { n: p }))}</td><td>${w ? `<a class="chip" data-reiter="${this._admin ? 'wort' : 'uebersicht'}" data-wort="${esc(w.id)}"><span class="punkt" style="background:${this._farbe(w)}"></span>${esc(w.wort)}</a>` : `<span class="klein">${esc(this.t('ge_nicht'))}</span>`}</td><td>${esc(pl.auswahl || '–')}</td><td class="z">${pl.schwelle != null ? this._zahl(pl.schwelle) : '–'}</td></tr>`; }).join('')}</table></ha-card>`).join('') + `<div class="klein">${esc(this.t('ge_hilfe'))}</div>`;
   }
 
   // ---------- Einstellungen ----------
   _einstellungen() {
     const d = this._daten, e = d.einstellungen, tr = d.trainer;
     const basis = tr.adresse || location.origin;
-    const docker = `docker run -d --name sprachmodell-trainer --restart unless-stopped \\\n  -v sprachmodell-trainer:/data \\\n  -e HA_URL=${basis} \\\n  -e SCHLUESSEL=${this._zeigeSchl ? tr.schluessel : '••••••'} \\\n  ghcr.io/wadim-dev/sprachmodell-trainer:latest`;
+    const schl = this._zeigeSchl && tr.schluessel ? tr.schluessel : '••••••';
+    const docker = `docker run -d --name wake-word-studio-trainer --restart unless-stopped \\\n  -v wake-word-studio-trainer:/data \\\n  -e HA_URL=${basis} \\\n  -e KEY=${schl} \\\n  ${BILD}`;
+    const proxmox = `bash -c "$(curl -fsSL ${PROXMOX})" -- ${basis} ${schl}`;
+    if (!this._admin) return `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('es_trainer'))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(tr.online ? this.t('t_trainer_an') : tr.kontakt ? this.t('t_trainer_zuletzt', { z: this._zeit(tr.kontakt) }) : this.t('t_trainer_nie'))}</span></div><p class="klein">${esc(this.t('nur_admin_hinweis'))}</p></ha-card>
+<div class="klein">${esc(this.t('es_info', { v: d.version_integration, a: d.ablage }))}</div>`;
     return `<ha-card><h2>${esc(this.t('es_allgemein'))}</h2>
 <label class="feld">${esc(this.t('es_zeit'))}</label><input type="time" data-zopt="uhrzeit" value="${esc(String(e.uhrzeit).slice(0, 5))}">
 <label class="feld">${esc(this.t('es_erinnerung'))}</label><input type="number" min="0" max="60" data-zopt="erinnerung_tage" value="${e.erinnerung_tage}">
@@ -750,9 +761,11 @@ ${['1', '2'].map((p) => { const pl = g.plaetze[p], w = wort(pl.wort); return `<t
 <ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('es_trainer'))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(tr.online ? this.t('t_trainer_an') : tr.kontakt ? this.t('t_trainer_zuletzt', { z: this._zeit(tr.kontakt) }) : this.t('t_trainer_nie'))}</span></div>
 <p class="klein" style="line-height:1.5">${esc(this.t('es_trainer_text'))}</p>
 <p class="klein" style="line-height:1.6">${this.t('es_app', { r: esc(REPO) })}</p>
+<p class="klein" style="line-height:1.6">${this.t('es_proxmox')}</p><pre>${esc(proxmox)}</pre>
 <p class="klein" style="line-height:1.6">${this.t('es_docker')}</p><pre>${esc(docker)}</pre>
 <table><tr><td>${esc(this.t('es_adresse'))}</td><td><code>${esc(basis)}</code></td></tr><tr><td>${esc(this.t('es_schluessel'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="schluessel">${esc(this.t(this._zeigeSchl ? 'es_verbergen' : 'es_zeigen'))}</button><button class="k leise" data-a="schluessel_neu">${esc(this.t('es_neu_schluessel'))}</button></div></td></tr></table>
 ${tr.info && Object.keys(tr.info).length ? `<div class="klein" style="margin-top:10px">${Object.entries(tr.info).map(([k, v]) => esc(k) + ': ' + esc(v)).join(' · ')}</div>` : ''}</ha-card>
+<ha-card><h2>${esc(this.t('es_ablage'))}</h2><p class="klein" style="line-height:1.6">${this.t('es_ablage_text', { a: esc(d.ablage) })}</p></ha-card>
 <div class="klein">${esc(this.t('es_info', { v: d.version_integration, a: d.ablage }))}</div>`;
   }
 
@@ -812,7 +825,7 @@ ${tr.info && Object.keys(tr.info).length ? `<div class="klein" style="margin-top
         await this._api('POST', 'aktion', { aktion: 'wort_loeschen', wort: this._wortId, dateien });
         this._merk('wort', ''); this._wortId = null; this._entwurf = null; this._meldung(this.t('w_geloescht')); this._gehe('zentrale');
       }
-    } catch (err) { this._meldung(this.t('ging_nicht', { f: err.body?.message || err.message })); }
+    } catch (err) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(err) })); }
   }
 
   _entwurfDaten() {
@@ -858,7 +871,7 @@ ${tr.info && Object.keys(tr.info).length ? `<div class="klein" style="margin-top
         await this._api('POST', 'aktion', { aktion: 'einstellungen', einstellungen: { [t.dataset.zopt]: wert } });
         this._meldung(this.t('gespeichert'));
       }
-    } catch (err) { this._meldung(this.t('ging_nicht', { f: err.body?.message || err.message })); }
+    } catch (err) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(err) })); }
   }
 
   _meldung(text) {
@@ -867,4 +880,4 @@ ${tr.info && Object.keys(tr.info).length ? `<div class="klein" style="margin-top
 }
 
 if (!customElements.get('sprachmodell-panel')) customElements.define('sprachmodell-panel', SprachmodellPanel);
-console.info('%c Sprachmodell ' + VERSION + ' ', 'background:#0288d1;color:#fff;border-radius:3px');
+console.info('%c Wake Word Studio ' + VERSION + ' ', 'background:#6d5dfc;color:#fff;border-radius:3px');
