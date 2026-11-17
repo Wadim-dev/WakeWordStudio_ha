@@ -375,3 +375,30 @@ async def test_schwelle_automatisch(hass: HomeAssistant, geladen, geraet) -> Non
     hass.states.async_set("number.kueche_assistant_1_wake_word_threshold", "0.9")
     await z.schwelle_pruefen()
     assert len(num) == anzahl
+
+
+async def test_senden_zustand(hass: HomeAssistant, geladen, geraet) -> None:
+    """TECHO "Send wake clips to": what the guide in Settings shows per device, renamed entities included."""
+    z = geladen.runtime_data
+    g = geraet("kueche", "Kitchen")
+    assert z.geraete_zustand()[0]["senden"] is None  # firmware without the select
+    reg = er.async_get(hass)
+
+    def anlegen(domain: str, objekt: str, zustand: str, umbenannt: str | None = None) -> str:
+        e = reg.async_get_or_create(domain, "esphome", f"kueche-{objekt}", config_entry=g.eintrag,
+                                    suggested_object_id=umbenannt or f"kueche_{objekt}")
+        hass.states.async_set(e.entity_id, zustand)
+        return e.entity_id
+
+    ziel = anlegen("select", "send_wake_clips_to", "Off", umbenannt="kueche_mikrofon_ziel")
+    seite = anlegen("switch", "setup_page", "off")
+    anlegen("sensor", "setup_page_asking", "unknown")
+    behalten = anlegen("switch", "keep_wake_clips", "off")
+    anlegen("sensor", "ip_address", "fd24::1, 192.168.1.44, 2a00::2")
+    anlegen("sensor", "wake_clip_sending", "unknown")
+    anlegen("sensor", "wake_clips_unsent", "3")
+    s = z.geraete_zustand()[0]["senden"]
+    assert s == {
+        "ziel": "Off", "ziel_entitaet": ziel, "seite": "off", "seite_entitaet": seite,
+        "behalten": "off", "behalten_entitaet": behalten, "ip": "192.168.1.44", "status": "unknown", "offen": "3",
+    }

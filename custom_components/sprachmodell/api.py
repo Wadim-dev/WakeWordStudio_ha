@@ -24,6 +24,7 @@ Devices (header "Authorization: Bearer <trainer key>"), the clip upload format o
     POST /api/sprachmodell/clips                 multipart: audio (16 kHz mono WAV, max 2 MB), meta (JSON: name,
                                                  device, kind, at, model, slot, score, cutoff)
     GET  /api/sprachmodell/clips/ping            checks the key
+    Devices add /api/clips to the base address: http://<home assistant>/api/wake_word_studio (also /api/sprachmodell).
 """
 
 from __future__ import annotations
@@ -535,8 +536,8 @@ GROESSTER_CLIP = 2 * 1024 * 1024
 
 class _GeraetAnsicht(HomeAssistantView):
     """Receiver for devices that send their clips themselves. The device is given a base address and adds
-    /api/clips and /api/clips/ping to it (TECHO firmware), so the base is http://<home assistant>/api/sprachmodell;
-    the shorter /api/sprachmodell/clips works as well. Errors answer {"ok": false, "error": ...}: the device shows
+    /api/clips and /api/clips/ping to it (TECHO firmware), so the base is http://<home assistant>/api/wake_word_studio
+    (or the older /api/sprachmodell, named after the domain); the shorter /api/sprachmodell/clips works as well. Errors answer {"ok": false, "error": ...}: the device shows
     the text."""
 
     requires_auth = False
@@ -558,7 +559,7 @@ class _GeraetAnsicht(HomeAssistantView):
 
 class ClipsPing(_GeraetAnsicht):
     url = "/api/sprachmodell/clips/ping"
-    extra_urls = ["/api/sprachmodell/api/clips/ping"]  # noqa: RUF012 - as in HomeAssistantView
+    extra_urls = ["/api/wake_word_studio/api/clips/ping", "/api/sprachmodell/api/clips/ping"]  # noqa: RUF012 - as in HomeAssistantView
     name = "api:sprachmodell:clips:ping"
 
     async def get(self, request: web.Request) -> web.Response:
@@ -568,7 +569,7 @@ class ClipsPing(_GeraetAnsicht):
 
 class ClipsAnsicht(_GeraetAnsicht):
     url = "/api/sprachmodell/clips"
-    extra_urls = ["/api/sprachmodell/api/clips"]  # noqa: RUF012 - as in HomeAssistantView
+    extra_urls = ["/api/wake_word_studio/api/clips", "/api/sprachmodell/api/clips"]  # noqa: RUF012 - as in HomeAssistantView
     name = "api:sprachmodell:clips"
 
     async def post(self, request: web.Request) -> web.Response:

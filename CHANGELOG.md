@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.20
+- Settings → *Devices that send their recordings* is now a step-by-step guide for every TECHO device (Echo Show, Spot, Dot, Echo 2nd gen, TECHO5 Panel …): copy buttons for address and token, and a list of your devices with whether each one is sending, how many clips are waiting, the last problem, a button that switches the device's setup page on and opens it, and one that turns on *Keep wake clips* when it is off.
+- Devices that send their recordings: the address to enter is now `http://<home assistant>:8123/api/wake_word_studio`, named like the integration. The older address `…/api/sprachmodell` keeps working, so devices set up with it need no change.
+
 ## 1.0.19
 - Devices that send their recordings (TECHO firmware 1.6.43, *Send wake clips to* → *Custom*): the device adds `/api/clips` to the address it is given, so the receiver now also answers at `/api/sprachmodell/api/clips` and `/api/sprachmodell/api/clips/ping`. The address to enter is `http://<home assistant>:8123/api/sprachmodell`, the token is the trainer key. Errors are answered as `{"ok": false, "error": "..."}`, which the device shows.
 - Settings: new card *Devices that send their recordings* with the values to enter on the device.
