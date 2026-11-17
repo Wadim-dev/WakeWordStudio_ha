@@ -32,6 +32,13 @@ RUN python -m venv /opt/stimmen \
  && rm -rf /root/.cache
 ENV HF_HOME=/data/huggingface STIMMEN_PY=/opt/stimmen/bin/python
 
+# GPU version: make every CUDA library of the pip packages findable by the dynamic loader (TensorFlow did not find
+# libcusolver.so.11 on its own, so it ignored the card) and fail the build if one of them cannot be loaded
+RUN if [ "$BILD" = "gpu" ]; then \
+      ls -d /usr/local/lib/python3.11/site-packages/nvidia/*/lib > /etc/ld.so.conf.d/nvidia-pip.conf && ldconfig \
+      && python -c "import ctypes; [ctypes.CDLL(n) for n in ('libcudart.so.12', 'libcublas.so.12', 'libcublasLt.so.12', 'libcufft.so.11', 'libcusolver.so.11', 'libcusparse.so.12', 'libcudnn.so.9', 'libnvJitLink.so.12')]; print('cuda libraries ok')"; \
+    fi
+
 COPY trainer /app/trainer
 WORKDIR /app
 # The image is only published if everything the trainer uses can really be imported

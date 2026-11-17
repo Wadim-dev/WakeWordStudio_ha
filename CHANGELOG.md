@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.30
+- Graphics card version: TensorFlow could not find one CUDA library (`libcusolver.so.11`) and therefore ignored the card, even on a supported setup. All CUDA libraries are now registered with the system loader, and the image build fails if any of them cannot be loaded.
+- If the card is passed in but its libraries cannot be loaded, the Training page now says so (instead of "sees no card") and asks to report it.
+
 ## 1.0.29
 - Graphics card version of the trainer (NVIDIA, Docker image `:gpu`, start with `--gpus all`; Linux with the NVIDIA Container Toolkit or Windows with Docker Desktop). At start the trainer tries the card once: if it works, training runs on it, otherwise on the processor, so the `:gpu` image never does worse than the normal one. TensorFlow 2.21 supports cards up to the RTX 40 series; RTX 50 (Blackwell) is not supported by it yet and falls back to the processor. Test reports with real cards welcome.
 - *Training → Automatic* shows where the trainer computes: with a working card a choice *Graphics card (automatic) / Processor only*, otherwise the reason (card not passed in, card not supported, being tested). Durations are estimated per device.
