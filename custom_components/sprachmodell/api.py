@@ -8,7 +8,8 @@ deleting need an administrator). "wort" = id of the word:
     POST /api/sprachmodell/urteil                {wort, ids, urteil | person | loeschen}
     POST /api/sprachmodell/hochladen             multipart: wort, person, datei (Zip)
     POST /api/sprachmodell/aufnahme              multipart: wort, urteil, person, notiz, datei (WAV)
-    POST /api/sprachmodell/aktion                {aktion, wort?, ...}
+    POST /api/sprachmodell/aktion                {aktion, wort?, ...}; anderes_wort {wort, id, ziel, person}
+                                                 hands a recording to another word (anderes_wort_zurueck undoes)
 
 Trainer (header "X-Sprachmodell-Schluessel" with the trainer key, or the Home Assistant
 token of an administrator, e.g. the one a Home Assistant app gets from the Supervisor):
@@ -376,6 +377,17 @@ class AktionAnsicht(HomeAssistantView):
             await hass.async_add_executor_job(
                 wort.speicher.schnitt_setzen, sichere_id(str(daten["id"])),
                 None if von is None else float(von), None if bis is None else float(bis))
+        elif aktion in ("anderes_wort", "anderes_wort_zurueck"):
+            ziel = _wort(z, daten.get("ziel"))
+            aid = sichere_id(str(daten["id"]))
+            if aktion == "anderes_wort":
+                await hass.async_add_executor_job(
+                    wort.speicher.an_wort_geben, aid, ziel.speicher, {"id": wort.id, "wort": wort.wort},
+                    {"id": ziel.id, "wort": ziel.wort}, daten.get("person"))
+            else:
+                await hass.async_add_executor_job(wort.speicher.zurueckholen, aid, ziel.speicher)
+            z.erinnern()
+            return {"ziel": ziel.id, "stand": wort.speicher.stand}
         elif aktion == "vorschlaege_uebernehmen":
             offen = [a for a in wort.speicher.offen() if a.get("vorschlag")]
             if daten.get("ids"):

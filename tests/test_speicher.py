@@ -226,3 +226,36 @@ def test_gehoert_gleicher_ton_schnitt(tmp_path) -> None:
     assert sp.schnitt_setzen("a", 0.1, 0.9)["schnitt"] == [0.1, 0.9]
     assert sp.schnitt_setzen("a", 0.5, None)["schnitt"] == [0.5, 1.0]  # end: the whole length
     assert "schnitt" not in sp.schnitt_setzen("a", None, None)
+
+
+def test_an_anderes_wort_geben(tmp_path) -> None:
+    jarvis, casita = Speicher(str(tmp_path / "j")), Speicher(str(tmp_path / "c"))
+    jarvis.laden()
+    casita.laden()
+    jarvis.aufnahme_neu({"id": "x", "quelle": "echo", "art": "wake", "score": 0.97, "cutoff": 0.9, "echo": "Küche"},
+                        wav(ton=500))
+    jarvis.schnitt_setzen("x", 0.1, 0.8)
+    von, zu = {"id": "j", "wort": "hey jarvis"}, {"id": "c", "wort": "hey casita"}
+    with pytest.raises(ValueError, match="gleiches_wort"):
+        jarvis.an_wort_geben("x", jarvis, von, von, None)
+    with pytest.raises(ValueError, match="aufnahme_fehlt"):
+        jarvis.an_wort_geben("nix", casita, von, zu, None)
+    neu = jarvis.an_wort_geben("x", casita, von, zu, "Wadim")
+    assert neu["urteil"] == "wort" and neu["person"] == "Wadim" and neu["schnitt"] == [0.1, 0.8]
+    assert neu["score"] is None and neu["art"] == "wake" and neu["von_wort"]["score"] == 0.97
+    assert os.path.exists(casita.pfad("aufnahmen", "x.wav"))
+    a = jarvis.daten["aufnahmen"]["x"]
+    assert a["urteil"] == "kein_wort" and a["zu_wort"]["wort"] == "hey casita"
+    # for "hey jarvis" it was a false wake; at "hey casita" the other model's wake-up does not count
+    assert jarvis.statistik()["alltag"]["falsch"] == 1
+    st = casita.statistik()
+    assert st["wort"] == 1 and st["alltag"]["aufgewacht"] == 0 and st["schwelle_basis"]["wort"] == 0
+    assert [e["id"] for e in casita.trainer_liste()] == ["x"]
+    with pytest.raises(ValueError, match="schon_da"):
+        jarvis.an_wort_geben("x", casita, von, zu, None)
+    # undo: copy gone, answer as before (not reviewed)
+    jarvis.zurueckholen("x", casita)
+    assert "x" not in casita.daten["aufnahmen"] and not os.path.exists(casita.pfad("aufnahmen", "x.wav"))
+    assert jarvis.daten["aufnahmen"]["x"]["urteil"] is None and "zu_wort" not in jarvis.daten["aufnahmen"]["x"]
+    with pytest.raises(ValueError, match="aufnahme_fehlt"):
+        jarvis.zurueckholen("x", casita)

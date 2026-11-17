@@ -1,0 +1,51 @@
+name: 🐞 Bug report
+description: Something in Wake Word Studio or the trainer does not work as it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time! Ideas and questions are better placed in [Discussions](https://github.com/Wadim-dev/WakeWordStudio_ha/discussions).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Wake Word Studio version
+      description: Settings → Devices & services → Wake Word Studio, or HACS.
+      placeholder: "1.0.25"
+    validations:
+      required: true
+  - type: input
+    id: trainer
+    attributes:
+      label: Trainer version and how it runs
+      placeholder: "1.0.25, Home Assistant app / Docker on …"
+  - type: input
+    id: ha
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.11.1"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Voice device and firmware
+      placeholder: "Echo Show 5 with TECHO5 1.6.43"
+  - type: textarea
+    id: log
+    attributes:
+      label: Log
+      description: Home Assistant log lines mentioning `sprachmodell`, and for training problems the trainer log (Studio → Training → Log → Copy).
+      render: text
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics (optional)
+      description: Settings → Devices & services → Wake Word Studio → ⋮ → Download diagnostics, then drag the file here. It contains no recordings and no keys.
