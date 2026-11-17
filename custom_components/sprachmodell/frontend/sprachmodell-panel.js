@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.20';
+const VERSION = '1.0.21';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -363,13 +363,29 @@ class SprachmodellPanel extends HTMLElement {
     };
     let f = seiten[this._reiter] || this._zentrale;
     if (!OHNE_WORT.includes(this._reiter) && !this._daten.wort) f = this._zentrale;
-    const scroll = window.scrollY;
+    // Home Assistant may scroll the window or an element around the panel: keep every scroll position, and the
+    // page's height while it is redrawn, so a refresh (the training page refreshes with every trainer report)
+    // never jumps back to the top
+    const positionen = this._scrollPositionen();
+    main.style.minHeight = main.offsetHeight + 'px';
     const log = main.querySelector('.protokoll'), oben = !log || log.scrollTop < 30, logPos = log ? log.scrollTop : 0;
     main.innerHTML = f.call(this);
     const logNeu = main.querySelector('.protokoll'); if (logNeu) logNeu.scrollTop = oben ? 0 : logPos;
     if (this._reiter === 'pruefen') this._markieren(false);
     if (this._reiter === 'aufnehmen') this._recZeichnen();
-    window.scrollTo(0, scroll);
+    positionen.forEach(([el, y]) => { if (el.scrollTop !== y) el.scrollTop = y; });
+    // cards fill in their content a moment later: let go of the height only once they have
+    requestAnimationFrame(() => { main.style.minHeight = ''; });
+  }
+
+  _scrollPositionen() {
+    const liste = [];
+    for (let el = this; el; el = el.assignedSlot || el.parentNode || el.host) {
+      if (el.nodeType === 1 && el.scrollTop > 0) liste.push([el, el.scrollTop]);
+    }
+    const se = document.scrollingElement;
+    if (se && se.scrollTop > 0 && !liste.some(([el]) => el === se)) liste.push([se, se.scrollTop]);
+    return liste;
   }
 
   // ---------- Zentrale ----------
