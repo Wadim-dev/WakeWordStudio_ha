@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.0.25
+- *Other word* on every recording (key **3**, only with two or more words): when one word caught a recording of another (e.g. *hey casita* landed at *hey jarvis*), pick the word that was really said. The recording goes there as *said*, with its trim and person, and stays here as *not said*, so both words learn from it. *Undo* in the toast and in History. The other model's score does not go along, so each word's statistics stay its own. Thanks to Domino85 for the idea.
+- Phones: the recording tiles no longer stick out a few pixels on the right (score line and buttons stay inside the tile).
+- Issue forms: *New issue* now offers a bug report form (versions, device, log, diagnostics) and links ideas to Discussions → Ideas and questions to Discussions. The README has a short *Ideas, questions and bugs* section.
 - The question before rolling out a version now says correctly that it reaches the devices after a restart of Home Assistant.
 - No deprecation warning in the Home Assistant log anymore (word devices are linked to the hub without the deprecated device lookup).
 

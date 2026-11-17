@@ -323,6 +323,58 @@ class Speicher:
             self.speichern()
             return dict(a)
 
+    def an_wort_geben(self, aid: str, ziel: Speicher, von: dict[str, str], zu: dict[str, str],
+                      person: str | None) -> dict[str, Any]:
+        """A recording of another word (e.g. "hey casita" caught by "hey jarvis"): it goes to the other word as
+        "said the word" and stays here as "not the word" - for this word it really is not. von/zu: {id, wort}."""
+        if ziel is self:
+            raise ValueError("gleiches_wort")
+        with self._sperre, ziel._sperre:
+            a = self.daten["aufnahmen"].get(aid)
+            if not a:
+                raise ValueError("aufnahme_fehlt")
+            if aid in ziel.daten["aufnahmen"]:
+                raise ValueError("schon_da")
+            with open(self.pfad("aufnahmen", aid + ".wav"), "rb") as datei:
+                wav = datei.read()
+            # the score and cut-off belong to this word's model, so they don't go along (the other word's
+            # statistics stay clean); the kind stays, the trainer uses it to find the word in a wake-up clip
+            neu = ziel.aufnahme_neu({
+                "id": aid, "quelle": a["quelle"], "echo": a.get("echo"), "knoten": a.get("knoten"),
+                "art": a.get("art"), "zeit": a.get("zeit"), "urteil": WORT,
+                "person": person if person is not None else a.get("person"), "notiz": a.get("notiz"),
+            }, wav)
+            if a.get("schnitt"):
+                neu["schnitt"] = list(a["schnitt"])
+            if a.get("gehoert") is not None:
+                neu["gehoert"] = a["gehoert"]
+            neu["von_wort"] = {"id": von["id"], "wort": von["wort"], "score": a.get("score")}
+            a["zu_wort"] = {"id": zu["id"], "wort": zu["wort"], "vorher": a.get("urteil"),
+                            "bewertet": a.get("bewertet"), "auto": bool(a.get("auto"))}
+            a["urteil"], a["bewertet"] = KEIN_WORT, jetzt()
+            a.pop("auto", None)
+            ziel.speichern()
+            self.speichern()
+            return dict(neu)
+
+    def zurueckholen(self, aid: str, ziel: Speicher) -> None:
+        """Undo an_wort_geben: the copy at the other word goes, the answer here is what it was before."""
+        with self._sperre, ziel._sperre:
+            a = self.daten["aufnahmen"].get(aid)
+            if not a or not a.get("zu_wort"):
+                raise ValueError("aufnahme_fehlt")
+            zu = a.pop("zu_wort")
+            a["urteil"], a["bewertet"] = zu.get("vorher"), zu.get("bewertet")
+            if zu.get("auto"):
+                a["auto"] = True
+            if ziel.daten["aufnahmen"].pop(aid, None) is not None:
+                try:
+                    os.remove(ziel.pfad("aufnahmen", aid + ".wav"))
+                except OSError:
+                    pass
+                ziel.speichern()
+            self.speichern()
+
     def person_setzen(self, ids: list[str], person: str | None) -> int:
         with self._sperre:
             n = 0
@@ -490,9 +542,11 @@ class Speicher:
             p = personen.setdefault(a.get("person") or "Unbekannt", {"wort": 0, "kein_wort": 0})
             p[a["urteil"]] += 1
         # Wie oft lag der Echo im Alltag richtig?
-        aufgewacht = [a for a in echo_bew if a.get("art") in ("wake", "mistake")]
+        # a recording handed over from another word was heard by that word's model, not by this one
+        eigene = [a for a in echo_bew if not a.get("von_wort")]
+        aufgewacht = [a for a in eigene if a.get("art") in ("wake", "mistake")]
         richtig = sum(1 for a in aufgewacht if a["urteil"] == WORT)
-        verpasst = sum(1 for a in echo_bew if a.get("art") in ("nearmiss", "noise") and a["urteil"] == WORT)
+        verpasst = sum(1 for a in eigene if a.get("art") in ("nearmiss", "noise") and a["urteil"] == WORT)
         # Threshold from your answers: only device recordings scored by the model that is on the devices now
         seit = self.aktiv_seit()
         mit_wert = [

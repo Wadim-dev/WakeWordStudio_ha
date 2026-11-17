@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.24';
+const VERSION = '1.0.25';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -78,7 +78,7 @@ button.k kbd{font:11px monospace;opacity:.6;border:1px solid currentColor;border
 .chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:16px;font-size:13px;background:rgba(var(--rgb-primary-text-color,0,0,0),.06);cursor:pointer;border:0;color:inherit;font-family:inherit;text-decoration:none}
 .chip.an{background:rgba(var(--rgb-primary-color,3,169,244),.18);color:var(--primary-color)}
 .liste{display:flex;flex-direction:column;gap:10px}
-.eintrag{display:grid;grid-template-columns:52px 1fr;gap:14px;padding:14px 16px;transition:border-color .2s,box-shadow .2s;border-radius:var(--ha-card-border-radius,12px);background:var(--ha-card-background,var(--card-background-color));border:1px solid var(--divider-color);outline:none}
+.eintrag{display:grid;grid-template-columns:52px minmax(0,1fr);gap:14px;padding:14px 16px;transition:border-color .2s,box-shadow .2s;border-radius:var(--ha-card-border-radius,12px);background:var(--ha-card-background,var(--card-background-color));border:1px solid var(--divider-color);outline:none}
 .eintrag.aktiv{border-color:var(--primary-color);box-shadow:0 0 0 1px var(--primary-color)}
 .eintrag.weg{pointer-events:none}
 .eintrag{position:relative}
@@ -87,7 +87,7 @@ button.k kbd{font:11px monospace;opacity:.6;border:1px solid currentColor;border
 .stempel.u-wort{background:color-mix(in srgb,var(--success-color,#4caf50) 82%,transparent)}.stempel.u-kein_wort{background:color-mix(in srgb,var(--error-color,#f44336) 82%,transparent)}.stempel.u-verworfen{background:color-mix(in srgb,var(--secondary-text-color,#777) 85%,transparent)}
 @keyframes stempel{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
 .knoepfe button.k.drueck{animation:drueck .35s ease-out}@keyframes drueck{0%{box-shadow:0 0 0 0 rgba(var(--rgb-primary-color,3,169,244),.45)}100%{box-shadow:0 0 0 12px rgba(var(--rgb-primary-color,3,169,244),0)}}
-@media (prefers-reduced-motion:reduce){.eintrag .stempel,.knoepfe button.k.drueck{animation:none}}
+@media (prefers-reduced-motion:reduce){.eintrag .stempel,.knoepfe button.k.drueck,.umzug{animation:none}}
 .spielen{width:52px;height:52px;border-radius:50%;border:0;background:rgba(var(--rgb-primary-color,3,169,244),.15);color:var(--primary-color);cursor:pointer;position:relative}
 .spielen ha-icon{--mdc-icon-size:28px}
 .spielen svg{position:absolute;inset:0;transform:rotate(-90deg)}
@@ -107,6 +107,19 @@ button.k kbd{font:11px monospace;opacity:.6;border:1px solid currentColor;border
 .gehoert{margin:4px 0 2px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .marke{border-radius:999px;padding:1px 8px;background:color-mix(in srgb,var(--primary-color) 14%,transparent);color:var(--primary-text-color);font-size:11px}
 .schnitt:empty{display:none}
+.umzug:empty{display:none}
+.umzug{margin-top:10px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--primary-text-color) 5%,transparent);animation:aufklappen .22s cubic-bezier(.2,.8,.3,1) both}
+.umzug-woerter{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.wortwahl{padding:8px 14px;font-size:14px;border:1px solid color-mix(in srgb,var(--wf) 45%,transparent);transition:background .15s,transform .12s}
+.wortwahl .farbe{width:10px;height:10px;border-radius:50%;background:var(--wf)}
+.wortwahl:hover,.wortwahl:focus-visible,.wortwahl.an{background:color-mix(in srgb,var(--wf) 22%,transparent);outline:none}
+.wortwahl:active{transform:scale(.96)}.wortwahl:disabled{cursor:default}
+.umzug-hilfe{line-height:1.45}
+.wortmarke{display:inline-flex;align-items:center;gap:5px;background:color-mix(in srgb,var(--wf) 18%,transparent)}
+.wortmarke i{width:7px;height:7px;border-radius:50%;background:var(--wf)}
+.wortmarke .link{border:0;background:none;padding:0 0 0 4px;color:var(--primary-color);font:inherit;cursor:pointer;text-decoration:underline}
+.stempel.u-umzug{background:color-mix(in srgb,var(--wf) 85%,transparent)}
+@keyframes aufklappen{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 .schnitt{margin-top:10px;padding:10px;border-radius:10px;background:color-mix(in srgb,var(--primary-text-color) 5%,transparent)}
 .studio{position:relative;height:120px;border-radius:10px;background:#0e1014;overflow:hidden;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),0 6px 18px rgba(0,0,0,.25)}
 .studio canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
@@ -233,7 +246,7 @@ table.tb th,table.tb td{border:0;padding:0;vertical-align:middle}
 .tb-z.leer{background:rgba(var(--rgb-primary-text-color,0,0,0),.04);cursor:default}.tb-z.leer:hover{transform:none}
 .tb-z.auff{outline:2px solid var(--warning-color,#ff9800);outline-offset:-2px;font-weight:600}
 .tb-muster{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}.tb-muster.auff{outline:2px solid var(--warning-color,#ff9800);outline-offset:-2px}.tb-muster.sw{background:var(--primary-color)}
-@media (max-width:600px){main{padding:12px 8px 80px}.eintrag{grid-template-columns:44px 1fr;gap:10px;padding:10px}.spielen{width:44px;height:44px}button.k kbd{display:none}}
+@media (max-width:600px){main{padding:12px 8px 80px}.eintrag{grid-template-columns:44px minmax(0,1fr);gap:10px;padding:10px}.spielen{width:44px;height:44px}button.k kbd{display:none}}
 `;
 
 class SprachmodellPanel extends HTMLElement {
@@ -627,7 +640,7 @@ ${unten}</ha-card>`;
     return `
 <div class="zeile weit" style="margin-bottom:10px"><div class="zeile"><button class="chip ${!this._filter.echo ? 'an' : ''}" data-echo="">${esc(this.t('pr_alle'))} · ${s.offen}</button>${echoChips}</div>
 <div class="zeile"><label class="klein"><input type="checkbox" id="autoplay" ${this._autoplay ? 'checked' : ''}> ${esc(this.t('pr_autoplay'))}</label>${mitVorschlag ? `<button class="k" data-a="alle_vorschlaege"><ha-icon icon="mdi:check-all"></ha-icon>${esc(this.t('pr_vorschlaege', { n: mitVorschlag }))}</button>` : ''}</div></div>
-<div class="klein" style="margin-bottom:10px">${this.t('pr_tasten')}</div>
+<div class="klein" style="margin-bottom:10px">${this._andere().length ? this.t('pr_tasten') : this.t('pr_tasten').replace(/ · <b>3<\/b>[^·]*/, '')}</div>
 <div class="liste">${l.eintraege.map((a, i) => this._eintrag(a, i, true)).join('')}</div>
 ${l.gesamt > l.eintraege.length ? `<div class="leer klein">${esc(this.t('pr_weitere', { n: l.gesamt - l.eintraege.length }))}</div>` : ''}`;
   }
@@ -642,15 +655,68 @@ ${l.gesamt > l.eintraege.length ? `<div class="leer klein">${esc(this.t('pr_weit
 <div><div class="zeile weit"><span class="titel"><ha-icon icon="${ART_ICON[art] || 'mdi:waveform'}" style="--mdc-icon-size:16px"></ha-icon> ${esc(this.t('a_' + art))}${a.echo ? ' · ' + esc(a.echo) : ''}</span><span class="klein">${this._zeit(a.zeit)}${a.dauer ? ' · ' + this._zahl(a.dauer, 1) + ' s' : ''}${a.test ? ' · ' + esc(this.t('pr_test')) : ''}</span></div>
 <div class="welle" data-welle="${esc(a.id)}" ${Array.isArray(a.schnitt) ? `data-von="${a.schnitt[0]}" data-bis="${a.schnitt[1]}"` : ''} title="${esc(this.t('pr_welle_t'))}"><canvas></canvas><div class="spielkopf"></div></div>
 ${sc != null ? `<div class="wertzeile"><div class="balken"><i style="width:${Math.min(100, sc * 100)}%"></i>${cu != null ? `<b style="left:${cu * 100}%"></b>` : ''}</div><span>${esc(this.t('pr_wert', { w: this._zahl(sc) }))}${cu != null ? ' · ' + esc(this.t('pr_schwelle', { w: this._zahl(cu) })) : ''}</span></div>` : a.notiz ? `<div class="klein">${esc(a.notiz)}</div>` : ''}
-${a.gehoert != null || a.auto || a.schnitt ? `<div class="klein gehoert">${a.gehoert != null ? `<ha-icon icon="mdi:ear-hearing" style="--mdc-icon-size:14px"></ha-icon> ${esc(a.gehoert ? this.t('pr_gehoert', { t: a.gehoert }) : this.t('pr_nichts_gehoert'))}` : ''}${a.auto ? ` <span class="marke">${esc(this.t('pr_auto'))}</span>` : ''}${a.schnitt ? ` <span class="marke">${esc(this.t('pr_geschnitten', { a: this._zahl(a.schnitt[0], 1), b: this._zahl(a.schnitt[1], 1) }))}</span>` : ''}</div>` : ''}
+${a.gehoert != null || a.auto || a.schnitt || a.zu_wort || a.von_wort ? `<div class="klein gehoert">${a.gehoert != null ? `<ha-icon icon="mdi:ear-hearing" style="--mdc-icon-size:14px"></ha-icon> ${esc(a.gehoert ? this.t('pr_gehoert', { t: a.gehoert }) : this.t('pr_nichts_gehoert'))}` : ''}${a.auto ? ` <span class="marke">${esc(this.t('pr_auto'))}</span>` : ''}${a.schnitt ? ` <span class="marke">${esc(this.t('pr_geschnitten', { a: this._zahl(a.schnitt[0], 1), b: this._zahl(a.schnitt[1], 1) }))}</span>` : ''}${this._wortMarke(a, pruefen)}</div>` : ''}
 ${pruefen && a.vorschlag ? `<div class="vorschlag">${esc(this.t('pr_vorschlag'))}: <strong>${esc(a.vorschlag === 'wort' ? this.t('pr_gesagt', { w: wort }) : this.t('pr_nicht'))}</strong>${grund ? ' – ' + esc(grund) : ''}</div>` : !pruefen && (a.person || a.quelle === 'hochgeladen' || a.quelle === 'browser') ? `<div class="vorschlag">${[a.person ? esc(a.person) : '', a.quelle === 'hochgeladen' ? esc(this.t('pr_hochgeladen')) : a.quelle === 'browser' ? esc(this.t('pr_aufgenommen')) : ''].filter(Boolean).join(' · ')}</div>` : ''}
 <div class="knoepfe">
 <button class="k gut ${!pruefen && a.urteil === 'wort' ? 'gewaehlt' : ''}" data-urteil="wort" data-id="${esc(a.id)}"><ha-icon icon="mdi:check"></ha-icon>${esc(pruefen ? this.t('pr_gesagt', { w: wort }) : this.t('pr_wort_k'))} <kbd>1</kbd></button>
 <button class="k schlecht ${!pruefen && a.urteil === 'kein_wort' ? 'gewaehlt' : ''}" data-urteil="kein_wort" data-id="${esc(a.id)}"><ha-icon icon="mdi:close"></ha-icon>${esc(this.t('pr_nicht_k'))} <kbd>2</kbd></button>
 <button class="k leise ${!pruefen && a.urteil === 'verworfen' ? 'gewaehlt' : ''}" data-urteil="verworfen" data-id="${esc(a.id)}" title="${esc(this.t('pr_unbrauchbar_t'))}"><ha-icon icon="mdi:delete-outline"></ha-icon>${esc(this.t('u_verworfen'))} <kbd>0</kbd></button>
+${this._andere().length && !a.zu_wort && !a.von_wort ? `<button class="k leise" data-umzug="${esc(a.id)}" title="${esc(this.t('pr_anderes_t'))}" aria-expanded="false"><ha-icon icon="mdi:swap-horizontal"></ha-icon>${esc(this.t('pr_anderes'))} <kbd>3</kbd></button>` : ''}
 <span class="rechts">${this._personWahl(a.person || (pruefen ? this._person : ''), a.id)}
 <button class="k leise" data-schnitt="${esc(a.id)}" title="${esc(this.t('pr_schneiden_t'))}"><ha-icon icon="mdi:content-cut"></ha-icon>${esc(this.t('pr_schneiden'))}</button></span>
-</div><div class="schnitt" data-schnittbox="${esc(a.id)}"></div></div></div>`;
+</div><div class="umzug" data-umzugbox="${esc(a.id)}"></div><div class="schnitt" data-schnittbox="${esc(a.id)}"></div></div></div>`;
+  }
+
+  // ---------- Recording of another word ----------
+  _andere() { const d = this._daten; return d && d.woerter ? d.woerter.filter((w) => w.id !== this._wortId) : []; }
+
+  _wortMarke(a, pruefen) {
+    const name = (x) => { const w = this._daten.woerter.find((v) => v.id === x.id); return w ? w.wort : x.wort; };
+    if (a.zu_wort) return ` <span class="marke wortmarke" style="--wf:${this._farbe(this._daten.woerter.find((v) => v.id === a.zu_wort.id))}"><i></i>${esc(this.t('pr_zu_wort_marke', { w: name(a.zu_wort) }))}${pruefen ? '' : ` <button class="link" data-zurueck="${esc(a.id)}" data-ziel="${esc(a.zu_wort.id)}">${esc(this.t('pr_rueckgaengig'))}</button>`}</span>`;
+    if (a.von_wort) return ` <span class="marke wortmarke" style="--wf:${this._farbe(this._daten.woerter.find((v) => v.id === a.von_wort.id))}"><i></i>${esc(this.t('pr_von_wort', { w: name(a.von_wort) }))}</span>`;
+    return '';
+  }
+
+  _umzugOeffnen(id) {
+    const box = this.shadowRoot.querySelector(`[data-umzugbox="${CSS.escape(id)}"]`);
+    if (!box) return;
+    const knopf = this.shadowRoot.querySelector(`[data-umzug="${CSS.escape(id)}"]`);
+    const offen = !!box.innerHTML;
+    this.shadowRoot.querySelectorAll('[data-umzugbox]').forEach((b) => { b.innerHTML = ''; });
+    this.shadowRoot.querySelectorAll('[data-umzug]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
+    if (offen) return;
+    const alle = this._daten.woerter;
+    box.innerHTML = `<div class="klein umzug-frage">${esc(this.t('pr_welches'))}</div>
+<div class="umzug-woerter">${this._andere().map((w) => `<button class="chip wortwahl" data-ziel="${esc(w.id)}" data-id="${esc(id)}" style="--wf:${this._farbe(w, alle.indexOf(w))}"><span class="farbe"></span>${esc(w.wort)}</button>`).join('')}</div>
+<div class="klein umzug-hilfe">${esc(this.t('pr_anderes_hilfe', { w: this._wortName() }))}</div>`;
+    if (knopf) knopf.setAttribute('aria-expanded', 'true');
+    const erst = box.querySelector('[data-ziel]');
+    if (erst) erst.focus({ preventScroll: true });
+    box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  async _umziehen(id, ziel) {
+    const w = this._daten.woerter.find((v) => v.id === ziel);
+    if (!w) return;
+    const zeile = this.shadowRoot.querySelector(`.eintrag[data-id="${CSS.escape(id)}"]`);
+    const sel = zeile && zeile.querySelector('select[data-person]');
+    const person = sel ? sel.value : this._person;
+    const von = this._wortId;
+    if (zeile) zeile.querySelectorAll('[data-ziel]').forEach((b) => { b.disabled = true; b.classList.toggle('an', b.dataset.ziel === ziel); });
+    try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* not supported */ }
+    try { await this._api('POST', 'aktion', { aktion: 'anderes_wort', wort: von, id, ziel, person }); }
+    catch (e) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(e) })); if (zeile) zeile.querySelectorAll('[data-ziel]').forEach((b) => { b.disabled = false; }); return; }
+    this._meldung(this.t('pr_zu_wort_ok', { w: w.wort }), { text: this.t('pr_rueckgaengig'), action: () => this._zurueckholen(von, id, ziel) });
+    if (this._reiter === 'pruefen' && zeile) {
+      const farbe = this._farbe(w, this._daten.woerter.indexOf(w));
+      this._wegGleiten(zeile, id, `<div class="stempel u-umzug" style="--wf:${farbe}"><ha-icon icon="mdi:swap-horizontal"></ha-icon>${esc(this.t('pr_zu_wort', { w: w.wort }))}</div>`);
+    } else this._laden();
+  }
+
+  async _zurueckholen(wort, id, ziel) {
+    try { await this._api('POST', 'aktion', { aktion: 'anderes_wort_zurueck', wort, id, ziel }); this._meldung(this.t('pr_zurueck_ok')); }
+    catch (e) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(e) })); }
+    this._laden();
   }
 
   // ---------- Zuschneiden ----------
@@ -818,6 +884,7 @@ ${pruefen && a.vorschlag ? `<div class="vorschlag">${esc(this.t('pr_vorschlag'))
     else if (e.key === '1') this._urteilen(akt.dataset.id, 'wort');
     else if (e.key === '2') this._urteilen(akt.dataset.id, 'kein_wort');
     else if (e.key === '0') this._urteilen(akt.dataset.id, 'verworfen');
+    else if (e.key === '3' && akt.querySelector('[data-umzug]')) { this._umzugOeffnen(akt.dataset.id); e.preventDefault(); }
   }
 
   // small waveform per recording: decoded once when it comes into view, cached as 160 peaks
@@ -950,24 +1017,28 @@ ${pruefen && a.vorschlag ? `<div class="vorschlag">${esc(this.t('pr_vorschlag'))
     try { await this._api('POST', 'urteil', { wort: this._wortId, ids: [id], urteil, person }); }
     catch (e) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(e) })); return; }
     if (this._reiter === 'pruefen' && zeile) {
-      zeile.classList.add('weg');
       // stamp with the answer, then the tile slides away and the list closes the gap
       const icon = { wort: 'mdi:check-circle', kein_wort: 'mdi:close-circle', verworfen: 'mdi:delete' }[urteil] || 'mdi:check';
-      zeile.insertAdjacentHTML('beforeend', `<div class="stempel u-${esc(urteil)}"><ha-icon icon="${icon}"></ha-icon>${esc(this.t('u_' + urteil))}${urteil === 'wort' && person ? ' · ' + esc(person) : ''}</div>`);
-      const ruhig = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      if (zeile.animate && !ruhig) {
-        const h = zeile.offsetHeight;
-        zeile.animate([{ opacity: 1, transform: 'none', height: h + 'px', marginBottom: '0px' }, { opacity: 1, transform: 'none', height: h + 'px', offset: 0.45 },
-          { opacity: 0, transform: 'translateX(48px) scale(.97)', height: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: '-10px', borderWidth: '0px' }],
-        { duration: 900, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
-      } else setTimeout(() => { zeile.style.display = 'none'; }, 600);
-      if (this._spielt === id) this._audio.pause();
-      const rest = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')];
-      this._aktiv = Math.min(this._aktiv, rest.length - 1);
-      const naechste = this._markieren();
-      if (naechste && this._autoplay) this._spielen(naechste.dataset.id);
-      clearTimeout(this._nachladen); this._nachladen = setTimeout(() => this._laden(), rest.length ? 4000 : 300);
+      this._wegGleiten(zeile, id, `<div class="stempel u-${esc(urteil)}"><ha-icon icon="${icon}"></ha-icon>${esc(this.t('u_' + urteil))}${urteil === 'wort' && person ? ' · ' + esc(person) : ''}</div>`);
     } else this._laden();
+  }
+
+  _wegGleiten(zeile, id, stempel) {
+    zeile.classList.add('weg');
+    zeile.insertAdjacentHTML('beforeend', stempel);
+    const ruhig = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (zeile.animate && !ruhig) {
+      const h = zeile.offsetHeight;
+      zeile.animate([{ opacity: 1, transform: 'none', height: h + 'px', marginBottom: '0px' }, { opacity: 1, transform: 'none', height: h + 'px', offset: 0.45 },
+        { opacity: 0, transform: 'translateX(48px) scale(.97)', height: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: '-10px', borderWidth: '0px' }],
+      { duration: 900, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+    } else setTimeout(() => { zeile.style.display = 'none'; }, 600);
+    if (this._spielt === id) this._audio.pause();
+    const rest = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')];
+    this._aktiv = Math.min(this._aktiv, rest.length - 1);
+    const naechste = this._markieren();
+    if (naechste && this._autoplay) this._spielen(naechste.dataset.id);
+    clearTimeout(this._nachladen); this._nachladen = setTimeout(() => this._laden(), rest.length ? 4000 : 300);
   }
 
   // ---------- Aufnehmen ----------
@@ -1404,12 +1475,15 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
 
   // ---------- Ereignisse ----------
   async _klick(e) {
-    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe],[data-zelle],[data-tbecho],[data-schnitt],[data-sa],[data-logfilter]');
+    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe],[data-zelle],[data-tbecho],[data-schnitt],[data-sa],[data-logfilter],[data-umzug],[data-ziel],[data-zurueck]');
     if (!t) return;
     if (t.dataset.reiter) { if (t.dataset.reiter === 'neu') this._entwurf = null; this._gehe(t.dataset.reiter, t.dataset.wort); return; }
     if (t.dataset.spielen) { const zeile = t.closest('.eintrag'); if (zeile) { const alle = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')]; this._aktiv = Math.max(0, alle.indexOf(zeile)); this._markieren(false); } this._spielen(t.dataset.spielen); return; }
     if (t.dataset.urteil) { this._urteilen(t.dataset.id, t.dataset.urteil); return; }
     if (t.dataset.schnitt) { this._schnittOeffnen(t.dataset.schnitt); return; }
+    if (t.dataset.umzug) { this._umzugOeffnen(t.dataset.umzug); return; }
+    if (t.dataset.zurueck) { this._zurueckholen(this._wortId, t.dataset.zurueck, t.dataset.ziel); return; }
+    if (t.dataset.ziel && t.dataset.id) { this._umziehen(t.dataset.id, t.dataset.ziel); return; }
     if (t.dataset.sa) { this._schnittAktion(t.dataset.sa); return; }
     if (t.dataset.echo !== undefined) { this._filter.echo = t.dataset.echo; this._filter.seite = 0; this._aktiv = 0; this._laden(); return; }
     if (t.dataset.zelle) { const [zeile, von, bis] = t.dataset.zelle.split('|'); this._filter.zelle = { zeile, von: Number(von), bis: Number(bis), echo: this._tbEcho || '' }; this._filter.seite = 0; this._gehe('verlauf', this._wortId); return; }
@@ -1548,8 +1622,9 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
     } catch (err) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(err) })); }
   }
 
-  _meldung(text) {
-    this.dispatchEvent(new CustomEvent('hass-notification', { detail: { message: text }, bubbles: true, composed: true }));
+  _meldung(text, aktion) {
+    const detail = aktion ? { message: text, action: aktion, duration: 8000 } : { message: text };
+    this.dispatchEvent(new CustomEvent('hass-notification', { detail, bubbles: true, composed: true }));
   }
 }
 

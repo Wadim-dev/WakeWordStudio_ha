@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💡 Idea or suggestion
+    url: https://github.com/Wadim-dev/WakeWordStudio_ha/discussions/new?category=ideas
+    about: Share an idea for Wake Word Studio. Others can vote with 👍, good ideas become issues.
+  - name: ❓ Question or help
+    url: https://github.com/Wadim-dev/WakeWordStudio_ha/discussions
+    about: Ask how something works or share your setup.
+  - name: 📣 TECHO5 firmware
+    url: https://github.com/HuskerMinion/techo5
+    about: Questions about the Echo firmware itself belong in HuskerMinion's TECHO5 repository.

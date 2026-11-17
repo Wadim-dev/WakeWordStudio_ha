@@ -140,6 +140,15 @@ async def test_aktionen(hass: HomeAssistant, admin, gast, api) -> None:
     assert await aktion(gast, aktion="training_starten", wort="nix") == (404, {"message": "wort_nicht_gefunden"})
     r = await gast.post("/api/sprachmodell/hochladen", data="x=1", headers={"Content-Type": "application/x-www-form-urlencoded"})
     assert r.status == 400 and (await r.json())["message"] == "keine_datei"
+    # a recording of "Computer" that "Hey Lumi" caught goes over, and back again
+    status, d = await aktion(gast, aktion="anderes_wort", wort="hey_lumi", id="a1", ziel="computer", person="Anna")
+    assert status == 200 and d["ziel"] == "computer"
+    assert api.woerter["computer"].speicher.daten["aufnahmen"]["a1"]["urteil"] == "wort"
+    assert api.woerter["hey_lumi"].speicher.daten["aufnahmen"]["a1"]["urteil"] == "kein_wort"
+    assert (await aktion(gast, aktion="anderes_wort", wort="hey_lumi", id="a1", ziel="computer"))[1]["message"] == "schon_da"
+    assert (await aktion(gast, aktion="anderes_wort", wort="hey_lumi", id="a1", ziel="hey_lumi"))[1]["message"] == "gleiches_wort"
+    assert (await aktion(gast, aktion="anderes_wort_zurueck", wort="hey_lumi", id="a1", ziel="computer"))[0] == 200
+    assert "a1" not in api.woerter["computer"].speicher.daten["aufnahmen"]
     assert (await aktion(admin, aktion="wort_loeschen", wort="computer", dateien=True))[0] == 200
     assert "computer" not in api.woerter
     await hass.async_block_till_done()
