@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.27
+- Easy to read comparison instead of the curve: the *Active version* card now shows, next to *How well it hears*, the version against the one before with two bars per question – *Hears the word in everyday life* (more is better), *Wakes up for nothing, per hour of talk* and *per hour of music/noise* (fewer is better) – each marked *really better*, *really worse* or *no real difference*. *All figures in the comparison* jumps to the full table.
+- Versions tested before 1.0.26 get the same bars from their own test (marked as old test) instead of an empty view.
+- Bars grow in when the page is opened, not again with every refresh.
+
 ## 1.0.26
 - Everyday test: every test recording is now also played soft or far away, in another room (reverb), with music and noise, with a TV talking in the background and all at once. False wakes are counted on up to 8 hours of speech (before 3) and, new, on 1 hour of music and noise.
 - Honest comparison: a new version is no longer judged by two numbers. It is compared with the version on the devices on everyday detection at 0.5, 1 and 2 false wakes per hour, false wakes in speech and in music/noise, every condition, similar words and the weakest person – and a difference only counts when it is larger than chance for the size of the test set. Versions that are neither really better nor really worse are shown as *as good*; the version on the devices stays.
