@@ -142,7 +142,7 @@ export const TEXTE = {
     // Einstellungen
     es_zeit: 'Nachts trainieren um', es_erinnerung: 'Erinnern, wenn Aufnahmen so viele Tage warten (0 = nie)',
     es_aufbewahren: 'Unbewertete Aufnahmen nach so vielen Tagen löschen', es_personen: 'Personen (mit Komma getrennt, leer = Personen aus Home Assistant)',
-    es_allgemein: 'Allgemein', es_trainer: 'Trainer', es_adresse: 'Adresse', es_schluessel: 'Schlüssel', es_zeigen: 'Zeigen', es_verbergen: 'Verbergen',
+    es_allgemein: 'Allgemein', es_senden: 'Geräte, die Aufnahmen selbst senden', es_senden_text: 'Firmware wie TECHO kann jede neue Aufnahme sofort schicken, statt abgeholt zu werden. Auf der Einrichtungsseite des Geräts unter Voice → „Send wake clips to“ diese Werte eintragen und „Test“ drücken.', es_senden_ziel: 'Send wake clips to', es_senden_token: 'Token (= Schlüssel oben)', es_senden_hinweis: 'Die Adresse muss im Heimnetz liegen (z. B. http://192.168.x.y:8123), eine Internet-Adresse nimmt das Gerät nicht an. Geschickt werden nur Aufnahmen ab dem Einschalten; doppelte werden nur einmal gespeichert.', es_trainer: 'Trainer', es_adresse: 'Adresse', es_schluessel: 'Schlüssel', es_zeigen: 'Zeigen', es_verbergen: 'Verbergen',
     es_neu_schluessel: 'Neuer Schlüssel', es_neu_frage: 'Neuen Schlüssel erzeugen? Ein Trainer mit dem alten Schlüssel verbindet sich dann nicht mehr.',
     es_trainer_text: 'Der Trainer ist eine eigene App, weil Training viel Rechenleistung braucht. Er richtet sich nach dem freien Speicher (ab 4 GB, mit 8 GB und mehr deutlich schneller). Nur ein Trainer gleichzeitig.',
     es_app: '<b>Als Home-Assistant-App:</b> Einstellungen → Apps → App-Store → ⋮ → Repositories → <code>{r}</code> hinzufügen, App <b>Wake Word Studio Trainer</b> installieren und starten. Sie verbindet sich von selbst.',
@@ -289,7 +289,7 @@ export const TEXTE = {
     ge_nicht_gefunden: 'not reachable',
     es_zeit: 'Train at night at', es_erinnerung: 'Remind me when recordings wait this many days (0 = never)',
     es_aufbewahren: 'Delete unreviewed recordings after this many days', es_personen: 'People (comma separated, empty = people from Home Assistant)',
-    es_allgemein: 'General', es_trainer: 'Trainer', es_adresse: 'Address', es_schluessel: 'Key', es_zeigen: 'Show', es_verbergen: 'Hide',
+    es_allgemein: 'General', es_senden: 'Devices that send their recordings', es_senden_text: 'Firmware such as TECHO can send every new recording right away instead of waiting to be asked. On the device\'s setup page under Voice → "Send wake clips to" enter these values and press "Test".', es_senden_ziel: 'Send wake clips to', es_senden_token: 'Token (= key above)', es_senden_hinweis: 'The address must be on your home network (e.g. http://192.168.x.y:8123); the device does not accept an internet address. Only recordings kept after switching it on are sent; duplicates are stored once.', es_trainer: 'Trainer', es_adresse: 'Address', es_schluessel: 'Key', es_zeigen: 'Show', es_verbergen: 'Hide',
     es_neu_schluessel: 'New key', es_neu_frage: 'Create a new key? A trainer using the old key will no longer connect.',
     es_trainer_text: 'The trainer is a separate app because training needs a lot of computing power. It adapts to the free memory (4 GB minimum, much faster with 8 GB or more). Run only one trainer at a time.',
     es_app: '<b>As a Home Assistant app:</b> Settings → Apps → App store → ⋮ → Repositories → add <code>{r}</code>, install and start the app <b>Wake Word Studio Trainer</b>. It connects by itself.',

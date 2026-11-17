@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.18';
+const VERSION = '1.0.19';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -1100,6 +1100,9 @@ ${Object.keys(g.plaetze).map((p) => { const pl = g.plaetze[p], w = wort(pl.wort)
 <p class="klein" style="line-height:1.6">${this.t('es_docker')}</p><pre>${esc(docker)}</pre>
 <table><tr><td>${esc(this.t('es_adresse'))}</td><td><code>${esc(basis)}</code></td></tr><tr><td>${esc(this.t('es_schluessel'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="schluessel">${esc(this.t(this._zeigeSchl ? 'es_verbergen' : 'es_zeigen'))}</button><button class="k leise" data-a="schluessel_neu">${esc(this.t('es_neu_schluessel'))}</button></div></td></tr></table>
 ${this._steckbrief()}</ha-card>
+<ha-card><h2>${esc(this.t('es_senden'))}</h2><p class="klein" style="line-height:1.6">${esc(this.t('es_senden_text'))}</p>
+<table><tr><td>${esc(this.t('es_senden_ziel'))}</td><td><code>Custom</code></td></tr><tr><td>${esc(this.t('es_adresse'))}</td><td><code>${esc(basis.replace(/\/+$/, '') + '/api/sprachmodell')}</code></td></tr><tr><td>${esc(this.t('es_senden_token'))}</td><td><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code></td></tr></table>
+<p class="klein" style="line-height:1.6">${esc(this.t('es_senden_hinweis'))}</p></ha-card>
 <ha-card><h2>${esc(this.t('es_ablage'))}</h2><p class="klein" style="line-height:1.6">${this.t('es_ablage_text', { a: esc(d.ablage) })}</p></ha-card>
 <div class="klein">${esc(this.t('es_info', { v: d.version_integration, a: d.ablage }))}</div>`;
   }

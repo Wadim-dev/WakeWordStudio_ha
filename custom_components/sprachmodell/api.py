@@ -534,19 +534,31 @@ GROESSTER_CLIP = 2 * 1024 * 1024
 
 
 class _GeraetAnsicht(HomeAssistantView):
+    """Receiver for devices that send their clips themselves. The device is given a base address and adds
+    /api/clips and /api/clips/ping to it (TECHO firmware), so the base is http://<home assistant>/api/sprachmodell;
+    the shorter /api/sprachmodell/clips works as well. Errors answer {"ok": false, "error": ...}: the device shows
+    the text."""
+
     requires_auth = False
+
+    @staticmethod
+    def _antwort(code: str, status: HTTPStatus) -> web.Response:
+        return web.json_response({"ok": False, "error": code, "message": code}, status=status)
 
     def _pruefen(self, request: web.Request) -> Zentrale:
         z = _zentrale(request)
         art, _, schluessel = request.headers.get("Authorization", "").partition(" ")
         if art.lower() != "bearer" or not schluessel or not hmac.compare_digest(schluessel.encode(), z.schluessel.encode()):
             # 403, not 401: a device with an old key must not get Home Assistant to ban its address
-            raise _fehler(web.HTTPForbidden, "falscher_schluessel")
+            raise web.HTTPForbidden(text=json.dumps({"ok": False, "error": "falscher_schluessel",
+                                                     "message": "falscher_schluessel"}),
+                                    content_type="application/json")
         return z
 
 
 class ClipsPing(_GeraetAnsicht):
     url = "/api/sprachmodell/clips/ping"
+    extra_urls = ["/api/sprachmodell/api/clips/ping"]  # noqa: RUF012 - as in HomeAssistantView
     name = "api:sprachmodell:clips:ping"
 
     async def get(self, request: web.Request) -> web.Response:
@@ -556,6 +568,7 @@ class ClipsPing(_GeraetAnsicht):
 
 class ClipsAnsicht(_GeraetAnsicht):
     url = "/api/sprachmodell/clips"
+    extra_urls = ["/api/sprachmodell/api/clips"]  # noqa: RUF012 - as in HomeAssistantView
     name = "api:sprachmodell:clips"
 
     async def post(self, request: web.Request) -> web.Response:
@@ -563,17 +576,17 @@ class ClipsAnsicht(_GeraetAnsicht):
         try:
             felder, audio = await _multipart(request, GROESSTER_CLIP, "audio")
         except web.HTTPRequestEntityTooLarge:
-            return self.json_message("audio_zu_gross", HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+            return self._antwort("audio_zu_gross", HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
         try:
             meta = json.loads(felder.get("meta") or "")
         except ValueError:
-            return self.json_message("meta_kein_json", HTTPStatus.BAD_REQUEST)
+            return self._antwort("meta_kein_json", HTTPStatus.BAD_REQUEST)
         if not isinstance(meta, dict) or not audio:
-            return self.json_message("meta_unvollstaendig" if audio else "keine_datei", HTTPStatus.BAD_REQUEST)
+            return self._antwort("meta_unvollstaendig" if audio else "keine_datei", HTTPStatus.BAD_REQUEST)
         try:
             ergebnis = await z.sammler.annehmen(meta, audio)
         except ValueError as err:
-            return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
+            return self._antwort(str(err), HTTPStatus.BAD_REQUEST)
         return self.json({"ok": True, "stored": ergebnis, **({"duplicate": True} if ergebnis == "doppelt" else {})})
 
 
