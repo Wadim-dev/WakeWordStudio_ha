@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.21';
+const VERSION = '1.0.22';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -69,7 +69,8 @@ button.k.gut.gewaehlt{background:var(--success-color,#4caf50);color:#fff}button.
 .ablauf{display:grid;grid-template-columns:22px 1fr auto;gap:6px 10px;align-items:center;font-size:14px}.ablauf .klein{text-align:right;white-space:nowrap}.ablauf ha-icon{--mdc-icon-size:18px}.ablauf .spaeter{opacity:.45}
 .drehen{animation:drehen 1.2s linear infinite}@keyframes drehen{to{transform:rotate(360deg)}}
 .last{display:grid;grid-template-columns:auto 1fr auto;gap:8px 12px;align-items:center;font-size:14px}.last .fortschritt{margin:0;height:8px}
-.protokoll{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;max-height:340px;overflow:auto;background:rgba(var(--rgb-primary-text-color,0,0,0),.05);border-radius:8px;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
+.protokoll{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;max-height:min(70vh,640px);overflow:auto;background:rgba(var(--rgb-primary-text-color,0,0,0),.05);border-radius:8px;padding:8px 10px;white-space:pre-wrap;word-break:break-word}
+.aktiv{display:grid;gap:14px}.aktiv-z{display:grid;grid-template-columns:32px 1fr;gap:0 12px;align-items:start}.aktiv-z>ha-icon{--mdc-icon-size:20px;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(var(--rgb-primary-color,3,169,244),.14);color:var(--primary-color)}.aktiv-z b{font-weight:500}.aktiv-z .proz{font-variant-numeric:tabular-nums;font-weight:500;color:var(--primary-color)}.aktiv-z .fortschritt{margin:6px 0 4px;height:8px}.aktiv-z .klein{font-variant-numeric:tabular-nums}.lebt{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--success-color,#4caf50);margin-right:10px;vertical-align:middle;animation:lebt 1.8s ease-out infinite}@keyframes lebt{0%{box-shadow:0 0 0 0 rgba(var(--rgb-success-color,76,175,80),.6)}100%{box-shadow:0 0 0 9px rgba(var(--rgb-success-color,76,175,80),0)}}.protokoll>div{padding:1px 0 1px 8px;border-left:2px solid transparent}.protokoll .l-warnung,.protokoll .l-warnung_aus{border-left-color:var(--warning-color,#ff9800)}.protokoll .l-fehler{border-left-color:var(--error-color,#f44336)}.protokoll .l-info{border-left-color:rgba(var(--rgb-primary-color,3,169,244),.5)}@media (prefers-reduced-motion:reduce){.lebt,.laeuft .fortschritt i{animation:none}}
 .protokoll .z{color:var(--secondary-text-color);margin-right:8px}.protokoll .l-aus,.protokoll .l-balken,.protokoll .l-schritt{color:var(--secondary-text-color)}.protokoll .l-warnung,.protokoll .l-warnung_aus{color:var(--warning-color,#ff9800)}.protokoll .l-fehler{color:var(--error-color,#f44336)}
 button.k.leise{background:none;color:var(--secondary-text-color)}
 button.k ha-icon{--mdc-icon-size:18px}
@@ -920,10 +921,23 @@ ${s.ram_gb ? `<span>${esc(this.t('t_ram'))}</span>${balken(s.ram_belegt_gb || 0,
 ${[['platte_warten', 't_platte'], ['speicher_warten', 't_speicher_warten'], ['cpu_warten', 't_cpu_warten']].map(([k, t]) => s[k] != null ? `<span>${esc(this.t(t))}</span>${balken(s[k], 100)}<span class="klein">${Math.round(s[k])} %</span>` : '').join('')}
 ${s.platz_frei_gb != null ? `<span>${esc(this.t('t_platz_frei'))}</span><span></span><span class="klein">${this._zahl(s.platz_frei_gb, 1)} GB</span>` : ''}
 </div>${Math.max(s.platte_warten || 0, s.speicher_warten || 0) >= 50 && (s.cpu ?? 100) < 50 ? `<div class="klein" style="margin-top:8px">${esc(this.t('t_platte_hinweis'))}</div>` : ''}</ha-card>` : '';
-    const log = (l.protokoll || []).slice().reverse().map(([z, art, text]) => `<div class="l-${esc(art)}"><span class="z">${this._uhr(z)}</span>${esc(text)}</div>`).join('');
+    const fl = this._logFilter || 'alle', arten = { wichtig: ['info', 'warnung', 'fehler'], ausgabe: ['aus', 'warnung_aus', 'balken', 'schritt'] };
+    const alle = l.protokoll || [], gezeigt = fl === 'alle' ? alle : alle.filter(([, art]) => arten[fl].includes(art));
+    const log = gezeigt.slice().reverse().map(([z, art, text]) => `<div class="l-${esc(art)}"><span class="z">${this._uhr(z)}</span>${esc(text)}</div>`).join('');
+    const chips = ['alle', 'wichtig', 'ausgabe'].map((k) => `<button class="chip ${fl === k ? 'an' : ''}" data-logfilter="${k}">${esc(this.t('t_log_' + k))}</button>`).join('');
+    const bs = laeuft ? (l.balken || []) : [];
+    const aktiv = bs.length ? `<ha-card class="laeuft"><h2><span class="lebt"></span>${esc(this.t('t_aktiv'))}</h2><div class="aktiv">${bs.map((b) => {
+      const name = b.name === '·' ? this.t('t_teilschritt') : this._schritt(b.name);
+      const rest = b.rest && b.rest !== '00:00' && b.rest !== '?' ? b.rest : b.rest_min ? this.t('t_rest_min', { n: b.rest_min }) : '';
+      const info = [b.n != null && b.gesamt != null ? `${b.n} / ${b.gesamt}` : '', b.tempo || '', rest ? this.t('t_noch', { z: rest }) : ''].filter(Boolean).join(' · ');
+      const icon = /^omni|omnivoice/i.test(b.name) ? 'mdi:account-voice' : b.name === '·' ? 'mdi:cog-sync-outline' : /lade|download/i.test(b.name) ? 'mdi:download' : 'mdi:progress-clock';
+      return `<div class="aktiv-z"><ha-icon icon="${icon}"></ha-icon><div><div class="zeile weit"><b>${esc(name)}</b><span class="proz">${this._zahl(b.prozent, b.prozent < 10 ? 1 : 0)} %</span></div><div class="fortschritt"><i style="width:${Math.min(100, Math.max(0, b.prozent))}%"></i></div>${info ? `<div class="klein">${esc(info)}</div>` : ''}</div></div>`;
+    }).join('')}</div></ha-card>` : '';
     return `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('t_ablauf'))}</h2><span class="klein">${l.start ? esc(this.t('t_laeuft_seit', { z: this._spanne((aktuell && !laeuft && aktuell.ende ? aktuell.ende : jetzt) - l.start) })) : ''}</span></div><div class="ablauf" style="margin-top:10px">${zeilen}</div></ha-card>
-${last}
-<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('t_protokoll'))}</h2><span class="klein">${l.zeit ? esc(this.t('t_stand', { z: this._zeit(l.zeit) })) : ''}</span></div><div class="protokoll" style="margin-top:10px">${log || esc(this.t('t_protokoll_leer'))}</div></ha-card>`;
+${aktiv}${last}
+<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('t_protokoll'))}</h2><span class="klein">${l.zeit ? esc(this.t('t_stand', { z: this._zeit(l.zeit) })) : ''}</span></div>
+<div class="zeile weit" style="margin-top:8px;flex-wrap:wrap;gap:6px"><div class="zeile" style="gap:6px">${chips}</div><span class="klein">${esc(this.t('t_log_zeilen', { n: gezeigt.length, g: alle.length }))} <button class="k leise" data-a="log_kopieren">${esc(this.t('es_kopieren'))}</button></span></div>
+<div class="protokoll" style="margin-top:8px">${log || esc(this.t('t_protokoll_leer'))}</div></ha-card>`;
   }
 
   _training() {
@@ -1153,7 +1167,7 @@ ${geraete.length ? `<h3 style="margin:16px 0 4px">${esc(this.t('es_senden_geraet
 
   // ---------- Ereignisse ----------
   async _klick(e) {
-    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe],[data-zelle],[data-tbecho],[data-schnitt],[data-sa]');
+    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe],[data-zelle],[data-tbecho],[data-schnitt],[data-sa],[data-logfilter]');
     if (!t) return;
     if (t.dataset.reiter) { if (t.dataset.reiter === 'neu') this._entwurf = null; this._gehe(t.dataset.reiter, t.dataset.wort); return; }
     if (t.dataset.spielen) { const zeile = t.closest('.eintrag'); if (zeile) { const alle = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')]; this._aktiv = Math.max(0, alle.indexOf(zeile)); this._markieren(false); } this._spielen(t.dataset.spielen); return; }
@@ -1162,6 +1176,7 @@ ${geraete.length ? `<h3 style="margin:16px 0 4px">${esc(this.t('es_senden_geraet
     if (t.dataset.sa) { this._schnittAktion(t.dataset.sa); return; }
     if (t.dataset.echo !== undefined) { this._filter.echo = t.dataset.echo; this._filter.seite = 0; this._aktiv = 0; this._laden(); return; }
     if (t.dataset.zelle) { const [zeile, von, bis] = t.dataset.zelle.split('|'); this._filter.zelle = { zeile, von: Number(von), bis: Number(bis), echo: this._tbEcho || '' }; this._filter.seite = 0; this._gehe('verlauf', this._wortId); return; }
+    if (t.dataset.logfilter) { this._logFilter = t.dataset.logfilter; this._zeichnen(); return; }
     if (t.dataset.tbecho !== undefined) { this._tbEcho = t.dataset.tbecho; this._zeichnen(); return; }
     if (t.dataset.verlauf) { this._filter.zelle = null; this._filter.verlauf = t.dataset.verlauf; this._filter.seite = 0; this._laden(); return; }
     if (t.dataset.seite) { this._filter.seite = Math.max(0, this._filter.seite + Number(t.dataset.seite)); this._laden(); window.scrollTo(0, 0); return; }
@@ -1189,6 +1204,7 @@ ${geraete.length ? `<h3 style="margin:16px 0 4px">${esc(this.t('es_senden_geraet
         if (confirm(this.t('q_einspielen_frage', { n: nr }))) { await this._api('POST', 'aktion', { aktion: 'einspielen', wort: this._wortId, nr }); this._meldung(this.t('q_wird', { n: nr })); this._laden(); }
       } else if (a === 'schluessel') { this._zeigeSchl = !this._zeigeSchl; this._zeichnen(); }
       else if (a === 'schluessel_neu') { if (confirm(this.t('es_neu_frage'))) { await this._api('POST', 'aktion', { aktion: 'schluessel_neu' }); this._zeigeSchl = true; this._laden(); } }
+      else if (a === 'log_kopieren') { const w = this._daten.wort, l = (w && w.live) || {}; await this._kopieren((l.protokoll || []).map(([z, art, text]) => `${new Date(z * 1000).toLocaleString()} [${art}] ${text}`).join('\n')); }
       else if (a === 'kopieren') await this._kopieren(t.dataset.schl ? (this._daten.trainer || {}).schluessel || '' : t.dataset.text);
       else if (a === 'behalten') { await this._hass.callService('switch', 'turn_on', { entity_id: t.dataset.ent }); this._meldung(this.t('es_senden_behalten_ok')); setTimeout(() => this._laden(), 1500); }
       else if (a === 'seite') {

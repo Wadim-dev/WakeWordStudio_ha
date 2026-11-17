@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.22
+- Full transparency on the *Training* page: new card *Running right now* with a progress bar for everything the trainer is doing at the same time – the step itself, the tools' own progress (downloads, loading models, computing features, training steps) with count, speed and time left, and OmniVoice's word and other-speech stock.
+- The log keeps the whole run (up to 500 lines instead of 80), is taller, can be filtered (*Everything*, *Important*, *Tool output*) and copied in one go.
+- OmniVoice reports every batch: how many clips were kept and what speech recognition heard in the ones it rejected.
+
 ## 1.0.21
 - Fix: while a training ran, the *Training* page jumped back to the top every time the trainer reported (about every 20 seconds), so scrolling down to the log was hardly possible. Refreshing a page now keeps its scroll position, also in Home Assistant setups where the page scrolls inside the frame.
 
