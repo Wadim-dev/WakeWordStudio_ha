@@ -2,7 +2,8 @@
 
 Both versions are tested on exactly the same audio in the same run. Instead of two numbers at one point the
 comparison looks at the whole picture: everyday hit rate at the same number of false wakes (the usual way to
-compare wake words), every listening condition, false wakes in speech and in music/noise, similar-sounding words
+compare wake words), a hard test far beyond daily life (so two versions that both hear everything at home can still
+be told apart), every listening condition, false wakes in speech and in music/noise, similar-sounding words
 and the weakest person. Small test sets make small differences look big, so a difference only counts when it is
 larger than chance; otherwise both are "as good" and the version on the devices stays.
 
@@ -18,27 +19,30 @@ from typing import Any
 FA_PUNKTE = (0.5, 1.0, 2.0)
 MIN_SCHWELLE = 0.8  # lower thresholds are too risky in unknown rooms (as when choosing the threshold)
 BEDINGUNGEN = ("ruhig", "leise", "hall", "musik", "gerede")
+SCHWER_LAGEN = 4  # conditions of the hard test (far away, loud TV, loud music, everything at once)
 
 
 def _je(je: dict[str, Any]) -> list[tuple[float, dict[str, Any]]]:
     return sorted(((float(k), v) for k, v in je.items()), key=lambda kv: kv[0])
 
 
-def alltag_bei(je: dict[str, Any], fa_max: float, stunden: float | None = None) -> float | None:
-    """Best everyday hit rate of a version while it stays at about fa_max false wakes per hour of speech.
+def alltag_bei(je: dict[str, Any], fa_max: float, stunden: float | None = None,
+               feld: str = "trefferquote_alltag") -> float | None:
+    """Best everyday hit rate (or, with feld="trefferquote_schwer", hard-test hit rate) of a version while it stays
+    at about fa_max false wakes per hour of speech.
 
     With the hours of speech the limit allows for chance (Poisson: a few hours hold only a handful of false
     wakes, 2 or 4 is often luck). None if the version never gets that quiet, or was tested before everyday
     conditions existed - then the false-wake rows decide."""
-    punkte = [(c, v) for c, v in _je(je) if c >= MIN_SCHWELLE and v.get("trefferquote_alltag") is not None]
+    punkte = [(c, v) for c, v in _je(je) if c >= MIN_SCHWELLE and v.get(feld) is not None]
     if not punkte:
         return None
     if stunden:
         erlaubt = fa_max * stunden + 2 * math.sqrt(max(1.0, fa_max * stunden))
-        werte = [v["trefferquote_alltag"] for _, v in punkte
+        werte = [v[feld] for _, v in punkte
                  if v.get("fehlausloeser_anzahl") is not None and v["fehlausloeser_anzahl"] <= erlaubt]
     else:
-        werte = [v["trefferquote_alltag"] for _, v in punkte
+        werte = [v[feld] for _, v in punkte
                  if v.get("fehlausloeser_pro_stunde") is not None and v["fehlausloeser_pro_stunde"] <= fa_max]
     return max(werte) if werte else None
 
@@ -85,6 +89,11 @@ def vergleichen(neu: dict[str, Any], alt: dict[str, Any], cut_neu: float, cut_al
     for fa in FA_PUNKTE:
         wn, wa = alltag_bei(jn, fa, neu.get("stunden")), alltag_bei(ja, fa, alt.get("stunden"))
         zeile("alltag_bei_fa", wn, wa, _quote_unterschied(wn, wa, n_alltag), True, fa=fa)
+    # hard test at about one false wake per hour: tells two versions apart that both hear everything in daily life
+    wn = alltag_bei(jn, 1.0, neu.get("stunden"), "trefferquote_schwer")
+    wa = alltag_bei(ja, 1.0, alt.get("stunden"), "trefferquote_schwer")
+    if wn is not None or wa is not None:
+        zeile("schwer_bei_fa", wn, wa, _quote_unterschied(wn, wa, n_pos * SCHWER_LAGEN), True, fa=1.0)
     zeile("fehlausloeser_rede", pn.get("fehlausloeser_pro_stunde"), pa.get("fehlausloeser_pro_stunde"),
           _anzahl_unterschied(pn.get("fehlausloeser_anzahl"), pa.get("fehlausloeser_anzahl")), True)
     if pn.get("fehlausloeser_geraeusch_pro_stunde") is not None:

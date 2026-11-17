@@ -6,17 +6,21 @@ import json
 import logging
 import os
 import platform
+import signal
+import sys
 import threading
 import time
 import traceback
 
 from . import __version__
-from .grenzen import beschleuniger, hardware, kerne, prozesse, ram_gb, steckbrief
+from . import erneuern
+from .grenzen import beschleuniger, hardware, kerne, prozesse, ram_gb, steckbrief, tempo
 from .ha import HA
 from .lauf import Abgebrochen, Lauf
 
 _LOG = logging.getLogger("trainer")
 TAKT_S = 20
+UPDATE_PAUSE_S = 3600  # a failed self-update is tried again after this long
 
 
 def optionen() -> dict:
@@ -36,6 +40,7 @@ def optionen() -> dict:
 def info() -> dict:
     return {
         "name": os.environ.get("TRAINER_NAME") or platform.node(),
+        "name_eigen": bool(os.environ.get("TRAINER_NAME")),
         "version": __version__,
         "cpu": kerne(),
         "ram_gb": ram_gb(),
@@ -44,6 +49,8 @@ def info() -> dict:
         **steckbrief(os.environ.get("DATEN", "/data")),
         **hardware(),
         "beschleuniger": beschleuniger(warten=False),
+        "tempo": tempo(warten=False),
+        "selbst_update": erneuern.verfuegbar(),
     }
 
 
@@ -117,6 +124,8 @@ def vorpruefen(ha: HA, daten: str, liste: list[dict]) -> None:
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    # stop quickly when Docker stops the container (self-update, docker stop): PID 1 ignores SIGTERM otherwise
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     ha = HA()
     o = optionen()
     if o["threads"]:
@@ -124,17 +133,23 @@ def main() -> None:
     daten = os.environ.get("DATEN", "/data")
     os.makedirs(daten, exist_ok=True)
     _LOG.info("Wake Word Studio Trainer %s starting, data in %s", __version__, daten)
-    if os.environ.get("TRAINER_BILD") == "gpu":  # try the graphics card once, in the background
 
-        def _probe() -> None:
-            b = beschleuniger()
-            if b.get("gpu"):
-                _LOG.info("Training on the graphics card %s (compute capability %s)", b.get("name"), b.get("cc"))
-            else:
-                _LOG.warning("Graphics card not usable for training (%s), using the processor: %s",
-                             b.get("grund"), b.get("fehler", ""))
+    def _messen() -> None:
+        """Try the graphics card once (GPU image), then the short speed test; no run starts meanwhile."""
+        b = beschleuniger()
+        if b.get("gpu"):
+            _LOG.info("Training on the graphics card %s (compute capability %s)", b.get("name"), b.get("cc"))
+        elif b.get("bild") == "gpu":
+            _LOG.warning("Graphics card not usable for training (%s), using the processor: %s",
+                         b.get("grund"), b.get("fehler", ""))
+        t = tempo(daten)
+        _LOG.info("Speed test: %s", t or "not possible")
 
-        threading.Thread(target=_probe, daemon=True).start()
+    messen = threading.Thread(target=_messen, daemon=True)
+    messen.start()
+    versucht: dict[str, float] = {}  # self-update: tag -> when it was tried
+    ersetzt_ab = 0.0
+    erneuerung: threading.Thread | None = None
     lauf: Lauf | None = None
     faden: threading.Thread | None = None
     # Erste Meldung nach dem Start: ein Lauf, den HA noch fuer aktiv haelt, ist verloren (Absturz, Neustart)
@@ -142,8 +157,10 @@ def main() -> None:
     while True:
         if faden is None and os.path.isdir(os.path.join(daten, "ausstehend")):
             ausstehende_senden(ha, daten)
+        beschaeftigt = messen.is_alive() or (erneuerung is not None and erneuerung.is_alive()) \
+            or time.monotonic() < ersetzt_ab
         try:
-            antwort = ha.auftrag()
+            antwort = ha.auftrag(frei=faden is None and not beschaeftigt)
         except Exception as err:  # noqa: BLE001
             _LOG.warning("Could not fetch a job: %s", err)
             time.sleep(TAKT_S)
@@ -155,7 +172,25 @@ def main() -> None:
             faden, lauf = None, None
         if lauf is not None:  # heartbeat with the full state: after a restart HA shows the run again at once
             ha.status({**lauf.letzter, "live": lauf.live(), "info": info()})
-        if faden is None:
+        if faden is None and beschaeftigt:
+            # speed test, fetching a new image, or the self-update is about to replace this container: no run now
+            ha.status({"info": info()})
+        elif faden is None and (tag := antwort.get("aktualisieren")) and erneuern.verfuegbar() \
+                and time.monotonic() - versucht.get(tag, -UPDATE_PAUSE_S) >= UPDATE_PAUSE_S:
+            versucht[tag] = time.monotonic()
+
+            def _erneuern(tag: str = tag) -> None:
+                nonlocal ersetzt_ab
+                try:
+                    if erneuern.starten(tag) == "gestartet":
+                        ersetzt_ab = time.monotonic() + 600
+                except Exception as err:  # noqa: BLE001
+                    _LOG.warning("Self-update not possible: %s", err)
+
+            erneuerung = threading.Thread(target=_erneuern, daemon=True)
+            erneuerung.start()
+            ha.status({"info": info()})
+        elif faden is None:
             auftrag = antwort.get("auftrag")
             if auftrag:
                 lauf = Lauf(ha, auftrag, daten, o)

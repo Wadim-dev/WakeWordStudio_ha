@@ -18,6 +18,28 @@ _LOG = logging.getLogger("trainer.ha")
 WARTEN_S = 30 * 60  # how long to wait for Home Assistant (restart, update, backup)
 
 
+def kennung(daten: str | None = None) -> str:
+    """Stable id of this trainer, kept in its data folder: Home Assistant tells several trainers apart by it."""
+    import secrets
+
+    pfad = os.path.join(daten or os.environ.get("DATEN", "/data"), "trainer_id")
+    try:
+        with open(pfad, encoding="utf-8") as datei:
+            wert = datei.read().strip()
+        if wert:
+            return wert[:40]
+    except OSError:
+        pass
+    wert = secrets.token_hex(6)
+    try:
+        os.makedirs(os.path.dirname(pfad), exist_ok=True)
+        with open(pfad, "w", encoding="utf-8") as datei:
+            datei.write(wert)
+    except OSError as err:
+        _LOG.warning("Trainer id not saved (%s): it changes with every start", err)
+    return wert
+
+
 def _ha_startet(r: requests.Response) -> bool:
     """True while Home Assistant restarts: proxy/server errors, or HA's own 404 because the
     integration's API is not registered yet (the integration answers 404 with a JSON body)."""
@@ -42,6 +64,8 @@ class HA:
             self.sitzung.headers["Authorization"] = "Bearer " + token
         else:
             raise SystemExit("HA_URL and KEY are missing (see Wake Word Studio -> Settings -> Trainer).")
+        self.kennung = kennung()
+        self.sitzung.headers["X-Sprachmodell-Trainer"] = self.kennung
 
     def _url(self, pfad: str) -> str:
         return f"{self.basis}/{pfad}"
@@ -79,8 +103,9 @@ class HA:
     def _get(self, pfad: str, **kw: Any) -> requests.Response:
         return self._anfrage("GET", pfad, timeout=60, **kw)
 
-    def auftrag(self) -> dict[str, Any]:
-        r = self._get("auftrag")
+    def auftrag(self, frei: bool = True) -> dict[str, Any]:
+        """Next job. frei=False: this trainer is busy (run, speed test, update) and takes no new run now."""
+        r = self._get("auftrag", params=None if frei else {"frei": "0"})
         r.raise_for_status()
         return r.json()
 

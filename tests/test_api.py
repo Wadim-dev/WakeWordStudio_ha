@@ -163,7 +163,7 @@ async def test_trainer(hass: HomeAssistant, hass_client_no_auth, admin, api) -> 
     assert d["auftrag"] is None and d["woerter"][0]["id"] == "hey_lumi"
     assert api.trainer_online
     api.auftrag("hey_lumi", "von_hand")
-    api.daten["abbrechen"] = "alt"
+    api.daten["abbrechen_bei"] = {"alt": None}
     d = await (await admin.get("/api/sprachmodell/trainer/auftrag")).json()  # Admin-Zugang (HA-App)
     assert d["auftrag"]["wort_id"] == "hey_lumi" and d["auftrag"]["modell_id"] == "hey_lumi" and d["abbrechen"] == "alt"
     w = api.woerter["hey_lumi"]
@@ -375,3 +375,35 @@ async def test_clips_vom_geraet(hass: HomeAssistant, hass_client_no_auth, api) -
     f.add_field("meta", json.dumps(meta))
     r = await client.post("/api/sprachmodell/clips", headers=kopf, data=f)
     assert (await r.json())["message"] == "keine_datei"
+
+
+async def test_mehrere_trainer_api(hass: HomeAssistant, hass_client_no_auth, admin, api) -> None:
+    """Each trainer sends its id: only the one chosen gets the run, a busy one gets none, the studio lists all."""
+    client = await hass_client_no_auth()
+    kopf = {"X-Sprachmodell-Schluessel": api.schluessel}
+    pc, proxmox = {**kopf, "X-Sprachmodell-Trainer": "pc"}, {**kopf, "X-Sprachmodell-Trainer": "proxmox"}
+    await client.post("/api/sprachmodell/trainer/status", headers=proxmox, json={"info": {"art": "docker"}})
+    await client.post("/api/sprachmodell/trainer/status", headers=pc, json={"info": {"art": "docker"}})
+    await api.einstellungen_setzen({"trainer_wahl": "pc"})
+    api.auftrag("hey_lumi", "von_hand")
+    d = await (await client.get("/api/sprachmodell/trainer/auftrag", headers=proxmox)).json()
+    assert d["auftrag"] is None and d["vorpruefen"] == [] and d["aktualisieren"] is None
+    d = await (await client.get("/api/sprachmodell/trainer/auftrag?frei=0", headers=pc)).json()
+    assert d["auftrag"] is None and not api.trainer["pc"]["frei"]  # busy: nothing handed out
+    d = await (await client.get("/api/sprachmodell/trainer/auftrag", headers=pc)).json()
+    assert d["auftrag"]["wort_id"] == "hey_lumi"
+    # a strange id counts as a trainer without id
+    await client.post("/api/sprachmodell/trainer/status", headers={**kopf, "X-Sprachmodell-Trainer": "a b"}, json={})
+    assert "trainer" in api.trainer
+    d = await (await admin.get("/api/sprachmodell/daten")).json()
+    liste = {t["id"]: t for t in d["trainer"]["liste"]}
+    assert set(liste) == {"pc", "proxmox", "trainer"} and liste["pc"]["online"] and not liste["pc"]["pause"]
+    assert liste["trainer"]["alt"] and d["trainer"]["ziel"] == "pc"
+    r = await admin.post("/api/sprachmodell/aktion", json={"aktion": "trainer", "trainer": "proxmox", "pause": True})
+    assert r.status == 200 and api.trainer_pausiert("proxmox")
+    r = await admin.post("/api/sprachmodell/aktion", json={"aktion": "trainer", "trainer": "proxmox", "vergessen": True})
+    assert r.status == 200 and "proxmox" not in api.trainer
+    r = await admin.post("/api/sprachmodell/aktion", json={"aktion": "trainer", "trainer": "weg"})
+    assert r.status == 400 and (await r.json())["message"] == "trainer_unbekannt"
+    d = await (await admin.get("/api/sprachmodell/daten?wort=hey_lumi")).json()
+    assert set(d["wort"]["dauer"]) == {"pc", "trainer"}

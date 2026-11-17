@@ -95,6 +95,7 @@ def main() -> None:
         assert ergebnis["positiv"] == 4 and ergebnis["je_schwelle"], f"test result incomplete: {ergebnis}"
         punkt = ergebnis["je_schwelle"]["0.97"]
         assert set(punkt["bedingungen"]) == {"ruhig", "leise", "hall", "musik", "gerede", "alltag"}, punkt
+        assert set(punkt["schwer"]) == {"weit", "laut_tv", "laut_musik", "chaos"} and punkt["trefferquote_schwer"] is not None, punkt
         assert punkt["fehlausloeser_geraeusch_pro_stunde"] is not None, punkt
         from .vergleich import vergleichen
 

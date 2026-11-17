@@ -1,5 +1,5 @@
 name: Wake Word Studio Trainer
-version: "1.0.30"
+version: "1.0.31"
 slug: sprachmodell_trainer
 description: Trains your own wake words for the Wake Word Studio integration (microWakeWord, any language).
 url: https://github.com/Wadim-dev/WakeWordStudio_ha

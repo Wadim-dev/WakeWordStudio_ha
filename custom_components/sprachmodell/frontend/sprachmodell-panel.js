@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.30';
+const VERSION = '1.0.31';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -125,7 +125,7 @@ button.k kbd{font:11px monospace;opacity:.6;border:1px solid currentColor;border
 .lage b{text-align:right;font-weight:500}
 .lage-balken{height:8px;border-radius:4px;background:rgba(var(--rgb-primary-text-color,0,0,0),.08);overflow:hidden}
 .lage-balken i{display:block;height:100%;width:var(--w);border-radius:4px;background:var(--success-color,#4caf50);animation:balken-wachsen .7s cubic-bezier(.2,.8,.3,1) both}
-.lage-balken i.mittel{background:var(--warning-color,#ff9800)}.lage-balken i.schwach{background:var(--error-color,#f44336)}
+.lage-balken i.mittel{background:var(--warning-color,#ff9800)}.lage-balken i.schwach{background:var(--error-color,#f44336)}.lage-balken i.hart{background:var(--primary-color,#03a9f4)}
 @keyframes balken-wachsen{from{width:0}}
 .tabelle-scroll{overflow-x:auto;margin:0 -4px;padding:0 4px}
 table.versionen>tbody>tr>td:nth-child(n+2):nth-child(-n+4),.vgl-tab td.z{white-space:nowrap}
@@ -186,6 +186,29 @@ label.feld{display:block;margin:14px 0 5px;font-size:13px;color:var(--secondary-
 .fortschritt i{display:block;height:100%;background:var(--primary-color);transition:width .6s}
 .laeuft .fortschritt i{background-image:linear-gradient(90deg,transparent 0,rgba(255,255,255,.25) 50%,transparent 100%);background-size:200% 100%;animation:schimmer 2.5s linear infinite}
 @keyframes schimmer{to{background-position:-200% 0}}
+.laeuft .fortschritt{overflow:visible;position:relative}.laeuft .fortschritt i{position:relative;border-radius:5px}
+.laeuft .fortschritt i::after{content:'';position:absolute;right:-3px;top:50%;width:12px;height:12px;margin-top:-6px;border-radius:50%;background:var(--primary-color);box-shadow:0 0 10px 3px rgba(var(--rgb-primary-color,3,169,244),.65);animation:funkeln 1.5s ease-in-out infinite}
+@keyframes funkeln{50%{transform:scale(.55);opacity:.6}}
+.magie{display:block;width:100%;height:96px;margin:6px 0 2px;color:var(--farbe,var(--primary-color));overflow:visible}
+.magie .m-linie{stroke:currentColor;stroke-opacity:.14;stroke-width:1}
+.magie .m-welle rect{fill:currentColor;transform-box:fill-box;transform-origin:center;animation:m-welle 1.2s ease-in-out infinite;animation-delay:calc(var(--d0,0s) - var(--i) * .09s)}
+@keyframes m-welle{0%,100%{transform:scaleY(.22)}50%{transform:scaleY(1)}}
+.magie .m-knoten circle{fill:currentColor;transform-box:fill-box;transform-origin:center;animation:m-feuern 2s ease-in-out infinite;animation-delay:calc(var(--d0,0s) + var(--s) * .35s)}
+@keyframes m-feuern{0%,100%{opacity:.3;transform:scale(.8)}18%{opacity:1;transform:scale(1.25);filter:drop-shadow(0 0 5px currentColor)}40%{opacity:.45;transform:scale(1)}}
+.magie .m-teil circle{fill:#fff;filter:drop-shadow(0 0 3px currentColor);opacity:0;animation:m-fliegen 2s cubic-bezier(.45,0,.55,1) infinite;animation-delay:calc(var(--d0,0s) + var(--s) * .35s)}
+@keyframes m-fliegen{0%{transform:translate(0,0);opacity:0}15%{opacity:1}85%{opacity:1}100%{transform:translate(var(--dx),var(--dy));opacity:0}}
+.magie .m-ziel{fill:none;stroke:currentColor;stroke-width:2;transform-box:fill-box;transform-origin:center;animation:m-ring 2s ease-out infinite;animation-delay:calc(var(--d0,0s) + 1.05s)}
+@keyframes m-ring{0%{transform:scale(.6);opacity:0}25%{opacity:.9}100%{transform:scale(2.3);opacity:0}}
+.magie .m-stern{fill:#fff;transform-box:fill-box;transform-origin:center;animation:m-stern 3s ease-in-out infinite;animation-delay:calc(var(--d0,0s) + var(--s) * 1s)}
+@keyframes m-stern{0%,100%{transform:scale(0) rotate(0);opacity:0}30%{transform:scale(1) rotate(45deg);opacity:1}60%{transform:scale(0) rotate(90deg);opacity:0}}
+.magie.st-vorbereiten .m-netz,.magie.st-daten .m-netz{opacity:.4}.magie.st-test .m-welle{opacity:.4}
+.feier{position:relative;height:0;pointer-events:none}.feier i{position:absolute;left:var(--x,50%);top:0;width:8px;height:8px;border-radius:2px;background:var(--c);opacity:0;animation:konfetti 1.6s cubic-bezier(.15,.7,.3,1) forwards;animation-delay:var(--v)}
+@keyframes konfetti{0%{transform:translate(0,0) rotate(0) scale(.4);opacity:1}100%{transform:translate(var(--dx),var(--dy)) rotate(var(--rot)) scale(1);opacity:0}}
+.gefeiert{animation:gefeiert 1.2s ease-out}@keyframes gefeiert{0%{box-shadow:0 0 0 0 rgba(76,175,80,.55)}100%{box-shadow:0 0 0 18px rgba(76,175,80,0)}}
+main:not(.still)>ha-card,main:not(.still)>.raster>ha-card{animation:auftauchen .45s cubic-bezier(.2,.8,.3,1) both}
+main:not(.still)>ha-card:nth-of-type(2){animation-delay:50ms}main:not(.still)>ha-card:nth-of-type(3){animation-delay:100ms}main:not(.still)>ha-card:nth-of-type(n+4){animation-delay:150ms}
+@keyframes auftauchen{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.magie *,.feier i,.laeuft .fortschritt i::after,main>ha-card,main>.raster>ha-card,.gefeiert{animation:none!important}.magie .m-teil,.feier{display:none}}
 table{width:100%;border-collapse:collapse;font-size:14px}
 th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--divider-color);vertical-align:top}
 th{font-weight:500;color:var(--secondary-text-color);font-size:12px}
@@ -213,6 +236,15 @@ pre{display:block;padding:10px;white-space:pre-wrap;margin:6px 0}
 .g-info.an{background:rgba(var(--rgb-primary-color,3,169,244),.1)}.g-info>ha-icon{--mdc-icon-size:20px;color:var(--primary-color);flex:none;margin-top:1px}
 .g-info b{font-weight:500;font-size:14px}.g-rat{display:flex;gap:8px;align-items:center;margin-top:2px}.g-rat .punkt{flex:none}
 .g-info>div{min-width:0}.g-info select{max-width:100%;margin:2px 0}
+.tr-liste{display:grid;gap:4px;margin:6px 0}.tr-zeile{display:flex;gap:4px;align-items:baseline;padding:6px 8px;border-radius:8px;border:1px solid transparent}
+.tr-zeile.ziel{border-color:rgba(var(--rgb-primary-color,3,169,244),.5);background:rgba(var(--rgb-primary-color,3,169,244),.06)}.tr-zeile .punkt{flex:none}
+.tr-eintrag{border:1px solid var(--divider-color);border-radius:12px;padding:4px 12px;margin:8px 0}.tr-eintrag[open]{padding-bottom:12px}
+.tr-eintrag summary{cursor:pointer;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;padding:8px 0;list-style:none}.tr-eintrag summary::-webkit-details-marker{display:none}
+.tr-eintrag summary::after{content:'';margin-left:auto;width:8px;height:8px;border-right:2px solid var(--secondary-text-color);border-bottom:2px solid var(--secondary-text-color);transform:rotate(45deg);transition:transform .2s}
+.tr-eintrag[open] summary::after{transform:rotate(-135deg)}.tr-eintrag summary .punkt{margin-right:0}
+.schalter-zeile{display:flex;gap:8px;align-items:center;margin:10px 0 2px;font-size:14px;cursor:pointer}.schalter-zeile input{width:18px;height:18px;margin:0}
+.ei-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}.ei-schritte{margin:8px 0;padding-left:20px;font-size:14px;line-height:1.6}
+.befehl{display:grid;gap:6px;justify-items:start;margin:6px 0}.befehl pre{width:100%;box-sizing:border-box;margin:0}
 @media (max-width:600px){.g-info{margin-left:0}}
 .hinweis{padding:10px 12px;border-radius:10px;background:rgba(var(--rgb-warning-color,255,152,0),.12);font-size:14px;margin-bottom:12px;line-height:1.5}
 .hinweis.ok{background:rgba(var(--rgb-success-color,76,175,80),.14)}
@@ -396,6 +428,12 @@ class SprachmodellPanel extends HTMLElement {
     this.shadowRoot.addEventListener('click', (e) => this._klick(e));
     this.shadowRoot.addEventListener('change', (e) => this._aenderung(e));
     this.shadowRoot.addEventListener('input', (e) => this._eingabe(e));
+    // which trainer entries are open survives a redraw ("toggle" does not bubble, so listen while capturing)
+    this.shadowRoot.addEventListener('toggle', (e) => {
+      const d = e.target; if (!d.classList || !d.classList.contains('tr-eintrag')) return;
+      this._trOffen = this._trOffen || new Set([...this.shadowRoot.querySelectorAll('details.tr-eintrag[open]')].map((x) => x.dataset.tid));
+      if (d.open) this._trOffen.add(d.dataset.tid); else this._trOffen.delete(d.dataset.tid);
+    }, true);
     const main = this.shadowRoot.querySelector('main');
     main.addEventListener('dragover', (e) => { const z = e.target.closest('.abwurf'); if (z) { e.preventDefault(); z.classList.add('ueber'); } });
     main.addEventListener('dragleave', (e) => { const z = e.target.closest('.abwurf'); if (z) z.classList.remove('ueber'); });
@@ -553,11 +591,13 @@ class SprachmodellPanel extends HTMLElement {
   _trainerKachel() {
     const tr = this._daten.trainer, i = tr.info || {}, l = tr.last || {};
     const laeuft = this._daten.woerter.some((w) => LAEUFT.includes((w.training || {}).phase));
-    const status = tr.online ? (laeuft ? this.t('h_tr_arbeitet') : this.t('z_trainer_an')) : tr.kontakt ? this.t('z_trainer_aus') : this.t('z_trainer_nie');
+    const n = (tr.liste || []).length;
+    const status = n > 1 ? this._trainerStatus() : tr.online ? (laeuft ? this.t('h_tr_arbeitet') : this.t('z_trainer_an')) : tr.kontakt ? this.t('z_trainer_aus') : this.t('z_trainer_nie');
     let inhalt = '';
     if (tr.online) {
       const ram = l.ram_gb || i.ram_gb;
-      inhalt = '<div class="messer-liste">'
+      const liste = tr.liste || [], haupt = liste.find((t) => t.laeuft.length) || liste.find((t) => t.id === tr.ziel) || liste.find((t) => t.online);
+      inhalt = (n > 1 && haupt ? `<div class="klein" style="margin-top:4px">${esc(haupt.name)}</div>` : '') + '<div class="messer-liste">'
         + (l.cpu != null ? this._messer(this.t('h_tr_cpu'), l.cpu, 100, `${l.cpu} % · ${l.kerne || i.cpu || '?'} ${this.t('h_tr_kerne')}`) : i.cpu ? this._messer(this.t('h_tr_cpu'), 0, 100, `${i.cpu} ${this.t('h_tr_kerne')}`) : '')
         + (ram ? this._messer(this.t('h_tr_ram'), l.ram_belegt_gb ?? 0, ram, l.ram_belegt_gb != null ? `${this._zahl(l.ram_belegt_gb, 1)} / ${this._zahl(ram, 0)} GB` : `${this._zahl(ram, 0)} GB`, [70, 90]) : '')
         + (i.platz_gb ? this._messer(this.t('h_tr_platte'), i.platz_gb - (l.platz_frei_gb ?? i.platz_frei_gb), i.platz_gb, this.t('h_tr_frei', { n: this._zahl(l.platz_frei_gb ?? i.platz_frei_gb, 0) }), [75, 90]) : '')
@@ -602,18 +642,19 @@ ${unten}</ha-card>`;
 
   // what "thorough" costs on this trainer: its hardware, the last run's duration and when a night run would end
   _gruendlichInfo(w, e) {
-    const tr = this._daten.trainer, i = tr.info || {}, karten = i.grafik || [], nvidia = karten.find((k) => k.art === 'nvidia');
+    const tr = this._daten.trainer, liste = tr.liste || [];
+    // the trainer this card is about: the chosen one, else the one that gets the next run, else the main one
+    const wahl = this._daten.einstellungen.trainer_wahl || 'auto';
+    const haupt = liste.find((t) => t.id === wahl) || liste.find((t) => t.id === tr.ziel) || liste.find((t) => t.online) || liste[0];
+    const i = haupt ? haupt.info || {} : tr.info || {}, karten = i.grafik || [], nvidia = karten.find((k) => k.art === 'nvidia');
     const cpu = i.prozessor ? i.prozessor.replace(/\((R|TM)\)/g, '').replace(/\s+CPU\b/, '').replace(/\s+/g, ' ').trim() : '';
     const hw = [cpu, i.cpu ? this.t('g_kerne', { n: i.cpu }) : '', i.ram_gb ? this._zahl(i.ram_gb, 0) + ' GB' : '',
       karten.length ? karten.map((k) => k.name).join(', ') : (i.prozessor ? this.t('g_keine_grafik') : '')].filter(Boolean).join(' · ');
     // graphics card: only the GPU image of the trainer tries it (start-up probe); "auto" uses it when it works
     const b = i.beschleuniger || {}, ziel = b.gpu && this._daten.einstellungen.geraet !== 'cpu' ? 'gpu' : 'cpu';
-    const lauf = (w.laeufe || []).find((l) => l.dauer_min > 0 && (l.geraet || 'cpu') === ziel); // newest first
-    let einfach = null, gruendlich = null;
-    if (lauf) {
-      const n = lauf.kandidaten || 1, je = lauf.training_min ? lauf.training_min / n : lauf.dauer_min * 0.42 / n;
-      einfach = lauf.dauer_min - (n - 1) * je; gruendlich = einfach + 2 * je;
-    }
+    // measured on this trainer, or estimated from another trainer's run with both speed tests (computed in HA)
+    const da = haupt && w.dauer ? w.dauer[haupt.id] : null;
+    const einfach = da ? da.einfach : null, gruendlich = da ? da.gruendlich : null;
     let stufe = 0, rat;
     const [hh, mm] = String(this._daten.einstellungen.uhrzeit || '02:00').split(':').map(Number);
     const ende = gruendlich != null ? new Date(2000, 0, 1, hh, mm + Math.round(gruendlich)) : null;
@@ -627,11 +668,24 @@ ${unten}</ha-card>`;
     const zeilen = [
       hw ? `<div><span class="klein">${esc(this.t('g_hardware'))}</span> ${esc(hw)}</div>` : '',
       this._geraetZeile(b, nvidia),
-      einfach != null ? `<div><span class="klein">${esc(this.t('g_dauer'))}</span> ${esc(this.t('g_dauer_wert', { a: this._dauer(einfach), b: this._dauer(gruendlich) }))}</div>` : `<div class="klein">${esc(this.t(ziel === 'gpu' ? 'g_dauer_allg_gpu' : 'g_dauer_allg'))}</div>`,
+      einfach != null ? `<div><span class="klein">${esc(this.t('g_dauer'))}</span> ${esc(this.t('g_dauer_wert', { a: this._dauer(einfach), b: this._dauer(gruendlich) }))}${da.quelle === 'geschaetzt' ? ` <span class="klein">${esc(this.t('g_geschaetzt'))}</span>` : ''}</div>` : `<div class="klein">${esc(this.t(ziel === 'gpu' ? 'g_dauer_allg_gpu' : 'g_dauer_allg'))}</div>`,
       `<div class="g-rat"><span class="punkt" style="background:var(--${['success', 'warning', 'error'][stufe]}-color)"></span>${esc(rat)}</div>`,
       !nvidia && b.bild !== 'gpu' && karten.length ? `<div class="klein">${esc(this.t('g_igpu'))}</div>` : '',
     ].join('');
-    return `<div class="g-info ${e.gruendlich ? 'an' : ''}"><ha-icon icon="mdi:chip"></ha-icon><div><b>${esc(this.t('g_titel'))}</b>${zeilen}</div></div>`;
+    return `<div class="g-info ${e.gruendlich ? 'an' : ''}"><ha-icon icon="mdi:chip"></ha-icon><div><b>${esc(this.t('g_titel'))}</b>${liste.length > 1 ? this._trainerWahl(w, liste) : ''}${liste.length > 1 && haupt ? `<div class="klein" style="margin-top:6px">${esc(this.t('g_fuer', { n: haupt.name }))}</div>` : ''}${zeilen}</div></div>`;
+  }
+
+  // several trainers: which one gets the next run, and how long a run takes on each
+  _trainerWahl(w, liste) {
+    const tr = this._daten.trainer, wahl = this._daten.einstellungen.trainer_wahl || 'auto', dauer = w.dauer || {};
+    const zeilen = liste.map((t) => {
+      const d = dauer[t.id], an = t.online && !t.pause;
+      const zustand = !t.online ? this.t('tr_aus') : t.pause ? this.t('tr_pause') : t.laeuft.length ? this.t('tr_arbeitet', { w: t.laeuft.join(', ') }) : this.t('tr_frei');
+      const zeit = d ? this.t('tr_dauer', { a: this._dauer(d.einfach), b: this._dauer(d.gruendlich) }) + ' · ' + this.t(d.quelle === 'gemessen' ? 'tr_gemessen' : 'tr_geschaetzt') + (d.geraet === 'gpu' ? ' · ' + this.t('tr_karte') : '') : t.online ? this.t('tr_dauer_offen') : '';
+      return `<div class="tr-zeile ${tr.ziel === t.id ? 'ziel' : ''}"><span class="punkt ${an ? 'an' : ''}"></span><div style="min-width:0"><div><b>${esc(this._trName(t))}</b> <span class="klein">${esc(zustand)}</span>${tr.ziel === t.id ? ` <span class="mini">${esc(this.t('tr_naechster'))}</span>` : ''}</div><div class="klein">${esc(zeit)}</div></div></div>`;
+    }).join('');
+    return `<div style="margin-top:6px"><span class="klein">${esc(this.t('tr_wer'))}</span> <select data-zopt="trainer_wahl" ${this._admin ? '' : 'disabled'}><option value="auto" ${liste.some((t) => t.id === wahl) ? '' : 'selected'}>${esc(this.t('tr_auto'))}</option>${liste.map((t) => `<option value="${esc(t.id)}" ${t.id === wahl ? 'selected' : ''}>${esc(this._trName(t))}</option>`).join('')}</select></div>
+<div class="tr-liste">${zeilen}</div><div class="klein">${esc(this.t(wahl === 'auto' || !liste.some((t) => t.id === wahl) ? 'tr_auto_hilfe' : 'tr_fest_hilfe'))}</div>`;
   }
 
   // where the trainer computes, with a choice only when the graphics card really works
@@ -656,8 +710,8 @@ ${unten}</ha-card>`;
     return (i.grafik || []).some((k) => k.art === 'nvidia') ? this.t('g_nvidia_kurz') : '';
   }
 
-  _steckbrief() {
-    const tr = this._daten.trainer, i = tr.info || {};
+  _steckbrief(t) {
+    const tr = t ? { ...this._daten.trainer, info: t.info, bild_bereit: t.bild_bereit } : this._daten.trainer, i = tr.info || {};
     if (!Object.keys(i).length) return '';
     const ampel = (stufe) => `<span class="punkt" style="background:var(--${['success', 'warning', 'error'][stufe]}-color)"></span>`;
     const zeilen = [];
@@ -669,8 +723,58 @@ ${unten}</ha-card>`;
     if (i.ram_gb) zeilen.push([this.t('sb_ram'), this._zahl(i.ram_gb, 1) + ' GB', i.ram_gb >= 6 ? 0 : i.ram_gb >= 4 ? 1 : 2, i.ram_gb >= 6 ? '' : this.t('sb_ram_wenig')]);
     if (i.swap_gb != null) { const q = i.swap_gb ? i.swap_belegt_gb / i.swap_gb : 0; zeilen.push([this.t('sb_swap'), i.swap_gb ? `${this._zahl(i.swap_belegt_gb, 1)} / ${this._zahl(i.swap_gb, 1)} GB` : this.t('sb_swap_kein'), q < 0.25 ? 0 : q < 0.6 ? 1 : 2, q < 0.25 ? '' : this.t('sb_swap_voll')]); }
     if (i.platz_frei_gb != null) zeilen.push([this.t('sb_platte'), this.t('sb_platte_wert', { f: this._zahl(i.platz_frei_gb, 0), g: this._zahl(i.platz_gb, 0) }), i.platz_frei_gb >= 40 ? 0 : i.platz_frei_gb >= 15 ? 1 : 2, i.platz_frei_gb >= 40 ? '' : this.t('sb_platte_wenig')]);
-    if (tr.engpass) zeilen.push([this.t('sb_lauf'), this.t('h_tr_engpass_' + tr.engpass), 2, '']);
+    if (i.art === 'docker' && i.version && !aelter(i.version, '1.0.31')) zeilen.push([this.t('sb_selbst'), this.t(i.selbst_update ? 'sb_selbst_ja' : 'sb_selbst_nein'), i.selbst_update ? 0 : 1, i.selbst_update ? '' : this.t('sb_selbst_tipp')]);
+    if (tr.engpass && (!t || t.laeuft.length)) zeilen.push([this.t('sb_lauf'), this.t('h_tr_engpass_' + tr.engpass), 2, '']);
+    if (t) return `<table class="steckbrief">${zeilen.map(([k, v, st, tipp]) => `<tr><td>${esc(k)}</td><td>${ampel(st)}${esc(v)}${tipp ? `<div class="klein">${esc(tipp)}</div>` : ''}</td></tr>`).join('')}</table>`;
     return `<h3>${esc(this.t('sb_titel'))}</h3><table class="steckbrief">${zeilen.map(([k, v, st, tipp]) => `<tr><td>${esc(k)}</td><td>${ampel(st)}${esc(v)}${tipp ? `<div class="klein">${esc(tipp)}</div>` : ''}</td></tr>`).join('')}</table>`;
+  }
+
+  _trName(t) { return t.alt ? this.t('tr_alt_name') : t.name; }
+
+  // "connected" for one trainer, "2 of 3 on" for several
+  _trainerStatus() {
+    const tr = this._daten.trainer, liste = tr.liste || [];
+    if (liste.length > 1) return this.t('tr_an_von', { a: liste.filter((t) => t.online).length, n: liste.length });
+    return tr.online ? this.t('t_trainer_an') : tr.kontakt ? this.t('t_trainer_zuletzt', { z: this._zeit(tr.kontakt) }) : this.t('t_trainer_nie');
+  }
+
+  // every trainer that ever connected: state, profile, take runs yes/no, remove when it is gone
+  _trainerUebersicht() {
+    const liste = this._daten.trainer.liste || [];
+    if (!liste.length) return `<div class="leer-klein"><ha-icon icon="mdi:server-off"></ha-icon><span>${esc(this.t('tr_keiner'))}</span></div>`;
+    return liste.map((t, k) => {
+      const zustand = !t.online ? this.t('tr_aus_seit', { z: this._zeit(t.kontakt) }) : t.pause ? this.t('tr_pause') : t.laeuft.length ? this.t('tr_arbeitet', { w: t.laeuft.join(', ') }) : this.t('tr_frei');
+      const offen = this._trOffen ? this._trOffen.has(t.id) : k === 0;
+      return `<details class="tr-eintrag" data-tid="${esc(t.id)}" ${offen ? 'open' : ''}><summary><span class="punkt ${t.online && !t.pause ? 'an' : ''}"></span><b>${esc(this._trName(t))}</b><span class="klein">${esc(zustand)}</span></summary>
+${t.alt ? `<div class="hinweis">${esc(this.t('tr_alt'))}</div>` : ''}${this._steckbrief(t)}
+<label class="schalter-zeile"><input type="checkbox" data-tpause="${esc(t.id)}" ${t.pause ? '' : 'checked'}> ${esc(this.t('tr_nimmt'))}</label>
+<div class="klein">${esc(this.t('tr_nimmt_hilfe'))}</div>
+${t.online ? '' : `<button class="k leise" data-a="trainer_vergessen" data-tid="${esc(t.id)}"><ha-icon icon="mdi:delete-outline"></ha-icon>${esc(this.t('tr_vergessen'))}</button>`}</details>`;
+    }).join('');
+  }
+
+  // setting up a trainer: where it runs, with one command to copy (the real key goes into the copy, not on screen)
+  _einrichten(basis) {
+    const ort = this._ort || 'windows', gpu = !!this._mitGpu;
+    const tabs = ['app', 'proxmox', 'windows', 'linux'].map((o) => `<button class="k ${o === ort ? 'haupt' : 'leise'}" data-a="ort" data-ort="${o}">${esc(this.t('ei_' + o))}</button>`).join('');
+    let inhalt;
+    if (ort === 'app') inhalt = `<p class="klein" style="line-height:1.6">${this.t('es_app', { r: esc(REPO) })}</p>`;
+    else {
+      const befehl = this._befehl(ort, gpu, basis, false);
+      const schritte = [1, 2, 3].map((n) => `<li>${esc(this.t(`ei_${ort}_${n}`))}</li>`).join('');
+      inhalt = `${ort === 'proxmox' ? '' : `<label class="schalter-zeile"><input type="checkbox" data-a="gpu_wahl" ${gpu ? 'checked' : ''}> ${esc(this.t('ei_gpu'))}</label><div class="klein">${esc(this.t('ei_gpu_hilfe'))}</div>`}
+<ol class="ei-schritte">${schritte}</ol>
+<div class="befehl"><pre>${esc(befehl)}</pre><button class="k haupt" data-a="befehl_kopieren"><ha-icon icon="mdi:content-copy"></ha-icon>${esc(this.t('es_kopieren'))}</button></div>
+<div class="klein" style="line-height:1.5">${esc(this.t(ort === 'proxmox' ? 'ei_proxmox_hilfe' : 'ei_docker_hilfe'))}</div>`;
+    }
+    return `<div class="ei-tabs">${tabs}</div>${inhalt}`;
+  }
+
+  // the command to paste: one line, so it works in PowerShell, cmd and any Linux shell alike
+  _befehl(ort, gpu, basis, echt) {
+    const tr = this._daten.trainer, schl = echt || this._zeigeSchl ? tr.schluessel || '' : '••••••';
+    if (ort === 'proxmox') return `bash -c "$(curl -fsSL ${PROXMOX})" -- ${basis} ${schl}`;
+    return `docker run -d --name wake-word-studio-trainer --restart unless-stopped${gpu ? ' --gpus all' : ''} -v wake-word-studio-trainer:/data -v /var/run/docker.sock:/var/run/docker.sock -e HA_URL=${basis} -e KEY=${schl} ${gpu ? BILD.replace(':latest', ':gpu') : BILD}`;
   }
 
   // restart the trainer from here: any button entity of Home Assistant that restarts it (Proxmox, Portainer, app ...)
@@ -1357,16 +1461,52 @@ ${aktiv}${last}
 <div class="protokoll" style="margin-top:8px">${log || esc(this.t('t_protokoll_leer'))}</div></ha-card>`;
   }
 
+  // training at work: sound flows into a small network that fires layer by layer, the result lights up.
+  // Pure CSS; the shared start offset keeps the loop running smoothly when the page refreshes its data.
+  _magie(phase, farbe) {
+    const d0 = `-${((Date.now() % 12000) / 1000).toFixed(2)}s`;
+    const schichten = [[250, [18, 39, 60, 81]], [370, [10, 29, 48, 67, 86]], [490, [26, 48, 70]], [600, [48]]];
+    let linien = '', knoten = '', teile = '', k = 0;
+    const kante = (x1, y1, x2, y2, s) => {
+      linien += `<line class="m-linie" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+      if ((k++ % 2) === 0) teile += `<circle cx="${x1}" cy="${y1}" r="2.6" style="--dx:${x2 - x1}px;--dy:${y2 - y1}px;--s:${s}"/>`;
+    };
+    schichten[0][1].forEach((y) => kante(160, 48, 250, y, 0));
+    for (let l = 0; l < schichten.length - 1; l++) {
+      const [xa, ya] = schichten[l], [xb, yb] = schichten[l + 1];
+      ya.forEach((y1) => yb.forEach((y2) => kante(xa, y1, xb, y2, l + 1)));
+    }
+    schichten.forEach(([x, ys], l) => ys.forEach((y) => { knoten += `<circle cx="${x}" cy="${y}" r="${l === 3 ? 9 : 6}" style="--s:${l + 1}"/>`; }));
+    const welle = Array.from({ length: 16 }, (_, i) => `<rect x="${10 + i * 9}" y="${48 - 6 - (i % 5) * 7}" width="5" height="${12 + (i % 5) * 14}" rx="2.5" style="--i:${i}"/>`).join('');
+    const stern = (x, y, s) => `<path class="m-stern" style="--s:${s}" d="M${x} ${y - 7}L${x + 2} ${y - 2}L${x + 7} ${y}L${x + 2} ${y + 2}L${x} ${y + 7}L${x - 2} ${y + 2}L${x - 7} ${y}L${x - 2} ${y - 2}Z"/>`;
+    return `<svg class="magie st-${esc(phase)}" viewBox="0 0 640 96" preserveAspectRatio="xMidYMid meet" style="--d0:${d0};${farbe ? `--farbe:${esc(farbe)}` : ''}" aria-hidden="true">
+<g class="m-welle">${welle}</g><g class="m-netz">${linien}<g class="m-teil">${teile}</g><g class="m-knoten">${knoten}</g></g>
+<circle class="m-ziel" cx="600" cy="48" r="9"/>${stern(626, 18, 0)}${stern(578, 84, 1)}${stern(630, 76, 2)}</svg>`;
+  }
+
+  _konfetti() {
+    const farben = ['#4caf50', '#03a9f4', '#ffc107', '#e91e63', '#9c27b0', '#ffffff'];
+    const teile = Array.from({ length: 28 }, (_, i) => {
+      const w = (i / 28) * Math.PI * 2 + (i % 3) * 0.2, r = 70 + (i * 37) % 90;
+      return `<i style="--x:${30 + (i * 13) % 40}%;--c:${farben[i % farben.length]};--dx:${Math.round(Math.cos(w) * r)}px;--dy:${Math.round(Math.sin(w) * r * 0.7 - 30)}px;--rot:${(i * 47) % 360}deg;--v:${(i % 4) * 40}ms"></i>`;
+    }).join('');
+    return `<div class="feier" aria-hidden="true">${teile}</div>`;
+  }
+
   _training() {
     const d = this._daten, w = d.wort, t = w.training, e = w.einstellungen, tr = d.trainer;
     const laeuft = LAEUFT.includes(t.phase);
     const kurz = (b) => (b ? `${this._pct(b.trefferquote)} · ${this._zahl(b.fehlausloeser_pro_stunde, 1)}/${this.t('std')}` : '–');
     const platz = d.reihe.indexOf(w.id);
+    // a better version: a short burst of confetti, once per version (not on every refresh)
+    const feierKey = t.phase === 'fertig' && t.besser && t.version ? w.id + '|' + t.version : '';
+    const feier = feierKey && !(this._gefeiert || (this._gefeiert = new Set())).has(feierKey);
+    if (feier) this._gefeiert.add(feierKey);
     return `${!tr.online && !tr.kontakt ? `<div class="hinweis"><b>${esc(this.t('t_kein_trainer'))}</b><br>${this.t('t_kein_trainer_text')}</div>` : ''}
-<ha-card class="${laeuft ? 'laeuft' : ''}"><div class="zeile weit"><h2 style="margin:0">${esc(this.t('p_' + t.phase))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(tr.online ? this.t('t_trainer_an') : tr.kontakt ? this.t('t_trainer_zuletzt', { z: this._zeit(tr.kontakt) }) : this.t('t_trainer_nie'))}</span></div>
-${laeuft ? `<div class="fortschritt"><i style="width:${t.prozent ?? 3}%"></i></div><div class="zeile weit klein"><span>${esc(this._schritt(t.schritt))}</span><span>${t.prozent != null ? Math.round(t.prozent) + ' %' : ''}${t.restzeit_min != null ? ' · ' + esc(this.t('t_noch', { z: this._dauer(t.restzeit_min) })) : ''}</span></div>${t.restzeit_min != null ? `<div class="klein" style="text-align:right">${esc(this._fertigText(t))}</div>` : ''}${t.start ? `<div class="klein">${esc(this.t('t_gestartet', { z: this._zeit(t.start) }))}</div>` : ''}` : ''}
+<ha-card class="${laeuft ? 'laeuft' : ''} ${feier ? 'gefeiert' : ''}"><div class="zeile weit"><h2 style="margin:0">${esc(this.t('p_' + t.phase))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(tr.online ? this.t('t_trainer_an') : tr.kontakt ? this.t('t_trainer_zuletzt', { z: this._zeit(tr.kontakt) }) : this.t('t_trainer_nie'))}</span></div>
+${laeuft ? `${this._magie(t.phase, w.farbe)}<div class="fortschritt"><i style="width:${t.prozent ?? 3}%"></i></div><div class="zeile weit klein"><span>${esc(this._schritt(t.schritt))}</span><span>${t.prozent != null ? Math.round(t.prozent) + ' %' : ''}${t.restzeit_min != null ? ' · ' + esc(this.t('t_noch', { z: this._dauer(t.restzeit_min) })) : ''}</span></div>${t.restzeit_min != null ? `<div class="klein" style="text-align:right">${esc(this._fertigText(t))}</div>` : ''}${t.start ? `<div class="klein">${esc(this.t('t_gestartet', { z: this._zeit(t.start) }))}</div>` : ''}` : ''}
 ${t.phase === 'wartet' ? `<p class="klein">${esc(this.t('t_auftrag', { g: this.t('grund_' + (t.grund || 'von_hand')) }))} ${esc(tr.online ? this.t('t_holt') : this.t('t_holt_nicht'))} ${platz > 0 ? esc(this.t('t_platz', { n: platz + 1 })) : ''}</p>` : ''}
-${t.phase === 'fertig' && t.version ? `<p>v${t.version}: ${t.besser ? `<span class="gruen">${esc(this.t('t_besser'))}</span>` : `<span class="gelb">${esc(this.t(t.gleich ? 't_gleich' : 't_nicht_besser'))}</span>`}.</p>` : ''}
+${feier ? this._konfetti() : ''}${t.phase === 'fertig' && t.version ? `<p>v${t.version}: ${t.besser ? `<span class="gruen">${esc(this.t('t_besser'))}</span>` : `<span class="gelb">${esc(this.t(t.gleich ? 't_gleich' : 't_nicht_besser'))}</span>`}.</p>` : ''}
 ${t.phase === 'fehler' ? `<p class="rot">${esc(this._schritt(t.schritt || t.hinweis) || this.t('p_fehler'))}</p>` : ''}
 <div class="zeile" style="margin-top:12px">${laeuft || t.phase === 'wartet' ? `<button class="k schlecht" data-a="abbrechen"><ha-icon icon="mdi:stop"></ha-icon>${esc(this.t('t_abbrechen'))}</button>` : `<button class="k haupt" data-a="trainieren"><ha-icon icon="mdi:play"></ha-icon>${esc(this.t('t_jetzt'))}</button><span class="klein">${esc(w.neu_seit_lauf > 0 ? this.t('t_neue', { n: w.neu_seit_lauf }) : this.t('t_keine_neuen'))}</span>`}</div></ha-card>
 ${this._details(w, laeuft)}
@@ -1378,7 +1518,7 @@ ${this._details(w, laeuft)}
 <div class="zeile"><label><input type="checkbox" data-wopt="gruendlich" ${e.gruendlich ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_gruendlich'))}</label></div>
 ${this._gruendlichInfo(w, e)}
 <p class="klein">${esc(this.t('t_besser_heisst'))}</p></ha-card>
-<ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}${l.geraet === 'gpu' || l.geraet_rueckfall ? `<div class="klein">${esc(this.t(l.geraet_rueckfall ? 'l_rueckfall' : 'l_gpu'))}</div>` : ''}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
+<ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}${l.geraet === 'gpu' || l.geraet_rueckfall ? `<div class="klein">${esc(this.t(l.geraet_rueckfall ? 'l_rueckfall' : 'l_gpu'))}</div>` : ''}${l.trainer_name && (this._daten.trainer.liste || []).length > 1 ? `<div class="klein">${esc(l.trainer_name)}</div>` : ''}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
   }
 
   // ---------- Qualität ----------
@@ -1409,8 +1549,8 @@ ${summe ? `<div class="tb-rahmen"><table class="tb"><tr><th class="tb-r klein">$
 <div class="zeile klein" style="margin-top:8px;gap:14px">${auffAnz ? `<span><span class="tb-muster auff"></span>${esc(this.t('tb_auff', { n: auffAnz }))}</span>` : `<span class="gruen">${esc(this.t('tb_keine_auff'))}</span>`}${sw != null ? `<span><span class="tb-muster sw"></span>${esc(this.t('tb_schwelle', { w: this._zahl(sw) }))}</span>` : ''}</div>` : `<div class="klein">${esc(this.t('tb_leer'))}</div>`}</ha-card>`;
   }
 
-  _lagen(bed) {
-    return `<h3>${esc(this.t('q_lagen'))}</h3><div class="lagen">${['ruhig', 'leise', 'hall', 'musik', 'gerede', 'alltag'].filter((k) => bed[k] != null).map((k, i) => `<div class="lage"><span>${esc(this.t('b_' + k))}</span><div class="lage-balken"><i style="--w:${Math.round(bed[k] * 100)}%;animation-delay:${i * 60}ms" class="${bed[k] >= 0.85 ? 'gut' : bed[k] >= 0.65 ? 'mittel' : 'schwach'}"></i></div><b>${this._pct(bed[k])}</b></div>`).join('')}</div>`;
+  _lagen(bed, schwer) {
+    return `<h3>${esc(this.t(schwer ? 'q_schwer_lagen' : 'q_lagen'))}</h3>${schwer ? `<div class="klein" style="margin:-4px 0 8px">${esc(this.t('q_schwer_hilfe'))}</div>` : ''}<div class="lagen">${(schwer ? ['weit', 'laut_tv', 'laut_musik', 'chaos'] : ['ruhig', 'leise', 'hall', 'musik', 'gerede', 'alltag']).filter((k) => bed[k] != null).map((k, i) => `<div class="lage"><span>${esc(this.t('b_' + k))}</span><div class="lage-balken"><i style="--w:${Math.round(bed[k] * 100)}%;animation-delay:${i * 60}ms" class="${schwer ? 'hart' : bed[k] >= 0.85 ? 'gut' : bed[k] >= 0.65 ? 'mittel' : 'schwach'}"></i></div><b>${this._pct(bed[k])}</b></div>`).join('')}</div>`;
   }
 
   _versionen(w) {
@@ -1418,21 +1558,21 @@ ${summe ? `<div class="tb-rahmen"><table class="tb"><tr><th class="tb-r klein">$
       const b = x.bericht || {}, n = b.neu || {}, vg = b.vergleich, offen = this._vglOffen.has(x.nr);
       const stand = x.status === 'verworfen' && vg && vg.urteil === 'gleich' ? 'gleich' : x.status;
       const details = vg || b.alt !== undefined;
-      return `<tr class="vrow ${details ? 'klickbar' : ''} ${offen ? 'offen' : ''}" ${details ? `data-vgl="${x.nr}" title="${esc(this.t('q_details'))}"` : ''}><td>${details ? '<ha-icon class="pfeil" icon="mdi:chevron-right"></ha-icon>' : ''}v${x.nr}<div class="klein">${this._datum(x.zeit)}</div></td><td>${this._pct(n.trefferquote)}</td><td>${this._pct(n.trefferquote_alltag)}</td><td>${this._zahl(n.fehlausloeser_pro_stunde, 1)}/${esc(this.t('std'))}</td><td class="${x.status === 'aktiv' ? 'gruen' : ''}">${esc(this.t('s_' + stand))}</td><td class="z">${x.status !== 'aktiv' && this._admin ? `<button class="k" data-a="einspielen" data-nr="${x.nr}">${esc(this.t('q_einspielen'))}</button>` : ''}</td></tr>
-${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden'}><td colspan="6"><div class="vgl">${this._vergleich(x)}</div></td></tr>` : ''}`;
+      return `<tr class="vrow ${details ? 'klickbar' : ''} ${offen ? 'offen' : ''}" ${details ? `data-vgl="${x.nr}" title="${esc(this.t('q_details'))}"` : ''}><td>${details ? '<ha-icon class="pfeil" icon="mdi:chevron-right"></ha-icon>' : ''}v${x.nr}<div class="klein">${this._datum(x.zeit)}</div></td><td>${this._pct(n.trefferquote)}</td><td>${this._pct(n.trefferquote_alltag)}</td><td>${this._pct(n.trefferquote_schwer)}</td><td>${this._zahl(n.fehlausloeser_pro_stunde, 1)}/${esc(this.t('std'))}</td><td class="${x.status === 'aktiv' ? 'gruen' : ''}">${esc(this.t('s_' + stand))}</td><td class="z">${x.status !== 'aktiv' && this._admin ? `<button class="k" data-a="einspielen" data-nr="${x.nr}">${esc(this.t('q_einspielen'))}</button>` : ''}</td></tr>
+${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden'}><td colspan="7"><div class="vgl">${this._vergleich(x)}</div></td></tr>` : ''}`;
     }).join('');
-    return `<div class="tabelle-scroll"><table class="versionen"><tr><th>${esc(this.t('q_version'))}</th><th>${esc(this.t('q_erkannt_ruhig'))}</th><th title="${esc(this.t('q_alltag_t'))}">${esc(this.t('q_alltag_k'))}</th><th>${esc(this.t('q_fehl'))}</th><th>${esc(this.t('q_stand'))}</th><th></th></tr>${zeilen}</table></div>`;
+    return `<div class="tabelle-scroll"><table class="versionen"><tr><th>${esc(this.t('q_version'))}</th><th>${esc(this.t('q_erkannt_ruhig'))}</th><th title="${esc(this.t('q_alltag_t'))}">${esc(this.t('q_alltag_k'))}</th><th title="${esc(this.t('q_schwer_t'))}">${esc(this.t('q_schwer_k'))}</th><th>${esc(this.t('q_fehl'))}</th><th>${esc(this.t('q_stand'))}</th><th></th></tr>${zeilen}</table></div>`;
   }
 
   _vergleich(x) {
     const b = x.bericht || {}, vg = b.vergleich;
     const wert = (k, v) => v == null ? '–' : k.startsWith('fehlausloeser') ? this._zahl(v, 1) : this._pct(v);
-    const name = (z) => z.kennzahl === 'alltag_bei_fa' ? this.t('k_alltag_bei_fa', { fa: this._zahl(z.fa, 1) })
+    const name = (z) => z.kennzahl.endsWith('_bei_fa') ? this.t('k_' + z.kennzahl, { fa: this._zahl(z.fa, 1) })
       : z.kennzahl.startsWith('erkannt_') ? this.t('k_erkannt', { b: this.t('b_' + z.kennzahl.slice(8)) })
         : z.kennzahl === 'schwaechste_person' ? this.t('k_schwaechste_person', { p: z.person || '' }) : this.t('k_' + z.kennzahl);
     const icon = { besser: 'mdi:check-circle', schlechter: 'mdi:close-circle', gleich: 'mdi:approximately-equal' };
     const kopf = this._urteilZeile(b);
-    const tab = vg ? `<table class="vgl-tab"><tr><th>${esc(this.t(b.alt_nr ? 'q_vgl' : 'q_vgl_vorher', { v: b.alt_nr }))}</th><th class="z">${esc(this.t('q_vgl_neu', { v: x.nr }))}</th><th class="z">${esc(b.alt_nr ? 'v' + b.alt_nr : this.t('q_vgl_alt'))}</th><th class="z"></th></tr>${vg.zeilen.map((z) => `<tr class="${z.wichtig ? 'wichtig' : ''}"><td>${esc(name(z))}</td><td class="z">${z.kennzahl === 'alltag_bei_fa' && z.neu == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.neu)}</td><td class="z">${z.kennzahl === 'alltag_bei_fa' && z.alt == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.alt)}</td><td class="z"><ha-icon class="u-${z.urteil}" icon="${icon[z.urteil]}" title="${esc(this.t('u_' + z.urteil))}"></ha-icon></td></tr>`).join('')}</table>
+    const tab = vg ? `<table class="vgl-tab"><tr><th>${esc(this.t(b.alt_nr ? 'q_vgl' : 'q_vgl_vorher', { v: b.alt_nr }))}</th><th class="z">${esc(this.t('q_vgl_neu', { v: x.nr }))}</th><th class="z">${esc(b.alt_nr ? 'v' + b.alt_nr : this.t('q_vgl_alt'))}</th><th class="z"></th></tr>${vg.zeilen.map((z) => `<tr class="${z.wichtig ? 'wichtig' : ''}"><td>${esc(name(z))}</td><td class="z">${z.kennzahl.endsWith('_bei_fa') && z.neu == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.neu)}</td><td class="z">${z.kennzahl.endsWith('_bei_fa') && z.alt == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.alt)}</td><td class="z"><ha-icon class="u-${z.urteil}" icon="${icon[z.urteil]}" title="${esc(this.t('u_' + z.urteil))}"></ha-icon></td></tr>`).join('')}</table>
 <div class="klein" style="margin-top:6px">${esc(this.t('q_vgl_basis', { n: vg.testaufnahmen, h: this._zahl(vg.stunden_rede, 1), g: this._zahl(vg.stunden_geraeusch, 1) }))}</div>` : '';
     const kand = b.kandidaten ? `<div class="klein" style="margin-top:8px">${esc(this.t('g_gewaehlt', { n: b.kandidaten.anzahl, k: b.kandidaten.gewaehlt }))}</div>` : '';
     return kopf + this._duell(b, x.nr) + tab + kand;
@@ -1442,7 +1582,7 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
     const vg = b.vergleich, icon = { besser: 'mdi:check-circle', schlechter: 'mdi:close-circle', gleich: 'mdi:approximately-equal' };
     const zeile = (cls, ic, text) => `<div class="vgl-urteil ${cls}"><ha-icon icon="${ic}"></ha-icon><span>${esc(text)}</span></div>`;
     if (vg) {
-      const liste = (ks) => [...new Set(ks)].map((k) => this.t(k === 'alltag_bei_fa' ? 'k_alltag_kurz' : 'k_' + k)).join(', ');
+      const liste = (ks) => [...new Set(ks)].map((k) => this.t(k === 'alltag_bei_fa' ? 'k_alltag_kurz' : k === 'schwer_bei_fa' ? 'k_schwer_kurz' : 'k_' + k)).join(', ');
       return zeile('u-' + vg.urteil, icon[vg.urteil] || 'mdi:information', this.t('g_' + vg.grund, { k: liste(vg.grund === 'besser_in' ? vg.besser_in : vg.schlechter_in) }));
     }
     if (b.alt === null) return zeile('', 'mdi:information-outline', this.t('g_erste'));
@@ -1457,6 +1597,7 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
     const alltag = n.trefferquote_alltag != null && a.trefferquote_alltag != null;
     const fragen = [
       { titel: alltag ? 'd_hoert_alltag' : 'd_hoert', hin: 'd_mehr', neu: alltag ? n.trefferquote_alltag : n.trefferquote, alt: alltag ? a.trefferquote_alltag : a.trefferquote, pct: true, u: urteil('alltag_bei_fa', 1) },
+      { titel: 'd_hoert_schwer', hin: 'd_mehr', neu: n.trefferquote_schwer, alt: a.trefferquote_schwer, pct: true, u: urteil('schwer_bei_fa', 1) },
       { titel: 'd_fehl_rede', hin: 'd_weniger', neu: n.fehlausloeser_pro_stunde, alt: a.fehlausloeser_pro_stunde, u: urteil('fehlausloeser_rede') },
       { titel: 'd_fehl_geraeusch', hin: 'd_weniger', neu: n.fehlausloeser_geraeusch_pro_stunde, alt: a.fehlausloeser_geraeusch_pro_stunde, u: urteil('fehlausloeser_geraeusch') },
     ].filter((f) => f.neu != null && f.alt != null);
@@ -1473,10 +1614,10 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
   }
 
   // the active version at a glance: how it hears in every condition and, next to it, the duel against the version before
-  _aktivBlick(v, b) {
-    const neu = b.neu || {}, duell = this._duell(b, v.nr);
+  _aktivBlick(v, b, gemessen) {
+    const neu = gemessen || b.neu || {}, duell = this._duell(b, v.nr);
     const rechts = duell ? `<div class="blick-duell"><h3>${esc(this.t(b.alt_nr ? 'd_titel' : 'd_titel_vorher', { a: v.nr, b: b.alt_nr }))}</h3>${this._urteilZeile(b)}${duell}${b.vergleich ? `<button class="link" data-a="vgl_zeigen" data-nr="${v.nr}">${esc(this.t('q_alle_werte'))}<ha-icon icon="mdi:chevron-right"></ha-icon></button>` : ''}</div>` : '';
-    const links = neu.bedingungen ? `<div>${this._lagen(neu.bedingungen)}</div>` : '';
+    const links = neu.bedingungen ? `<div>${this._lagen(neu.bedingungen)}${neu.schwer ? this._lagen(neu.schwer, true) : ''}</div>` : '';
     return links || rechts ? `<div class="blick ${links && rechts ? 'zwei' : ''}">${links}${rechts}</div>` : '';
   }
 
@@ -1489,18 +1630,22 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
 
   _qualitaet() {
     const w = this._daten.wort, s = w.statistik, v = w.versionen.find((x) => x.nr === w.aktiv), b = (v && v.bericht) || {};
-    const neu = b.neu || {}, personen = neu.je_person || {};
+    // a later run measured the active version again in its test (it always tests the active one too): newest figures
+    const frisch = v && w.versionen.find((x) => x.nr > v.nr && x.bericht && x.bericht.alt_nr === v.nr && x.bericht.alt && x.bericht.alt.bedingungen);
+    const neu = frisch ? frisch.bericht.alt : b.neu || {}, personen = neu.je_person || {};
     const sjl = Object.values(w.schwellen || {}), sj = sjl.length ? sjl[0] : null;
     const herkunft = b.herkunft === 'vor der Integration eingespielt' ? this.t('q_herkunft') : b.herkunft;
     return `<ha-card><h2>${esc(this.t('q_aktiv'))} ${v ? 'v' + v.nr : ''}</h2>${v ? `
 <div class="raster" style="margin:0">
 ${neu.trefferquote_alltag != null ? `<div title="${esc(this.t('q_alltag_t'))}"><div class="klein">${esc(this.t('q_alltag_k'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.trefferquote_alltag)}</div></div>` : ''}
+${neu.trefferquote_schwer != null ? `<div title="${esc(this.t('q_schwer_t'))}"><div class="klein">${esc(this.t('q_schwer_k'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.trefferquote_schwer)}</div></div>` : ''}
 <div><div class="klein">${esc(this.t('q_erkennt'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.trefferquote)}</div></div>
 ${neu.bedingungen ? '' : `<div><div class="klein">${esc(this.t('q_musik'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.trefferquote_musik)}</div></div>`}
 <div><div class="klein">${esc(this.t('q_fehl'))}</div><div class="wert" style="font-size:26px">${this._zahl(neu.fehlausloeser_pro_stunde, 1)}</div></div>
 ${neu.fehlausloeser_geraeusch_pro_stunde != null ? `<div><div class="klein">${esc(this.t('q_fehl_geraeusch'))}</div><div class="wert" style="font-size:26px">${this._zahl(neu.fehlausloeser_geraeusch_pro_stunde, 1)}</div></div>` : ''}
 <div><div class="klein">${esc(this.t('q_gegen'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.gegenbeispiele)}</div></div></div>
-${this._aktivBlick(v, b)}
+${frisch ? `<div class="klein" style="margin-top:8px"><ha-icon icon="mdi:refresh" style="--mdc-icon-size:16px"></ha-icon> ${esc(this.t('q_frisch', { z: this._zeit(frisch.zeit), n: frisch.nr }))}</div>` : ''}
+${this._aktivBlick(v, b, frisch ? neu : null)}
 ${Object.keys(personen).length ? `<h3>${esc(this.t('q_je_person'))}</h3><table><tr><th>${esc(this.t('h_person'))}</th><th class="z">${esc(this.t('q_erkannt'))}</th><th class="z">${esc(this.t('q_aufnahmen'))}</th></tr>${Object.entries(personen).map(([p, x]) => `<tr><td>${esc(p)}</td><td class="z">${this._pct(x.trefferquote)}</td><td class="z">${x.anzahl}</td></tr>`).join('')}</table>` : ''}
 <div class="klein" style="margin-top:10px">${esc(this.t('ue_eingespielt', { z: this._zeit(v.eingespielt) }))}${b.cutoff ? ' · ' + esc(this.t('q_modell_schwelle', { w: this._zahl(b.cutoff) })) : ''}${herkunft ? ' · ' + esc(herkunft) : ''}</div>` : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>
 ${this._tabelle()}
@@ -1613,10 +1758,6 @@ ${Object.keys(g.plaetze).map((p) => { const pl = g.plaetze[p], w = wort(pl.wort)
   _einstellungen() {
     const d = this._daten, e = d.einstellungen, tr = d.trainer;
     const basis = tr.adresse || location.origin;
-    const schl = this._zeigeSchl && tr.schluessel ? tr.schluessel : '••••••';
-    const docker = `docker run -d --name wake-word-studio-trainer --restart unless-stopped \\\n  -v wake-word-studio-trainer:/data \\\n  -e HA_URL=${basis} \\\n  -e KEY=${schl} \\\n  ${BILD}`;
-    const dockerGpu = docker.replace('--restart unless-stopped', '--restart unless-stopped --gpus all').replace(BILD, BILD.replace(':latest', ':gpu'));
-    const proxmox = `bash -c "$(curl -fsSL ${PROXMOX})" -- ${basis} ${schl}`;
     if (!this._admin) return `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('es_trainer'))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(tr.online ? this.t('t_trainer_an') : tr.kontakt ? this.t('t_trainer_zuletzt', { z: this._zeit(tr.kontakt) }) : this.t('t_trainer_nie'))}</span></div><p class="klein">${esc(this.t('nur_admin_hinweis'))}</p></ha-card>
 <div class="klein">${esc(this.t('es_info', { v: d.version_integration, a: d.ablage }))}</div>`;
     return `<ha-card><h2>${esc(this.t('es_allgemein'))}</h2>
@@ -1625,14 +1766,12 @@ ${Object.keys(g.plaetze).map((p) => { const pl = g.plaetze[p], w = wort(pl.wort)
 <label class="feld">${esc(this.t('es_erinnerung'))}</label><input type="number" min="0" max="60" data-zopt="erinnerung_tage" value="${e.erinnerung_tage}">
 <label class="feld">${esc(this.t('es_aufbewahren'))}</label><input type="number" min="7" max="365" data-zopt="unbewertet_tage" value="${e.unbewertet_tage}">
 <label class="feld">${esc(this.t('es_personen'))}</label><input type="text" data-zopt="personen" value="${esc((e.personen || []).join(', '))}" placeholder="${esc(d.personen.join(', '))}"></ha-card>
-<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('es_trainer'))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(tr.online ? this.t('t_trainer_an') : tr.kontakt ? this.t('t_trainer_zuletzt', { z: this._zeit(tr.kontakt) }) : this.t('t_trainer_nie'))}</span></div>
+<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('es_trainer'))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(this._trainerStatus())}</span></div>
 <p class="klein" style="line-height:1.5">${esc(this.t('es_trainer_text'))}</p>
-<p class="klein" style="line-height:1.6">${this.t('es_app', { r: esc(REPO) })}</p>
-<p class="klein" style="line-height:1.6">${this.t('es_proxmox')}</p><pre>${esc(proxmox)}</pre>
-<p class="klein" style="line-height:1.6">${this.t('es_docker')}</p><pre>${esc(docker)}</pre>
-<p class="klein" style="line-height:1.6">${this.t('es_docker_gpu')}</p><pre>${esc(dockerGpu)}</pre>
+<h3>${esc(this.t('tr_deine'))}</h3>${this._trainerUebersicht()}
+<h3>${esc(this.t('ei_titel'))}</h3>${this._einrichten(basis)}
 <table><tr><td>${esc(this.t('es_adresse'))}</td><td><code>${esc(basis)}</code></td></tr><tr><td>${esc(this.t('es_schluessel'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="schluessel">${esc(this.t(this._zeigeSchl ? 'es_verbergen' : 'es_zeigen'))}</button><button class="k leise" data-a="schluessel_neu">${esc(this.t('es_neu_schluessel'))}</button></div></td></tr></table>
-${this._steckbrief()}${this._neustartTeil()}</ha-card>
+${this._neustartTeil()}</ha-card>
 ${this._sendenKarte(tr, basis)}
 <ha-card><h2>${esc(this.t('es_ablage'))}</h2><p class="klein" style="line-height:1.6">${this.t('es_ablage_text', { a: esc(d.ablage) })}</p></ha-card>
 <div class="klein">${esc(this.t('es_info', { v: d.version_integration, a: d.ablage }))}</div>`;
@@ -1728,6 +1867,13 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
       } else if (a === 'schluessel') { this._zeigeSchl = !this._zeigeSchl; this._zeichnen(); }
       else if (a === 'schluessel_neu') { if (confirm(this.t('es_neu_frage'))) { await this._api('POST', 'aktion', { aktion: 'schluessel_neu' }); this._zeigeSchl = true; this._laden(); } }
       else if (a === 'log_kopieren') { const w = this._daten.wort, l = (w && w.live) || {}; await this._kopieren((l.protokoll || []).map(([z, art, text]) => `${new Date(z * 1000).toLocaleString()} [${art}] ${text}`).join('\n')); }
+      else if (a === 'ort') { this._ort = t.dataset.ort; this._zeichnen(); }
+      else if (a === 'gpu_wahl') { this._mitGpu = t.checked; this._zeichnen(); }
+      else if (a === 'befehl_kopieren') await this._kopieren(this._befehl(this._ort || 'windows', !!this._mitGpu, this._daten.trainer.adresse || location.origin, true));
+      else if (a === 'trainer_vergessen') {
+        const tn = (this._daten.trainer.liste || []).find((x) => x.id === t.dataset.tid);
+        if (tn && confirm(this.t('tr_vergessen_frage', { n: this._trName(tn) }))) { await this._api('POST', 'aktion', { aktion: 'trainer', trainer: tn.id, vergessen: true }); this._laden(); }
+      }
       else if (a === 'kopieren') await this._kopieren(t.dataset.schl ? (this._daten.trainer || {}).schluessel || '' : t.dataset.text);
       else if (a === 'behalten') { await this._hass.callService('switch', 'turn_on', { entity_id: t.dataset.ent }); this._meldung(this.t('es_senden_behalten_ok')); setTimeout(() => this._laden(), 1500); }
       else if (a === 'seite') {
@@ -1817,12 +1963,16 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
       if (t.dataset.wopt) {
         await this._api('POST', 'aktion', { aktion: 'wort_aendern', wort: this._wortId, einstellungen: { [t.dataset.wopt]: t.checked } });
         this._meldung(this.t('gespeichert'));
+      } else if (t.dataset.tpause) {
+        await this._api('POST', 'aktion', { aktion: 'trainer', trainer: t.dataset.tpause, pause: !t.checked });
+        this._meldung(this.t('gespeichert'));
+        this._laden();
       } else if (t.dataset.zopt) {
         let wert = t.type === 'number' ? Number(t.value) : t.value;
         if (t.dataset.zopt === 'personen') wert = t.value.split(',').map((x) => x.trim()).filter(Boolean);
         await this._api('POST', 'aktion', { aktion: 'einstellungen', einstellungen: { [t.dataset.zopt]: wert } });
         this._meldung(this.t('gespeichert'));
-        if (t.dataset.zopt === 'trainer_neustart') this._laden();
+        if (t.dataset.zopt === 'trainer_neustart' || t.dataset.zopt === 'trainer_wahl') this._laden();
       }
     } catch (err) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(err) })); }
   }

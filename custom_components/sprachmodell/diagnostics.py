@@ -44,6 +44,9 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: SprachC
                 "online": z.trainer_online,
                 "last_contact": z.trainer_kontakt.isoformat() if z.trainer_kontakt else None,
                 "info": z.trainer_info,
+                "all": {tid: {"online": z.ist_online(tid), "paused": z.trainer_pausiert(tid), "info": t["info"]}
+                        for tid, t in z.trainer.items()},
+                "next": z.ziel_trainer(),
             },
             "devices": z.geraete_zustand(),
             "words": woerter,

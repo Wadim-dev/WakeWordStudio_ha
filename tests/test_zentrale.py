@@ -120,9 +120,11 @@ async def test_training_ablauf(hass: HomeAssistant, geladen, geraet) -> None:
         await z.einspielen(w, 99)
     # abbrechen
     z.auftrag(w.id, "nachts")
-    z.trainer_meldet({"wort_id": w.id, "phase": "training"})
+    z.trainer_meldet({"wort_id": w.id, "phase": "training"}, "pc")
     z.abbrechen(w.id)
-    assert z.daten["abbrechen"] == w.id and w.speicher.daten["training"] == {"phase": "bereit"}
+    assert z.daten["abbrechen_bei"] == {w.id: "pc"} and w.speicher.daten["training"] == {"phase": "bereit"}
+    assert z.abbruch_fuer("proxmox") is None  # only the trainer running it is told
+    assert z.abbruch_fuer("pc") == w.id and z.abbruch_fuer("pc") is None
     z.auftrag(w.id, "nachts")
     z.abbrechen(w.id)
     assert z.reihe() == []
