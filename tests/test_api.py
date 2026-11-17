@@ -316,6 +316,10 @@ async def test_clips_vom_geraet(hass: HomeAssistant, hass_client_no_auth, api) -
     assert (await client.get("/api/sprachmodell/clips/ping", headers=kopf)).status == 200
     assert (await client.get("/api/sprachmodell/clips/ping", headers={"Authorization": "Bearer falsch"})).status == 403
     assert (await client.get("/api/sprachmodell/clips/ping")).status == 403
+    # TECHO firmware: base address http://<ha>/api/sprachmodell, the device adds /api/clips(/ping)
+    assert (await client.get("/api/sprachmodell/api/clips/ping", headers=kopf)).status == 200
+    falsch = await client.get("/api/sprachmodell/api/clips/ping", headers={"Authorization": "Bearer x"})
+    assert falsch.status == 403 and (await falsch.json())["error"] == "falscher_schluessel"
 
     def form(meta, audio: bytes) -> aiohttp.FormData:
         f = aiohttp.FormData()
@@ -338,8 +342,10 @@ async def test_clips_vom_geraet(hass: HomeAssistant, hass_client_no_auth, api) -
     assert (await r.json()) == {"ok": True, "stored": "doppelt", "duplicate": True}
     r = await client.post("/api/sprachmodell/clips", headers=kopf, data=form({**meta, "name": "anders"}, wav(ton=1234)))
     assert (await r.json())["stored"] == "doppelt"
+    r = await client.post("/api/sprachmodell/api/clips", headers=kopf, data=form({**meta, "name": "noch"}, wav(ton=4321)))
+    assert (await r.json()) == {"ok": True, "stored": "neu"}
     r = await client.post("/api/sprachmodell/clips", headers=kopf, data=form("kein json", wav()))
-    assert (await r.json())["message"] == "meta_kein_json"
+    assert (await r.json()) == {"ok": False, "error": "meta_kein_json", "message": "meta_kein_json"}
     r = await client.post("/api/sprachmodell/clips", headers=kopf, data=form({"device": "kueche"}, wav()))
     assert (await r.json())["message"] == "meta_unvollstaendig"
     r = await client.post("/api/sprachmodell/clips", headers=kopf, data=form({**meta, "name": "x"}, b"kein wav"))

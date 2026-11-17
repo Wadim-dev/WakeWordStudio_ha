@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.19
+- Devices that send their recordings (TECHO firmware 1.6.43, *Send wake clips to* → *Custom*): the device adds `/api/clips` to the address it is given, so the receiver now also answers at `/api/sprachmodell/api/clips` and `/api/sprachmodell/api/clips/ping`. The address to enter is `http://<home assistant>:8123/api/sprachmodell`, the token is the trainer key. Errors are answered as `{"ok": false, "error": "..."}`, which the device shows.
+- Settings: new card *Devices that send their recordings* with the values to enter on the device.
+
 ## 1.0.18
 - Fix: with a theme whose header is see-through (e.g. glass themes) the page content showed through the Wake Word Studio header and tabs while scrolling. The header now always has a solid base.
 - Fix: the new training steps showed their internal names ("aehnlich_pruefen"); they are now "Listening to similar words" and "Generating more voices (OmniVoice)".
