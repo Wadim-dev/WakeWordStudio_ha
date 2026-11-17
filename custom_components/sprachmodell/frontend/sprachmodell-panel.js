@@ -128,6 +128,7 @@ select,input[type=time],input[type=text],input[type=number]{font:inherit;font-si
 input[type=text]{width:100%;max-width:440px}
 input[type=number]{width:96px}
 label.feld{display:block;margin:14px 0 5px;font-size:13px;color:var(--secondary-text-color)}
+.neustart{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.neustart select{flex:1 1 260px;min-width:0}
 .leer{text-align:center;padding:40px 16px;color:var(--secondary-text-color)}
 .leer ha-icon{--mdc-icon-size:48px;opacity:.5}
 .fortschritt{height:10px;border-radius:5px;background:rgba(var(--rgb-primary-text-color,0,0,0),.08);overflow:hidden;margin:10px 0}
@@ -544,13 +545,28 @@ ${unten}</ha-card>`;
     const ampel = (stufe) => `<span class="punkt" style="background:var(--${['success', 'warning', 'error'][stufe]}-color)"></span>`;
     const zeilen = [];
     const aelter = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let k = 0; k < 3; k++) if ((x[k] || 0) !== (y[k] || 0)) return (x[k] || 0) < (y[k] || 0); return false; };
-    if (i.version) { const alt = aelter(i.version, VERSION); zeilen.push([this.t('sb_version'), 'v' + i.version + (i.art ? ' · ' + (i.art === 'app' ? this.t('sb_app') : 'Docker') : ''), alt ? 1 : 0, alt ? this.t('sb_version_alt', { v: VERSION }) : '']); }
+    if (i.version) { const alt = aelter(i.version, VERSION); zeilen.push([this.t('sb_version'), 'v' + i.version + (i.art ? ' · ' + (i.art === 'app' ? this.t('sb_app') : 'Docker') : ''), alt ? 1 : 0, alt ? this.t(this._daten.einstellungen.trainer_neustart ? 'sb_version_alt_knopf' : 'sb_version_alt', { v: VERSION }) : '']); }
     if (i.cpu) zeilen.push([this.t('sb_kerne'), String(i.cpu) + (i.prozesse ? ' · ' + this.t('sb_prozesse', { n: i.prozesse }) : ''), i.cpu >= 4 ? 0 : i.cpu >= 2 ? 1 : 2, i.cpu >= 4 ? '' : this.t('sb_kerne_wenig')]);
     if (i.ram_gb) zeilen.push([this.t('sb_ram'), this._zahl(i.ram_gb, 1) + ' GB', i.ram_gb >= 6 ? 0 : i.ram_gb >= 4 ? 1 : 2, i.ram_gb >= 6 ? '' : this.t('sb_ram_wenig')]);
     if (i.swap_gb != null) { const q = i.swap_gb ? i.swap_belegt_gb / i.swap_gb : 0; zeilen.push([this.t('sb_swap'), i.swap_gb ? `${this._zahl(i.swap_belegt_gb, 1)} / ${this._zahl(i.swap_gb, 1)} GB` : this.t('sb_swap_kein'), q < 0.25 ? 0 : q < 0.6 ? 1 : 2, q < 0.25 ? '' : this.t('sb_swap_voll')]); }
     if (i.platz_frei_gb != null) zeilen.push([this.t('sb_platte'), this.t('sb_platte_wert', { f: this._zahl(i.platz_frei_gb, 0), g: this._zahl(i.platz_gb, 0) }), i.platz_frei_gb >= 40 ? 0 : i.platz_frei_gb >= 15 ? 1 : 2, i.platz_frei_gb >= 40 ? '' : this.t('sb_platte_wenig')]);
     if (tr.engpass) zeilen.push([this.t('sb_lauf'), this.t('h_tr_engpass_' + tr.engpass), 2, '']);
     return `<h3>${esc(this.t('sb_titel'))}</h3><table class="steckbrief">${zeilen.map(([k, v, st, tipp]) => `<tr><td>${esc(k)}</td><td>${ampel(st)}${esc(v)}${tipp ? `<div class="klein">${esc(tipp)}</div>` : ''}</td></tr>`).join('')}</table>`;
+  }
+
+  // restart the trainer from here: any button entity of Home Assistant that restarts it (Proxmox, Portainer, app ...)
+  _neustartTeil() {
+    const wahl = this._daten.einstellungen.trainer_neustart || '', st = this._hass.states || {};
+    const name = (id) => (st[id] && st[id].attributes.friendly_name) || id;
+    const passt = (id) => /trainer|wake|sprachmodell/i.test(id + ' ' + name(id));
+    const tasten = Object.keys(st).filter((id) => id.startsWith('button.'))
+      .sort((a, b) => (passt(b) - passt(a)) || name(a).localeCompare(name(b)));
+    if (wahl && !tasten.includes(wahl)) tasten.unshift(wahl);
+    const da = wahl && st[wahl] && st[wahl].state !== 'unavailable';
+    return `<h3>${esc(this.t('es_neustart_titel'))}</h3>
+<div class="neustart"><select data-zopt="trainer_neustart" title="${esc(this.t('es_neustart_taste'))}"><option value="">${esc(this.t('es_neustart_keine'))}</option>${tasten.map((id) => `<option value="${esc(id)}" ${id === wahl ? 'selected' : ''}>${esc(name(id))}${name(id) !== id ? ' · ' + esc(id) : ''}</option>`).join('')}</select>
+<button class="k ${da ? 'haupt' : 'leise'}" data-a="trainer_neustart" ${da ? '' : 'disabled'}><ha-icon icon="mdi:restart"></ha-icon>${esc(this.t('es_neustart'))}</button></div>
+<p class="klein" style="line-height:1.5">${esc(this.t(wahl && !st[wahl] ? 'es_neustart_fehlt' : 'es_neustart_hilfe'))}</p>`;
   }
 
   _zentrale() {
@@ -1343,7 +1359,7 @@ ${Object.keys(g.plaetze).map((p) => { const pl = g.plaetze[p], w = wort(pl.wort)
 <p class="klein" style="line-height:1.6">${this.t('es_proxmox')}</p><pre>${esc(proxmox)}</pre>
 <p class="klein" style="line-height:1.6">${this.t('es_docker')}</p><pre>${esc(docker)}</pre>
 <table><tr><td>${esc(this.t('es_adresse'))}</td><td><code>${esc(basis)}</code></td></tr><tr><td>${esc(this.t('es_schluessel'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="schluessel">${esc(this.t(this._zeigeSchl ? 'es_verbergen' : 'es_zeigen'))}</button><button class="k leise" data-a="schluessel_neu">${esc(this.t('es_neu_schluessel'))}</button></div></td></tr></table>
-${this._steckbrief()}</ha-card>
+${this._steckbrief()}${this._neustartTeil()}</ha-card>
 ${this._sendenKarte(tr, basis)}
 <ha-card><h2>${esc(this.t('es_ablage'))}</h2><p class="klein" style="line-height:1.6">${this.t('es_ablage_text', { a: esc(d.ablage) })}</p></ha-card>
 <div class="klein">${esc(this.t('es_info', { v: d.version_integration, a: d.ablage }))}</div>`;
@@ -1423,6 +1439,13 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
       } else if (a === 'einspielen') {
         const nr = Number(t.dataset.nr);
         if (confirm(this.t('q_einspielen_frage', { n: nr }))) { await this._api('POST', 'aktion', { aktion: 'einspielen', wort: this._wortId, nr }); this._meldung(this.t('q_wird', { n: nr })); this._laden(); }
+      } else if (a === 'trainer_neustart') {
+        const ent = this._daten.einstellungen.trainer_neustart;
+        const laeuft = this._daten.woerter.some((w) => LAEUFT.includes((w.training || {}).phase));
+        if (ent && confirm(this.t(laeuft ? 'es_neustart_frage_lauf' : 'es_neustart_frage'))) {
+          await this._hass.callService('button', 'press', { entity_id: ent });
+          this._meldung(this.t('es_neustart_ok'));
+        }
       } else if (a === 'schluessel') { this._zeigeSchl = !this._zeigeSchl; this._zeichnen(); }
       else if (a === 'schluessel_neu') { if (confirm(this.t('es_neu_frage'))) { await this._api('POST', 'aktion', { aktion: 'schluessel_neu' }); this._zeigeSchl = true; this._laden(); } }
       else if (a === 'log_kopieren') { const w = this._daten.wort, l = (w && w.live) || {}; await this._kopieren((l.protokoll || []).map(([z, art, text]) => `${new Date(z * 1000).toLocaleString()} [${art}] ${text}`).join('\n')); }
@@ -1520,6 +1543,7 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
         if (t.dataset.zopt === 'personen') wert = t.value.split(',').map((x) => x.trim()).filter(Boolean);
         await this._api('POST', 'aktion', { aktion: 'einstellungen', einstellungen: { [t.dataset.zopt]: wert } });
         this._meldung(this.t('gespeichert'));
+        if (t.dataset.zopt === 'trainer_neustart') this._laden();
       }
     } catch (err) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(err) })); }
   }

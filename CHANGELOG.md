@@ -3,6 +3,7 @@
 ## 1.0.24
 - Better models again: your real recordings now count more than synthetic ones, and only a fixed share of synthetic clips of the word goes into training (8,000 Piper, 2,400 other-language voices, 4,000 OmniVoice) however large the stock grows. Before, the growing synthetic stock made new versions trigger more often on other things.
 - Night training starts only once enough recordings were newly reviewed since the last run (default 20, *Settings*). A run on almost the same data could not get better.
+- *Restart trainer* under *Settings → Trainer*: choose once the Home Assistant button that restarts your trainer (Proxmox, Portainer, app …), then restart it from the studio; it asks first while a training runs.
 - README images show speech-like waveforms.
 
 ## 1.0.23

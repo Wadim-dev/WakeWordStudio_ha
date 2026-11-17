@@ -57,6 +57,8 @@ STANDARD_ZENTRALE = {
     "erinnerung_tage": 7,
     "unbewertet_tage": 60,
     "personen": [],
+    # a button entity that restarts the trainer (Proxmox, Portainer, app ...), empty = none
+    "trainer_neustart": "",
     "alle_plaetze": False,  # auch Aufnahmen von Plaetzen sammeln, die keinem Wort gehoeren
 }
 
