@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.26
+- Everyday test: every test recording is now also played soft or far away, in another room (reverb), with music and noise, with a TV talking in the background and all at once. False wakes are counted on up to 8 hours of speech (before 3) and, new, on 1 hour of music and noise.
+- Honest comparison: a new version is no longer judged by two numbers. It is compared with the version on the devices on everyday detection at 0.5, 1 and 2 false wakes per hour, false wakes in speech and in music/noise, every condition, similar words and the weakest person – and a difference only counts when it is larger than chance for the size of the test set. Versions that are neither really better nor really worse are shown as *as good*; the version on the devices stays.
+- *Quality → Versions*: tap a version to see the whole comparison (✓ better, ✗ worse, ≈ within chance, bold = part of the decision) and a curve of everyday detection against false wakes for both versions. New columns *Quiet* and *Everyday*.
+- *Active version* shows everyday detection, false wakes in music/noise and a bar per condition.
+- The trainer needs a restart to use the new test (*Settings → Trainer → Restart*).
+
 ## 1.0.25
 - *Other word* on every recording (key **3**, only with two or more words): when one word caught a recording of another (e.g. *hey casita* landed at *hey jarvis*), pick the word that was really said. The recording goes there as *said*, with its trim and person, and stays here as *not said*, so both words learn from it. *Undo* in the toast and in History. The other model's score does not go along, so each word's statistics stay its own. Thanks to Domino85 for the idea.
 - Phones: the recording tiles no longer stick out a few pixels on the right (score line and buttons stay inside the tile).

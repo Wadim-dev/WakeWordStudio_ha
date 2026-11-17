@@ -784,13 +784,16 @@ class Zentrale:
     async def ergebnis(self, wort: Wort, tflite: bytes, bericht: dict[str, Any]) -> dict[str, Any]:
         """Neue Version vom Trainer: ablegen, Lauf merken, wenn besser einspielen."""
         sp = wort.speicher
+        if bericht.get("alt") and sp.daten.get("aktiv"):
+            bericht["alt_nr"] = sp.daten["aktiv"]  # the trainer compared with the version on the devices
         eintrag = await self.hass.async_add_executor_job(sp.version_neu, tflite, bericht)
         besser = bool(bericht.get("besser"))
+        gleich = not besser and (bericht.get("vergleich") or {}).get("urteil") == "gleich"
         lauf = {
             "start": sp.daten["training"].get("start") or bericht.get("start"),
             "ende": jetzt(),
             "version": eintrag["nr"],
-            "ergebnis": "besser" if besser else "nicht_besser",
+            "ergebnis": "besser" if besser else "gleich" if gleich else "nicht_besser",
             "bewertet": bericht.get("bewertet_genutzt", sp.statistik()["bewertet"]),
             "neu": bericht.get("neu"),
             "alt": bericht.get("alt"),
@@ -798,7 +801,8 @@ class Zentrale:
         }
         eintrag["status"] = "geprueft" if besser else "verworfen"
         sp.daten["laeufe"].append(lauf)
-        sp.daten["training"] = {"phase": "fertig", "seit": jetzt(), "version": eintrag["nr"], "besser": besser}
+        sp.daten["training"] = {"phase": "fertig", "seit": jetzt(), "version": eintrag["nr"], "besser": besser,
+                                "gleich": gleich}
         sp.daten["auftrag"] = None
         await self.hass.async_add_executor_job(sp.speichern)
         if besser and wort.cfg.get("automatisch_einspielen"):

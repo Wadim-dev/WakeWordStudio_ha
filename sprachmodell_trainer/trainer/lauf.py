@@ -27,6 +27,7 @@ import yaml
 from .grenzen import kerne
 from .grunddaten import Grunddaten, platz_frei
 from .ha import HA
+from .vergleich import vergleichen
 
 _LOG = logging.getLogger("trainer.lauf")
 
@@ -48,6 +49,9 @@ STIMMEN_PY = os.environ.get("STIMMEN_PY", "/opt/stimmen/bin/python")
 HALTE_TEST = max(10, int(200 * _M))  # von einer zurueckgehaltenen Stimme, nur zum Testen
 FRAMES = 220
 MIN_ECHT_TEST = 5
+# honest test: all speech of the language up to this many hours, plus music and everyday sounds
+TEST_STUNDEN_REDE = 8
+TEST_STUNDEN_GERAEUSCH = 1
 PLATZ_GB = float(os.environ.get("PLATZ_GB", "8"))  # erster Lauf (Grunddaten), danach reichen 3 GB
 
 VOKALE_LATEIN = "aeiouyäöü"
@@ -555,7 +559,7 @@ class Lauf:
         tts = self._stimmen(stimmen, gerede)
         merkmale = self._merkmale(echt, tts, bg, rir, gerede, g)
         tflite = self._training(merkmale, self._schlanke_negative(neg))
-        bericht = self._test(tflite, echt, tts, bg, gerede)
+        bericht = self._test(tflite, echt, tts, bg, gerede, rir)
         self._abschnitt("test", 1, "senden", True)
         try:
             self.ha.ergebnis(self.wort_id, tflite.read_bytes(), bericht)
@@ -931,7 +935,8 @@ class Lauf:
 
     # --- ehrlicher Test -----------------------------------------------------
 
-    def _test(self, tflite: Path, echt: dict, tts: dict, bg: list[Path], gerede: dict[str, Path]) -> dict:
+    def _test(self, tflite: Path, echt: dict, tts: dict, bg: list[Path], gerede: dict[str, Path],
+              rir: Path | None = None) -> dict:
         positiv = echt["wort_test"]
         quelle = "echt"
         if len(positiv) < MIN_ECHT_TEST:
@@ -940,9 +945,15 @@ class Lauf:
         negativ = [a["datei"] for a in echt["kein_test"]] + self._wavs(tts["test_neg"])[:150]
         rede = self._wavs(gerede["test"]) + self._wavs(gerede["dev"])
         random.Random(3).shuffle(rede)
-        musik = sorted(str(p) for p in Path(bg[0]).glob("*.wav"))
-        random.Random(4).shuffle(musik)
-        auftrag = {"positiv": positiv, "negativ": negativ, "gerede": rede, "bg": musik[:300], "max_stunden": 3}
+        # music and everyday sounds (AudioSet) for mixing and for false wakes without speech
+        geraeusche: list[str] = []
+        for ordner in bg[:2]:
+            dateien = sorted(str(p) for p in Path(ordner).glob("*.wav"))
+            random.Random(4).shuffle(dateien)
+            geraeusche += dateien[:300]
+        random.Random(5).shuffle(geraeusche)
+        auftrag = {"positiv": positiv, "negativ": negativ, "gerede": rede, "bg": geraeusche,
+                   "rir": str(rir) if rir else None, "max_stunden": TEST_STUNDEN_REDE, "max_stunden_bg": TEST_STUNDEN_GERAEUSCH}
 
         neu = self._werkzeug_sicher("pruefen", {**auftrag, "modell": str(tflite)}, "test", 0, 0.5, "test_neu")
         alt = None
@@ -957,6 +968,7 @@ class Lauf:
         bericht: dict[str, Any] = {
             "neu": werte_neu, "cutoff": cut_neu, "ziel_fehlausloeser": ziel, "test_quelle": quelle,
             "test_positiv": neu["positiv"], "test_negativ": neu["negativ"], "test_stunden": neu["stunden"],
+            "test_stunden_geraeusch": neu.get("stunden_geraeusch"),
             "je_schwelle": neu["je_schwelle"], "bewertet_genutzt": getattr(self, "bewertet", 0),
             "start": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime(self.start)),
             "dauer_min": round((time.time() - self.start) / 60, 1),
@@ -965,7 +977,13 @@ class Lauf:
         if alt:
             cut_alt, werte_alt = self._schwelle(alt, ziel)
             bericht["alt"] = {**werte_alt, "cutoff": cut_alt}
-            bericht["besser"] = self._besser(werte_neu, werte_alt, ziel)
+            bericht["alt_je_schwelle"] = alt["je_schwelle"]
+            bericht["vergleich"] = vergleichen(neu, alt, cut_neu, cut_alt)
+            bericht["besser"] = bericht["vergleich"]["urteil"] == "besser"
+            v = bericht["vergleich"]
+            self.notiz(f"Comparison with the version on the devices: {v['urteil']} "
+                       f"(better in {', '.join(v['besser_in']) or '-'}, worse in {', '.join(v['schlechter_in']) or '-'})",
+                       "info")
         else:
             bericht["alt"] = None
             bericht["besser"] = True
@@ -984,16 +1002,9 @@ class Lauf:
         w = je[cut]
         return cut, {
             "trefferquote": w["trefferquote"], "trefferquote_musik": w["trefferquote_musik"],
+            "trefferquote_alltag": w.get("trefferquote_alltag"), "bedingungen": w.get("bedingungen"),
+            "fehlausloeser_geraeusch_pro_stunde": None if w.get("fehlausloeser_geraeusch_pro_stunde") is None
+            else round(w["fehlausloeser_geraeusch_pro_stunde"], 2),
             "fehlausloeser_pro_stunde": None if w["fehlausloeser_pro_stunde"] is None else round(w["fehlausloeser_pro_stunde"], 2),
             "gegenbeispiele": w["gegenbeispiele"], "je_person": w["je_person"],
         }
-
-    @staticmethod
-    def _besser(neu: dict, alt: dict, ziel: float) -> bool:
-        tn, ta = neu["trefferquote"] or 0, alt["trefferquote"] or 0
-        fn, fa = neu["fehlausloeser_pro_stunde"] or 0, alt["fehlausloeser_pro_stunde"] or 0
-        if tn >= ta + 0.01 and fn <= max(fa, ziel) * 1.1:
-            return True
-        if tn >= ta - 0.005 and fn < fa * 0.8:
-            return True
-        return False
