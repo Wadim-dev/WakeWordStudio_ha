@@ -167,6 +167,12 @@ async def test_nachts_und_einstellungen(hass: HomeAssistant, geladen) -> None:
     assert z.reihe() == []  # nichts Neues bewertet
     w.speicher.aufnahme_neu({"id": "x", "quelle": "browser", "urteil": "wort"}, wav())
     await z._nachts()
+    assert z.reihe() == []  # one new review is not enough by default (20)
+    await z.einstellungen_setzen({"nachts_min_neu": None})
+    await z._nachts()
+    assert z.reihe() == []  # broken value falls back to the default
+    await z.einstellungen_setzen({"nachts_min_neu": 1})
+    await z._nachts()
     assert z.reihe() == [w.id]
     await hass.async_block_till_done()
 

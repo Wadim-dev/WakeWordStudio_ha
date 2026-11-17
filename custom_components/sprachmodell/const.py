@@ -51,9 +51,14 @@ STANDARD_WORT = {
 # Einstellungen der ganzen Zentrale
 STANDARD_ZENTRALE = {
     "uhrzeit": "02:00",
+    # Train at night only once this many recordings were newly reviewed since the last run: a run on almost the
+    # same data cannot get better, it only costs hours
+    "nachts_min_neu": 20,
     "erinnerung_tage": 7,
     "unbewertet_tage": 60,
     "personen": [],
+    # a button entity that restarts the trainer (Proxmox, Portainer, app ...), empty = none
+    "trainer_neustart": "",
     "alle_plaetze": False,  # auch Aufnahmen von Plaetzen sammeln, die keinem Wort gehoeren
 }
 

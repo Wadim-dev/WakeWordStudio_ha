@@ -40,6 +40,10 @@ NEG_SAETZE = int(8000 * _M)
 OMNI_POS = int(6000 * _M)
 OMNI_NEG = int(3000 * _M)
 OMNI_MIN = float(os.environ.get("OMNI_MIN", "90"))
+# At most this many artificial positives go into training (the stock may be larger)
+KUENSTLICH_POS_EIGEN = int(8000 * _M)
+KUENSTLICH_POS_FREMD = int(2400 * _M)
+KUENSTLICH_OMNI_POS = int(4000 * _M)
 STIMMEN_PY = os.environ.get("STIMMEN_PY", "/opt/stimmen/bin/python")
 HALTE_TEST = max(10, int(200 * _M))  # von einer zurueckgehaltenen Stimme, nur zum Testen
 FRAMES = 220
@@ -754,23 +758,26 @@ class Lauf:
         basis = self.ordner / "merkmale"
         bgs = [str(p) for p in bg] + [str(gerede["train"])]
         wdh_echt = lambda n: max(3, min(40, 3000 // max(1, n)))  # noqa: E731
+        # Artificial voices only help where real recordings are missing: they are capped and weigh less than the
+        # real ones, so the growing stock (Piper + OmniVoice) cannot drown what the devices really heard. Too many
+        # artificial positives make the model trigger on more things (seen 17.11.: false alarms rose with the stock).
+        pos_fremd = [f for k, p in tts.items() if k.startswith("pos_fremd") for f in self._wavs(p)]
         sets: list[tuple[str, list[str], int, bool, bool, float, float]] = [
             # name, dateien, Wiederholungen, wort?, neu bauen?, Gewicht, Strafe
-            ("pos_eigen", self._wavs(tts["pos_eigen"]), 2, True, False, 2.0, 1.0),
-            ("pos_fremd", [f for k, p in tts.items() if k.startswith("pos_fremd") for f in self._wavs(p)],
-             1, True, False, 1.0, 1.0),
+            ("pos_eigen", self._auswahl(self._wavs(tts["pos_eigen"]), KUENSTLICH_POS_EIGEN), 1, True, False, 1.5, 1.0),
+            ("pos_fremd", self._auswahl(pos_fremd, KUENSTLICH_POS_FREMD), 1, True, False, 1.0, 1.0),
             ("neg_aehnlich", self._wavs(tts["neg_aehnlich"]), 1, False, False, 3.0, 2.0),
             ("neg_saetze", self._wavs(tts["neg_saetze"]), 1, False, False, 1.0, 1.5),
-            ("omni_pos", self._wavs(tts["omni_pos"]), 2, True, False, 2.0, 1.0),
+            ("omni_pos", self._auswahl(self._wavs(tts["omni_pos"]), KUENSTLICH_OMNI_POS), 1, True, False, 1.0, 1.0),
             ("omni_neg", self._wavs(tts["omni_neg"]), 1, False, False, 3.0, 2.0),
         ]
         sets = [s for s in sets if s[1]]
         if echt["wort_train"]:
             d = [a["datei"] for a in echt["wort_train"]]
-            sets.append(("echt_wort", d, wdh_echt(len(d)), True, True, 2.0, 1.0))
+            sets.append(("echt_wort", d, wdh_echt(len(d)), True, True, 3.0, 1.0))
         if echt["kein_train"]:
             d = [a["datei"] for a in echt["kein_train"]]
-            sets.append(("echt_kein", d, wdh_echt(len(d)), False, True, 1.5, 3.0))
+            sets.append(("echt_kein", d, wdh_echt(len(d)), False, True, 2.0, 3.0))
         gesamt = sum(len(s[1]) * s[2] for s in sets) or 1
         erledigt = 0
         aus: dict[str, dict] = {}
@@ -830,6 +837,14 @@ class Lauf:
     @staticmethod
     def _wavs(ordner: Path) -> list[str]:
         return sorted(str(p) for p in Path(ordner).glob("*.wav"))
+
+    @staticmethod
+    def _auswahl(dateien: list[str], n: int) -> list[str]:
+        """At most n files, always the same ones for the same stock (so features are not rebuilt every run)."""
+        if len(dateien) <= n:
+            return dateien
+        rnd = random.Random(len(dateien))
+        return sorted(rnd.sample(sorted(dateien), n))
 
     # --- Training -----------------------------------------------------------
 
