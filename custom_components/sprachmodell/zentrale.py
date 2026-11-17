@@ -687,8 +687,12 @@ class Zentrale:
         persistent_notification.async_create(self.hass, text, title=NAME, notification_id=HINWEIS_ID)
 
     async def _nachts(self, _now: Any = None) -> None:
+        try:
+            mindestens = max(1, int(self.opt("nachts_min_neu")))
+        except (TypeError, ValueError):
+            mindestens = int(str(STANDARD_ZENTRALE["nachts_min_neu"]))
         for wort in self.woerter.values():
-            if wort.cfg.get("nachts") and wort.neue_seit_letztem_lauf() > 0:
+            if wort.cfg.get("nachts") and wort.neue_seit_letztem_lauf() >= mindestens:
                 self.auftrag(wort.id, "nachts")
 
     # --- Training ---------------------------------------------------------
