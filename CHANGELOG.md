@@ -1,6 +1,7 @@
 # Changelog
 
 ## Unreleased
+- The question before rolling out a version now says correctly that it reaches the devices after a restart of Home Assistant.
 - No deprecation warning in the Home Assistant log anymore (word devices are linked to the hub without the deprecated device lookup).
 
 ## 1.0.24

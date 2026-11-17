@@ -117,7 +117,7 @@ export const TEXTE = {
     q_legende: 'Grün = Wort gesagt, Rot = nicht gesagt, Strich = jetzige Schwelle, gestrichelt = Vorschlag. Ein Fehlauslöser zählt so schwer wie drei verpasste Worte.', q_legende_hand: 'Nichts ändert sich von selbst.',
     q_keine_werte: 'Noch keine geprüften Aufnahmen mit Wert.', q_versionen: 'Versionen', q_version: 'Version', q_stand: 'Stand',
     s_aktiv: 'aktiv', s_frueher: 'früher', s_geprueft: 'besser, nicht eingespielt', s_verworfen: 'nicht besser', s_neu: 'neu',
-    q_einspielen: 'Einspielen', q_einspielen_frage: 'Version v{n} an den Geräten dieses Worts einspielen? Sie verbinden sich dafür kurz neu.',
+    q_einspielen: 'Einspielen', q_einspielen_frage: 'Version v{n} an den Geräten dieses Worts einspielen? Sie ist nach dem nächsten Neustart von Home Assistant auf den Geräten (eine Reparaturmeldung bietet ihn an).',
     q_schwelle_frage: 'Schwelle an den Geräten dieses Worts auf {w} setzen?', q_schwelle_ok: 'Schwelle gesetzt.', q_wird: 'Version v{n} ist bereit – nach einem Neustart von Home Assistant ist sie auf den Geräten.',
     q_herkunft: 'vor der Zentrale eingespielt',
     // Wort-Einstellungen / Assistent
@@ -268,7 +268,7 @@ export const TEXTE = {
     q_legende: 'Green = word said, red = not said, line = current threshold, dashed = suggestion. One false wake weighs as much as three missed words.', q_legende_hand: 'Nothing changes by itself.',
     q_keine_werte: 'No reviewed recordings with a score yet.', q_versionen: 'Versions', q_version: 'Version', q_stand: 'State',
     s_aktiv: 'active', s_frueher: 'earlier', s_geprueft: 'better, not rolled out', s_verworfen: 'not better', s_neu: 'new',
-    q_einspielen: 'Roll out', q_einspielen_frage: 'Roll out version v{n} to this word’s devices? They reconnect briefly.',
+    q_einspielen: 'Roll out', q_einspielen_frage: 'Roll out version v{n} to this word’s devices? It reaches them after the next restart of Home Assistant (a repair notice offers it).',
     q_schwelle_frage: 'Set the threshold on this word’s devices to {w}?', q_schwelle_ok: 'Threshold set.', q_wird: 'Version v{n} is ready – after a restart of Home Assistant the devices have it.',
     q_herkunft: 'rolled out before the hub',
     w_titel: 'Word', w_text: 'Word (as it is spoken)', w_text_bsp: 'e.g. Hey Lumi, Алиса, Computer',
