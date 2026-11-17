@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.25';
+const VERSION = '1.0.26';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -87,7 +87,7 @@ button.k kbd{font:11px monospace;opacity:.6;border:1px solid currentColor;border
 .stempel.u-wort{background:color-mix(in srgb,var(--success-color,#4caf50) 82%,transparent)}.stempel.u-kein_wort{background:color-mix(in srgb,var(--error-color,#f44336) 82%,transparent)}.stempel.u-verworfen{background:color-mix(in srgb,var(--secondary-text-color,#777) 85%,transparent)}
 @keyframes stempel{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
 .knoepfe button.k.drueck{animation:drueck .35s ease-out}@keyframes drueck{0%{box-shadow:0 0 0 0 rgba(var(--rgb-primary-color,3,169,244),.45)}100%{box-shadow:0 0 0 12px rgba(var(--rgb-primary-color,3,169,244),0)}}
-@media (prefers-reduced-motion:reduce){.eintrag .stempel,.knoepfe button.k.drueck,.umzug{animation:none}}
+@media (prefers-reduced-motion:reduce){.eintrag .stempel,.knoepfe button.k.drueck,.umzug,.lage-balken i,.vgl.auf,.vgl.auf .kurve path,.vgl.auf .kurve circle{animation:none}}
 .spielen{width:52px;height:52px;border-radius:50%;border:0;background:rgba(var(--rgb-primary-color,3,169,244),.15);color:var(--primary-color);cursor:pointer;position:relative}
 .spielen ha-icon{--mdc-icon-size:28px}
 .spielen svg{position:absolute;inset:0;transform:rotate(-90deg)}
@@ -107,6 +107,43 @@ button.k kbd{font:11px monospace;opacity:.6;border:1px solid currentColor;border
 .gehoert{margin:4px 0 2px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .marke{border-radius:999px;padding:1px 8px;background:color-mix(in srgb,var(--primary-color) 14%,transparent);color:var(--primary-text-color);font-size:11px}
 .schnitt:empty{display:none}
+.lagen{display:grid;gap:8px;margin:4px 0 6px}
+.lage{display:grid;grid-template-columns:minmax(110px,190px) 1fr 48px;gap:10px;align-items:center;font-size:13px}
+.lage b{text-align:right;font-weight:500}
+.lage-balken{height:8px;border-radius:4px;background:rgba(var(--rgb-primary-text-color,0,0,0),.08);overflow:hidden}
+.lage-balken i{display:block;height:100%;width:var(--w);border-radius:4px;background:var(--success-color,#4caf50);animation:balken-wachsen .7s cubic-bezier(.2,.8,.3,1) both}
+.lage-balken i.mittel{background:var(--warning-color,#ff9800)}.lage-balken i.schwach{background:var(--error-color,#f44336)}
+@keyframes balken-wachsen{from{width:0}}
+.tabelle-scroll{overflow-x:auto;margin:0 -4px;padding:0 4px}
+table.versionen>tbody>tr>td:nth-child(n+2):nth-child(-n+4),.vgl-tab td.z{white-space:nowrap}
+@media (max-width:600px){table.versionen>tbody>tr>:nth-child(2){display:none}.vgl{padding:10px}.lage{grid-template-columns:minmax(90px,1fr) 1fr 42px}}
+table.versionen tr.klickbar{cursor:pointer;transition:background .15s}
+table.versionen tr.klickbar:hover{background:rgba(var(--rgb-primary-text-color,0,0,0),.04)}
+table.versionen .pfeil{--mdc-icon-size:18px;margin:-2px 2px 0 -4px;color:var(--secondary-text-color);transition:transform .2s}
+table.versionen tr.offen .pfeil{transform:rotate(90deg)}
+table.versionen tr.vdetail>td{padding:0 0 12px;background:transparent}
+.vgl{padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--primary-text-color) 4%,transparent)}
+.vgl.auf{animation:aufklappen .25s cubic-bezier(.2,.8,.3,1) both}
+.vgl-urteil{display:flex;gap:8px;align-items:flex-start;font-size:14px;margin-bottom:10px;line-height:1.4}
+.vgl-urteil ha-icon{--mdc-icon-size:20px;flex:none;color:var(--secondary-text-color)}
+.vgl-urteil.u-besser ha-icon,.vgl-tab .u-besser{color:var(--success-color,#4caf50)}
+.vgl-urteil.u-schlechter ha-icon,.vgl-tab .u-schlechter{color:var(--error-color,#f44336)}
+.vgl-tab .u-gleich{color:var(--secondary-text-color)}
+.vgl-tab td,.vgl-tab th{padding:6px 4px}.vgl-tab ha-icon{--mdc-icon-size:18px}
+.vgl-tab tr.wichtig td:first-child{font-weight:600}
+.kurve{margin-top:12px}.kurve svg{display:block;width:100%;max-width:560px;height:auto;margin-top:6px;overflow:visible}
+.kurve text{font-size:9px;fill:var(--secondary-text-color)}
+.kurve line.g{stroke:var(--divider-color);stroke-width:.6}
+.kurve path{fill:none;stroke-width:2.2;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:0}
+.kurve path.neu{stroke:var(--primary-color)}.kurve path.alt{stroke:var(--secondary-text-color);stroke-width:1.6;opacity:.8}
+.vgl.auf .kurve path{animation:linie-zeichnen .9s cubic-bezier(.4,0,.2,1) both}.vgl.auf .kurve path.alt{animation-delay:.1s}
+.kurve circle.neu{fill:var(--primary-color)}.kurve circle.alt{fill:var(--secondary-text-color)}
+.vgl.auf .kurve circle{animation:punkt-auf .3s ease-out both}
+@keyframes linie-zeichnen{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+@keyframes punkt-auf{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
+.kurve circle{transform-box:fill-box;transform-origin:center}
+.legende{gap:14px;margin-top:4px}.legende i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.legende i.neu{background:var(--primary-color)}.legende i.alt{background:var(--secondary-text-color)}
 .umzug:empty{display:none}
 .umzug{margin-top:10px;padding:10px 12px;border-radius:10px;background:color-mix(in srgb,var(--primary-text-color) 5%,transparent);animation:aufklappen .22s cubic-bezier(.2,.8,.3,1) both}
 .umzug-woerter{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
@@ -252,6 +289,7 @@ table.tb th,table.tb td{border:0;padding:0;vertical-align:middle}
 class SprachmodellPanel extends HTMLElement {
   constructor() {
     super();
+    this._vglOffen = new Set();
     this.attachShadow({ mode: 'open' });
     this._daten = null;
     this._liste = null;
@@ -668,6 +706,17 @@ ${this._andere().length && !a.zu_wort && !a.von_wort ? `<button class="k leise" 
   }
 
   // ---------- Recording of another word ----------
+  _vglUmschalten(nr, zeile) {
+    const det = this.shadowRoot.querySelector(`[data-vgldetail="${nr}"]`);
+    if (!det) return;
+    const auf = det.hidden;
+    if (auf) this._vglOffen.add(nr); else this._vglOffen.delete(nr);
+    zeile.classList.toggle('offen', auf);
+    det.hidden = !auf;
+    const box = det.querySelector('.vgl');
+    if (box) { box.classList.remove('auf'); if (auf) { void box.offsetWidth; box.classList.add('auf'); } }
+  }
+
   _andere() { const d = this._daten; return d && d.woerter ? d.woerter.filter((w) => w.id !== this._wortId) : []; }
 
   _wortMarke(a, pruefen) {
@@ -1195,7 +1244,7 @@ ${l.seiten > 1 ? `<div class="zeile" style="justify-content:center;margin-top:12
   }
 
   // ---------- Training ----------
-  _ergebnisText(e) { return this.t({ eingespielt: 'e_eingespielt', besser: 'e_besser', nicht_besser: 'e_nicht_besser', 'nicht besser': 'e_nicht_besser', fehler: 'e_fehler' }[e] || e); }
+  _ergebnisText(e) { return this.t({ eingespielt: 'e_eingespielt', besser: 'e_besser', nicht_besser: 'e_nicht_besser', 'nicht besser': 'e_nicht_besser', gleich: 'e_gleich', fehler: 'e_fehler' }[e] || e); }
 
   _uhr(sek) { return new Date(sek * 1000).toLocaleTimeString(this._loc, { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
   _spanne(sek) { sek = Math.max(0, Math.round(sek)); const h = Math.floor(sek / 3600), m = Math.floor(sek / 60) % 60, s = sek % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`; }
@@ -1249,7 +1298,7 @@ ${aktiv}${last}
 <ha-card class="${laeuft ? 'laeuft' : ''}"><div class="zeile weit"><h2 style="margin:0">${esc(this.t('p_' + t.phase))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(tr.online ? this.t('t_trainer_an') : tr.kontakt ? this.t('t_trainer_zuletzt', { z: this._zeit(tr.kontakt) }) : this.t('t_trainer_nie'))}</span></div>
 ${laeuft ? `<div class="fortschritt"><i style="width:${t.prozent ?? 3}%"></i></div><div class="zeile weit klein"><span>${esc(this._schritt(t.schritt))}</span><span>${t.prozent != null ? Math.round(t.prozent) + ' %' : ''}${t.restzeit_min != null ? ' · ' + esc(this.t('t_noch', { z: this._dauer(t.restzeit_min) })) : ''}</span></div>${t.restzeit_min != null ? `<div class="klein" style="text-align:right">${esc(this._fertigText(t))}</div>` : ''}${t.start ? `<div class="klein">${esc(this.t('t_gestartet', { z: this._zeit(t.start) }))}</div>` : ''}` : ''}
 ${t.phase === 'wartet' ? `<p class="klein">${esc(this.t('t_auftrag', { g: this.t('grund_' + (t.grund || 'von_hand')) }))} ${esc(tr.online ? this.t('t_holt') : this.t('t_holt_nicht'))} ${platz > 0 ? esc(this.t('t_platz', { n: platz + 1 })) : ''}</p>` : ''}
-${t.phase === 'fertig' && t.version ? `<p>v${t.version}: ${t.besser ? `<span class="gruen">${esc(this.t('t_besser'))}</span>` : `<span class="gelb">${esc(this.t('t_nicht_besser'))}</span>`}.</p>` : ''}
+${t.phase === 'fertig' && t.version ? `<p>v${t.version}: ${t.besser ? `<span class="gruen">${esc(this.t('t_besser'))}</span>` : `<span class="gelb">${esc(this.t(t.gleich ? 't_gleich' : 't_nicht_besser'))}</span>`}.</p>` : ''}
 ${t.phase === 'fehler' ? `<p class="rot">${esc(this._schritt(t.schritt || t.hinweis) || this.t('p_fehler'))}</p>` : ''}
 <div class="zeile" style="margin-top:12px">${laeuft || t.phase === 'wartet' ? `<button class="k schlecht" data-a="abbrechen"><ha-icon icon="mdi:stop"></ha-icon>${esc(this.t('t_abbrechen'))}</button>` : `<button class="k haupt" data-a="trainieren"><ha-icon icon="mdi:play"></ha-icon>${esc(this.t('t_jetzt'))}</button><span class="klein">${esc(w.neu_seit_lauf > 0 ? this.t('t_neue', { n: w.neu_seit_lauf }) : this.t('t_keine_neuen'))}</span>`}</div></ha-card>
 ${this._details(w, laeuft)}
@@ -1290,6 +1339,61 @@ ${summe ? `<div class="tb-rahmen"><table class="tb"><tr><th class="tb-r klein">$
 <div class="zeile klein" style="margin-top:8px;gap:14px">${auffAnz ? `<span><span class="tb-muster auff"></span>${esc(this.t('tb_auff', { n: auffAnz }))}</span>` : `<span class="gruen">${esc(this.t('tb_keine_auff'))}</span>`}${sw != null ? `<span><span class="tb-muster sw"></span>${esc(this.t('tb_schwelle', { w: this._zahl(sw) }))}</span>` : ''}</div>` : `<div class="klein">${esc(this.t('tb_leer'))}</div>`}</ha-card>`;
   }
 
+  _lagen(bed) {
+    return `<h3>${esc(this.t('q_lagen'))}</h3><div class="lagen">${['ruhig', 'leise', 'hall', 'musik', 'gerede', 'alltag'].filter((k) => bed[k] != null).map((k, i) => `<div class="lage"><span>${esc(this.t('b_' + k))}</span><div class="lage-balken"><i style="--w:${Math.round(bed[k] * 100)}%;animation-delay:${i * 60}ms" class="${bed[k] >= 0.85 ? 'gut' : bed[k] >= 0.65 ? 'mittel' : 'schwach'}"></i></div><b>${this._pct(bed[k])}</b></div>`).join('')}</div>`;
+  }
+
+  _versionen(w) {
+    const zeilen = w.versionen.map((x) => {
+      const b = x.bericht || {}, n = b.neu || {}, vg = b.vergleich, offen = this._vglOffen.has(x.nr);
+      const stand = x.status === 'verworfen' && vg && vg.urteil === 'gleich' ? 'gleich' : x.status;
+      const details = b.je_schwelle || vg;
+      return `<tr class="vrow ${details ? 'klickbar' : ''} ${offen ? 'offen' : ''}" ${details ? `data-vgl="${x.nr}" title="${esc(this.t('q_details'))}"` : ''}><td>${details ? '<ha-icon class="pfeil" icon="mdi:chevron-right"></ha-icon>' : ''}v${x.nr}<div class="klein">${this._datum(x.zeit)}</div></td><td>${this._pct(n.trefferquote)}</td><td>${this._pct(n.trefferquote_alltag)}</td><td>${this._zahl(n.fehlausloeser_pro_stunde, 1)}/${esc(this.t('std'))}</td><td class="${x.status === 'aktiv' ? 'gruen' : ''}">${esc(this.t('s_' + stand))}</td><td class="z">${x.status !== 'aktiv' && this._admin ? `<button class="k" data-a="einspielen" data-nr="${x.nr}">${esc(this.t('q_einspielen'))}</button>` : ''}</td></tr>
+${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden'}><td colspan="6"><div class="vgl ${offen ? 'auf' : ''}">${this._vergleich(x)}</div></td></tr>` : ''}`;
+    }).join('');
+    return `<div class="tabelle-scroll"><table class="versionen"><tr><th>${esc(this.t('q_version'))}</th><th>${esc(this.t('q_erkannt_ruhig'))}</th><th title="${esc(this.t('q_alltag_t'))}">${esc(this.t('q_alltag_k'))}</th><th>${esc(this.t('q_fehl'))}</th><th>${esc(this.t('q_stand'))}</th><th></th></tr>${zeilen}</table></div>`;
+  }
+
+  _vergleich(x) {
+    const b = x.bericht || {}, vg = b.vergleich;
+    const wert = (k, v) => v == null ? '–' : k.startsWith('fehlausloeser') ? this._zahl(v, 1) : this._pct(v);
+    const name = (z) => z.kennzahl === 'alltag_bei_fa' ? this.t('k_alltag_bei_fa', { fa: this._zahl(z.fa, 1) })
+      : z.kennzahl.startsWith('erkannt_') ? this.t('k_erkannt', { b: this.t('b_' + z.kennzahl.slice(8)) })
+        : z.kennzahl === 'schwaechste_person' ? this.t('k_schwaechste_person', { p: z.person || '' }) : this.t('k_' + z.kennzahl);
+    const icon = { besser: 'mdi:check-circle', schlechter: 'mdi:close-circle', gleich: 'mdi:approximately-equal' };
+    let kopf = '';
+    if (vg) {
+      const liste = (ks) => [...new Set(ks)].map((k) => this.t(k === 'alltag_bei_fa' ? 'k_alltag_kurz' : 'k_' + k)).join(', ');
+      kopf = `<div class="vgl-urteil u-${vg.urteil}"><ha-icon icon="${icon[vg.urteil] || 'mdi:information'}"></ha-icon><span>${esc(this.t('g_' + vg.grund, { k: liste(vg.grund === 'besser_in' ? vg.besser_in : vg.schlechter_in) }))}</span></div>`;
+    } else if (b.alt === null) kopf = `<div class="vgl-urteil"><ha-icon icon="mdi:information-outline"></ha-icon><span>${esc(this.t('g_erste'))}</span></div>`;
+    const tab = vg ? `<table class="vgl-tab"><tr><th>${esc(this.t(b.alt_nr ? 'q_vgl' : 'q_vgl_vorher', { v: b.alt_nr }))}</th><th class="z">${esc(this.t('q_vgl_neu', { v: x.nr }))}</th><th class="z">${esc(b.alt_nr ? 'v' + b.alt_nr : this.t('q_vgl_alt'))}</th><th class="z"></th></tr>${vg.zeilen.map((z) => `<tr class="${z.wichtig ? 'wichtig' : ''}"><td>${esc(name(z))}</td><td class="z">${z.kennzahl === 'alltag_bei_fa' && z.neu == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.neu)}</td><td class="z">${z.kennzahl === 'alltag_bei_fa' && z.alt == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.alt)}</td><td class="z"><ha-icon class="u-${z.urteil}" icon="${icon[z.urteil]}" title="${esc(this.t('u_' + z.urteil))}"></ha-icon></td></tr>`).join('')}</table>
+<div class="klein" style="margin-top:6px">${esc(this.t('q_vgl_basis', { n: vg.testaufnahmen, h: this._zahl(vg.stunden_rede, 1), g: this._zahl(vg.stunden_geraeusch, 1) }))}</div>` : b.je_schwelle ? `<div class="klein">${esc(this.t('q_vgl_alt_test'))}</div>` : '';
+    return kopf + tab + (b.je_schwelle ? this._kurve(b.je_schwelle, b.alt_je_schwelle, x.nr, b.alt_nr) : '');
+  }
+
+  _kurve(jn, ja, nr, altNr) {
+    const punkte = (je) => Object.entries(je || {}).map(([c, v]) => ({ c: Number(c), fa: v.fehlausloeser_pro_stunde, q: v.trefferquote_alltag != null ? v.trefferquote_alltag : v.trefferquote }))
+      .filter((p) => p.c >= 0.8 && typeof p.fa === 'number' && typeof p.q === 'number').sort((a, b) => a.fa - b.fa || a.q - b.q);
+    // the interesting part is up to a few false wakes per hour; points beyond are left out
+    const grenze = (ps) => ps.filter((p) => p.fa <= 8);
+    const pn = grenze(punkte(jn)), pa = grenze(punkte(ja));
+    if (!pn.length) return '';
+    const alle = [...pn, ...pa];
+    const xmax = Math.max(2, Math.ceil(Math.max(...alle.map((p) => p.fa)))), ymin = Math.max(0, Math.floor(Math.min(...alle.map((p) => p.q)) * 10 - 0.0001) / 10);
+    const W = 320, H = 170, L = 36, R = 10, T = 10, B = 28;
+    const X = (fa) => L + (fa / xmax) * (W - L - R), Y = (q) => T + (1 - (q - ymin) / Math.max(0.05, 1 - ymin)) * (H - T - B);
+    const linie = (ps) => ps.map((p, i) => `${i ? 'L' : 'M'}${X(p.fa).toFixed(1)},${Y(p.q).toFixed(1)}`).join('');
+    const xt = [0, xmax / 2, xmax], yt = [ymin, (ymin + 1) / 2, 1];
+    const gitter = xt.map((v) => `<line class="g" x1="${X(v)}" x2="${X(v)}" y1="${T}" y2="${H - B}"></line><text x="${X(v)}" y="${H - B + 14}" text-anchor="middle">${this._zahl(v, v % 1 ? 1 : 0)}</text>`).join('')
+      + yt.map((v) => `<line class="g" x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}"></line><text x="${L - 5}" y="${Y(v) + 4}" text-anchor="end">${Math.round(v * 100)}</text>`).join('');
+    const kreise = (ps, k) => ps.map((p, i) => `<circle class="${k}" cx="${X(p.fa).toFixed(1)}" cy="${Y(p.q).toFixed(1)}" r="3" style="animation-delay:${300 + i * 40}ms"><title>${this._zahl(p.c)} · ${this._pct(p.q)} · ${this._zahl(p.fa, 1)}/${esc(this.t('std'))}</title></circle>`).join('');
+    return `<div class="kurve"><div class="klein">${esc(this.t('q_kurve'))}</div>
+<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(this.t('q_kurve'))}">${gitter}
+<text x="${(L + W - R) / 2}" y="${H - 2}" text-anchor="middle">${esc(this.t('q_kurve_x'))}</text>
+${pa.length ? `<path class="alt" pathLength="1" d="${linie(pa)}"></path>${kreise(pa, 'alt')}` : ''}<path class="neu" pathLength="1" d="${linie(pn)}"></path>${kreise(pn, 'neu')}</svg>
+<div class="zeile klein legende"><span><i class="neu"></i>v${nr}</span>${pa.length ? `<span><i class="alt"></i>${altNr ? 'v' + altNr : esc(this.t('q_vgl_alt'))}</span>` : ''}<span>${esc(this.t('q_kurve_y'))} %</span></div></div>`;
+  }
+
   _qualitaet() {
     const w = this._daten.wort, s = w.statistik, v = w.versionen.find((x) => x.nr === w.aktiv), b = (v && v.bericht) || {};
     const neu = b.neu || {}, personen = neu.je_person || {};
@@ -1297,10 +1401,13 @@ ${summe ? `<div class="tb-rahmen"><table class="tb"><tr><th class="tb-r klein">$
     const herkunft = b.herkunft === 'vor der Integration eingespielt' ? this.t('q_herkunft') : b.herkunft;
     return `<ha-card><h2>${esc(this.t('q_aktiv'))} ${v ? 'v' + v.nr : ''}</h2>${v ? `
 <div class="raster" style="margin:0">
+${neu.trefferquote_alltag != null ? `<div title="${esc(this.t('q_alltag_t'))}"><div class="klein">${esc(this.t('q_alltag_k'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.trefferquote_alltag)}</div></div>` : ''}
 <div><div class="klein">${esc(this.t('q_erkennt'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.trefferquote)}</div></div>
-<div><div class="klein">${esc(this.t('q_musik'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.trefferquote_musik)}</div></div>
+${neu.bedingungen ? '' : `<div><div class="klein">${esc(this.t('q_musik'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.trefferquote_musik)}</div></div>`}
 <div><div class="klein">${esc(this.t('q_fehl'))}</div><div class="wert" style="font-size:26px">${this._zahl(neu.fehlausloeser_pro_stunde, 1)}</div></div>
+${neu.fehlausloeser_geraeusch_pro_stunde != null ? `<div><div class="klein">${esc(this.t('q_fehl_geraeusch'))}</div><div class="wert" style="font-size:26px">${this._zahl(neu.fehlausloeser_geraeusch_pro_stunde, 1)}</div></div>` : ''}
 <div><div class="klein">${esc(this.t('q_gegen'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.gegenbeispiele)}</div></div></div>
+${neu.bedingungen ? this._lagen(neu.bedingungen) : ''}
 ${Object.keys(personen).length ? `<h3>${esc(this.t('q_je_person'))}</h3><table><tr><th>${esc(this.t('h_person'))}</th><th class="z">${esc(this.t('q_erkannt'))}</th><th class="z">${esc(this.t('q_aufnahmen'))}</th></tr>${Object.entries(personen).map(([p, x]) => `<tr><td>${esc(p)}</td><td class="z">${this._pct(x.trefferquote)}</td><td class="z">${x.anzahl}</td></tr>`).join('')}</table>` : ''}
 <div class="klein" style="margin-top:10px">${esc(this.t('ue_eingespielt', { z: this._zeit(v.eingespielt) }))}${b.cutoff ? ' · ' + esc(this.t('q_modell_schwelle', { w: this._zahl(b.cutoff) })) : ''}${herkunft ? ' · ' + esc(herkunft) : ''}</div>` : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>
 ${this._tabelle()}
@@ -1308,7 +1415,7 @@ ${this._tabelle()}
 <ha-card><h2>${esc(this.t('q_schwelle'))}</h2>${this._verteilung(sj, s.schwelle_vorschlag)}
 ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.schwelle_vorschlag != null ? `<div class="zeile weit" style="margin-top:10px"><span>${this.t('q_vorschlag', { w: this._zahl(s.schwelle_vorschlag) })} ${sj != null ? esc(this.t('q_jetzt', { w: this._zahl(sj) })) : ''}</span><button class="k haupt" data-a="schwelle" data-wert="${s.schwelle_vorschlag}" ${!this._admin || (sj != null && Math.abs(sj - s.schwelle_vorschlag) < 0.005) ? 'disabled' : ''}>${esc(this.t('q_uebernehmen'))}</button></div>` : `<div class="klein">${esc(this.t('q_vorschlag_spaeter'))}</div>`}
 <div class="klein" style="margin-top:8px">${esc(this.t('q_legende'))}${(w.einstellungen || {}).schwelle_automatisch ? '' : ' ' + esc(this.t('q_legende_hand'))}</div></ha-card>
-<ha-card><h2>${esc(this.t('q_versionen'))}</h2>${w.versionen.length ? `<table><tr><th>${esc(this.t('q_version'))}</th><th>${esc(this.t('q_erkannt'))}</th><th>${esc(this.t('q_fehl'))}</th><th>${esc(this.t('q_stand'))}</th><th></th></tr>${w.versionen.map((x) => { const n = (x.bericht && x.bericht.neu) || {}; return `<tr><td>v${x.nr}<div class="klein">${this._datum(x.zeit)}</div></td><td>${this._pct(n.trefferquote)}</td><td>${this._zahl(n.fehlausloeser_pro_stunde, 1)}/${esc(this.t('std'))}</td><td class="${x.status === 'aktiv' ? 'gruen' : ''}">${esc(this.t('s_' + x.status))}</td><td class="z">${x.status !== 'aktiv' && this._admin ? `<button class="k" data-a="einspielen" data-nr="${x.nr}">${esc(this.t('q_einspielen'))}</button>` : ''}</td></tr>`; }).join('')}</table>` : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>`;
+<ha-card><h2>${esc(this.t('q_versionen'))}</h2>${w.versionen.length ? this._versionen(w) : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>`;
   }
 
   _schwelleAuto(s, sj) {
@@ -1475,13 +1582,14 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
 
   // ---------- Ereignisse ----------
   async _klick(e) {
-    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe],[data-zelle],[data-tbecho],[data-schnitt],[data-sa],[data-logfilter],[data-umzug],[data-ziel],[data-zurueck]');
+    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe],[data-zelle],[data-tbecho],[data-schnitt],[data-sa],[data-logfilter],[data-umzug],[data-ziel],[data-zurueck],[data-vgl]');
     if (!t) return;
     if (t.dataset.reiter) { if (t.dataset.reiter === 'neu') this._entwurf = null; this._gehe(t.dataset.reiter, t.dataset.wort); return; }
     if (t.dataset.spielen) { const zeile = t.closest('.eintrag'); if (zeile) { const alle = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')]; this._aktiv = Math.max(0, alle.indexOf(zeile)); this._markieren(false); } this._spielen(t.dataset.spielen); return; }
     if (t.dataset.urteil) { this._urteilen(t.dataset.id, t.dataset.urteil); return; }
     if (t.dataset.schnitt) { this._schnittOeffnen(t.dataset.schnitt); return; }
     if (t.dataset.umzug) { this._umzugOeffnen(t.dataset.umzug); return; }
+    if (t.dataset.vgl && !e.target.closest('button')) { this._vglUmschalten(Number(t.dataset.vgl), t); return; }
     if (t.dataset.zurueck) { this._zurueckholen(this._wortId, t.dataset.zurueck, t.dataset.ziel); return; }
     if (t.dataset.ziel && t.dataset.id) { this._umziehen(t.dataset.id, t.dataset.ziel); return; }
     if (t.dataset.sa) { this._schnittAktion(t.dataset.sa); return; }

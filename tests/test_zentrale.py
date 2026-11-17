@@ -111,6 +111,11 @@ async def test_training_ablauf(hass: HomeAssistant, geladen, geraet) -> None:
     # nicht besser: bleibt
     e2 = await z.ergebnis(w, b"TFL3schlecht", {"besser": False})
     assert e2["status"] == "verworfen" and w.speicher.daten["aktiv"] == 1
+    # as good (difference within chance): stays as well, but says so, and remembers which version it was compared with
+    e3 = await z.ergebnis(w, b"TFL3gleich", {"besser": False, "alt": {"trefferquote": 1.0},
+                                              "vergleich": {"urteil": "gleich", "grund": "gleich", "zeilen": []}})
+    assert e3["status"] == "verworfen" and e3["bericht"]["alt_nr"] == 1
+    assert w.speicher.daten["laeufe"][-1]["ergebnis"] == "gleich" and w.speicher.daten["training"]["gleich"]
     with pytest.raises(ValueError, match="version_fehlt"):
         await z.einspielen(w, 99)
     # abbrechen

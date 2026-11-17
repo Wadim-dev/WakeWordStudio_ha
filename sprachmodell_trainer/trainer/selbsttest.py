@@ -84,9 +84,16 @@ def main() -> None:
 
         ergebnis = lauf._werkzeug_sicher("pruefen", {
             "modell": str(tflite), "positiv": [{"datei": f, "person": "A"} for f in pos[20:]], "negativ": neg_wavs[20:],
-            "gerede": lang, "bg": bg, "max_stunden": 1,
+            "gerede": lang, "bg": bg, "rir": rir, "max_stunden": 1, "max_stunden_bg": 0.05,
         }, "test", 0, 1, "test_neu")
         assert ergebnis["positiv"] == 4 and ergebnis["je_schwelle"], f"test result incomplete: {ergebnis}"
+        punkt = ergebnis["je_schwelle"]["0.97"]
+        assert set(punkt["bedingungen"]) == {"ruhig", "leise", "hall", "musik", "gerede", "alltag"}, punkt
+        assert punkt["fehlausloeser_geraeusch_pro_stunde"] is not None, punkt
+        from .vergleich import vergleichen
+
+        v = vergleichen(ergebnis, ergebnis, 0.97, 0.97)  # the same model against itself: as good
+        assert v["urteil"] == "gleich", v
         print(f"SELBSTTEST test ok ({time.time() - t0:.0f} s)", flush=True)
     print("SELBSTTEST OK", flush=True)
 

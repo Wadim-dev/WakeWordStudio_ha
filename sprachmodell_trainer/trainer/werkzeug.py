@@ -398,16 +398,40 @@ def _verlauf(m, x: np.ndarray) -> np.ndarray:
     return np.convolve(p, np.ones(GLAETTEN) / GLAETTEN, mode="valid")
 
 
+# Everyday conditions of the test. Every model of a run hears exactly the same audio (fixed random seed), so
+# old and new are compared on identical clips.
+BEDINGUNGEN = ("ruhig", "leise", "hall", "musik", "gerede", "alltag")
+
+
+def _ausloesen(m, x: np.ndarray, zuletzt: dict, t0: float, ausloeser: dict) -> None:
+    """Count wake-ups in a long recording per threshold (one wake-up at most every 2 s, like the device)."""
+    p = _verlauf(m, np.concatenate([x, np.zeros(4800, np.int16)]))
+    for c in CUTOFFS:
+        for i in np.nonzero(p >= c)[0]:
+            t = t0 + i * 0.03
+            if t - zuletzt[c] > 2.0:
+                ausloeser[c] += 1
+                zuletzt[c] = t
+
+
 def pruefen(a: dict) -> dict:
-    """a: modell, positiv [{datei, person}], negativ [datei], gerede [datei], bg [datei], max_stunden.
-    Ergebnis je Schwelle: Trefferquote ruhig/mit Musik, Gegenbeispiele ausgeloest, Fehlausloeser pro Stunde."""
+    """a: modell, positiv [{datei, person}], negativ [datei], gerede [datei], bg [datei], rir (folder, optional),
+    max_stunden (speech), max_stunden_bg (music and noise).
+
+    Every real test recording is heard six ways, like at home: quiet room, quietly or from far away (-18 dB), in
+    another room (reverb), with music, with a TV talking in the background, and all at once. Per threshold:
+    hit rate per condition, similar-sounding words that trigger, false wakes per hour of speech and of music/noise
+    (with the counts, so the comparison can tell chance from a real difference)."""
     from microwakeword.inference import Model
 
     m = Model(a["modell"], stride=3)
     rnd = random.Random(1)
     pause = np.zeros(16000, np.int16)
     bg = a.get("bg") or []
-    gesamt = len(a["positiv"]) * 2 + len(a["negativ"]) + max(1, len(a["gerede"]))
+    rede_dateien = a.get("gerede") or []
+    rir = a.get("rir") or ""
+    raeume = sorted(glob.glob(os.path.join(rir, "*.wav")))[:200] if os.path.isdir(rir) else [rir] if rir else []
+    gesamt = len(a["positiv"]) * len(BEDINGUNGEN) + len(a["negativ"]) + max(1, len(rede_dateien)) + 1
     schritt = [0]
 
     def weiter() -> None:
@@ -415,64 +439,106 @@ def pruefen(a: dict) -> dict:
         if schritt[0] % 25 == 0:
             _fortschritt(schritt[0], gesamt)
 
-    def musik(x: np.ndarray, snr: float) -> np.ndarray:
-        if not bg:
+    def stueck(dateien: list[str], n: int) -> np.ndarray:
+        b = _laden(rnd.choice(dateien)).astype(np.float32)
+        if len(b) < n:
+            b = np.tile(b, n // max(1, len(b)) + 1)
+        s = rnd.randrange(0, len(b) - n + 1)
+        return b[s:s + n]
+
+    def mischen(x: np.ndarray, dateien: list[str], snr: float) -> np.ndarray:
+        if not dateien:
             return x
-        b = _laden(rnd.choice(bg)).astype(np.float32)
-        if len(b) < len(x):
-            b = np.tile(b, len(x) // max(1, len(b)) + 1)
-        s = rnd.randrange(0, len(b) - len(x) + 1)
-        b = b[s:s + len(x)]
+        b = stueck(dateien, len(x))
         px = np.mean(x.astype(np.float32) ** 2) + 1e-9
         pb = np.mean(b ** 2) + 1e-9
         return np.clip(x + b * np.sqrt(px / pb / 10 ** (snr / 10)), -32768, 32767).astype(np.int16)
 
-    ruhig, laut, personen = [], [], []
+    def leiser(x: np.ndarray, db: float) -> np.ndarray:
+        return (x.astype(np.float32) * 10 ** (-db / 20)).astype(np.int16)
+
+    def hall(x: np.ndarray) -> np.ndarray:
+        if not raeume:
+            return x
+        import soundfile as sf
+
+        r, _ = sf.read(rnd.choice(raeume), dtype="float32")
+        r = r if r.ndim == 1 else r[:, 0]
+        r = r[: 16000 * 2] / (np.max(np.abs(r)) + 1e-9)
+        y = np.convolve(x.astype(np.float32), r)[: len(x)]
+        # same loudness as before: the room changes the sound, "quiet" is its own condition
+        y *= np.sqrt((np.mean(x.astype(np.float32) ** 2) + 1e-9) / (np.mean(y ** 2) + 1e-9))
+        return np.clip(y, -32768, 32767).astype(np.int16)
+
+    werte: dict[str, list[float]] = {b: [] for b in BEDINGUNGEN}
+    personen = []
     for p in a["positiv"]:
         x = np.concatenate([pause, _laden(p["datei"]), pause])
-        ruhig.append(float(_verlauf(m, x).max()))
-        weiter()
-        laut.append(float(_verlauf(m, musik(x, 5)).max()))
-        weiter()
+        fassungen = {
+            "ruhig": x,
+            "leise": leiser(x, 18),
+            "hall": hall(x),
+            "musik": mischen(x, bg, 5),
+            "gerede": mischen(x, rede_dateien, 5),
+        }
+        fassungen["alltag"] = mischen(leiser(hall(x), 8), bg if rnd.random() < 0.5 else rede_dateien, 10)
+        for b in BEDINGUNGEN:
+            werte[b].append(float(_verlauf(m, fassungen[b]).max()))
+            weiter()
         personen.append(p.get("person") or "")
     gegen = []
     for f in a["negativ"]:
         gegen.append(float(_verlauf(m, np.concatenate([pause, _laden(f), pause])).max()))
         weiter()
+
     ausloeser = {c: 0 for c in CUTOFFS}
     zuletzt = {c: -1e9 for c in CUTOFFS}
-    dauer = 0.0
-    t0 = 0.0
-    for f in a["gerede"]:
+    dauer = t0 = 0.0
+    for f in rede_dateien:
         x = _laden(f)
-        p = _verlauf(m, np.concatenate([x, np.zeros(4800, np.int16)]))
-        for c in CUTOFFS:
-            for i in np.nonzero(p >= c)[0]:
-                t = t0 + i * 0.03
-                if t - zuletzt[c] > 2.0:
-                    ausloeser[c] += 1
-                    zuletzt[c] = t
+        _ausloesen(m, x, zuletzt, t0, ausloeser)
         dauer += len(x) / 16000
         t0 += len(x) / 16000 + 0.3
         weiter()
         if dauer > a.get("max_stunden", 3) * 3600:
             break
-    stunden = max(dauer / 3600, 1e-6)
-    ruhig_a, laut_a, gegen_a = np.array(ruhig), np.array(laut), np.array(gegen)
+    # music and everyday noise without anybody talking: a wake-up here is just as annoying
+    aus_bg = {c: 0 for c in CUTOFFS}
+    zuletzt_bg = {c: -1e9 for c in CUTOFFS}
+    dauer_bg = t0 = 0.0
+    for f in sorted(bg)[: 2000]:
+        x = _laden(f)
+        _ausloesen(m, x, zuletzt_bg, t0, aus_bg)
+        dauer_bg += len(x) / 16000
+        t0 += len(x) / 16000 + 0.3
+        if dauer_bg > a.get("max_stunden_bg", 1) * 3600:
+            break
+    weiter()
+    stunden, stunden_bg = max(dauer / 3600, 1e-6), max(dauer_bg / 3600, 1e-6)
+    arr = {b: np.array(v) for b, v in werte.items()}
+    gegen_a = np.array(gegen)
     je = {}
     for c in CUTOFFS:
         jp: dict[str, list[float]] = {}
-        for wert, person in zip(ruhig, personen):
+        for wert, person in zip(werte["ruhig"], personen):
             if person:
                 jp.setdefault(person, []).append(1.0 if wert >= c else 0.0)
+        bed = {b: float((v >= c).mean()) if len(v) else None for b, v in arr.items()}
         je[str(c)] = {
-            "trefferquote": float((ruhig_a >= c).mean()) if len(ruhig) else None,
-            "trefferquote_musik": float((laut_a >= c).mean()) if len(laut) else None,
+            "trefferquote": bed["ruhig"],
+            "trefferquote_musik": bed["musik"],
+            "trefferquote_alltag": float(np.mean([v for v in bed.values()])) if len(werte["ruhig"]) else None,
+            "bedingungen": bed,
             "gegenbeispiele": float((gegen_a >= c).mean()) if len(gegen) else None,
-            "fehlausloeser_pro_stunde": ausloeser[c] / stunden if a["gerede"] else None,
+            "gegenbeispiele_anzahl": int((gegen_a >= c).sum()),
+            "fehlausloeser_pro_stunde": ausloeser[c] / stunden if rede_dateien else None,
+            "fehlausloeser_anzahl": ausloeser[c],
+            "fehlausloeser_geraeusch_pro_stunde": aus_bg[c] / stunden_bg if dauer_bg else None,
+            "fehlausloeser_geraeusch_anzahl": aus_bg[c],
             "je_person": {k: {"trefferquote": round(float(np.mean(v)), 3), "anzahl": len(v)} for k, v in jp.items()},
         }
-    return {"stunden": round(stunden, 2), "positiv": len(ruhig), "negativ": len(gegen), "je_schwelle": je}
+    return {"stunden": round(stunden, 2), "stunden_geraeusch": round(dauer_bg / 3600, 2), "positiv": len(werte["ruhig"]),
+            "negativ": len(gegen), "je_schwelle": je}
 
 
 def schlank(a: dict) -> dict:
