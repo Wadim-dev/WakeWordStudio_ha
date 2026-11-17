@@ -16,6 +16,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
+from .grenzen import beschleuniger
 from .lauf import Lauf
 
 RATE = 16000
@@ -55,6 +56,11 @@ def main() -> None:
         lang = [_wav(o / "lang" / f"{i}.wav", rnd.normal(0, 0.05, RATE * 30)) for i in range(3)]
 
         lauf = Lauf(_HA(), {"wort_id": "selbsttest", "wort": "Test"}, str(o / "daten"), {"schritte": 40})
+        # graphics card version: the probe must answer (with a card: gpu, without: processor), never hang
+        b = beschleuniger()
+        if b.get("bild") == "gpu" and not b.get("gpu") and lauf.geraet != "cpu":
+            raise RuntimeError("no usable card, but the run does not use the processor")
+        print(f"SELBSTTEST device {lauf.geraet} ({b})", flush=True)
         lauf.ordner.mkdir(parents=True, exist_ok=True)
         m = o / "merkmale"
         for name, dateien in (("pos", pos), ("neg", neg_wavs)):

@@ -61,11 +61,18 @@ STANDARD_ZENTRALE = {
     "personen": [],
     # a button entity that restarts the trainer (Proxmox, Portainer, app ...), empty = none
     "trainer_neustart": "",
-    "alle_plaetze": False,  # auch Aufnahmen von Plaetzen sammeln, die keinem Wort gehoeren
+    "alle_plaetze": False,
+    # where the trainer computes: "auto" = graphics card if the trainer can use one, "cpu" = processor only
+    "geraet": "auto",  # auch Aufnahmen von Plaetzen sammeln, die keinem Wort gehoeren
 }
 
 # Signal an Entitaeten und Seite: Daten haben sich geaendert
 SIGNAL_NEU = f"{DOMAIN}_neu"
+
+# Published trainer image (ghcr.io, anonymous pull token) and how often to look again while it is not there yet
+BILD_TOKEN = "https://ghcr.io/token?scope=repository:wadim-dev/wake-word-studio-trainer:pull"
+BILD_MANIFEST = "https://ghcr.io/v2/wadim-dev/wake-word-studio-trainer/manifests"
+BILD_PRUEFEN_S = 300
 
 # Trainer gilt als verbunden, wenn er sich in dieser Zeit gemeldet hat
 TRAINER_ONLINE_S = 180

@@ -34,6 +34,9 @@ from homeassistant.helpers.event import async_call_later, async_track_state_chan
 from homeassistant.util import slugify
 
 from .const import (
+    BILD_MANIFEST,
+    BILD_PRUEFEN_S,
+    BILD_TOKEN,
     CONF_ORDNER,
     DOMAIN,
     ENGPASS_CPU,
@@ -187,6 +190,8 @@ class Zentrale:
         self.trainer_info: dict[str, Any] = {}
         self._abgeholt: dict[str, float] = {}
         self.version = "0"
+        # is the trainer image of this version published yet? (Docker trainers fetch it on restart)
+        self._bild: dict[str, tuple[bool | None, float]] = {}
         self._sperre = threading.RLock()
         self._weg: list[Any] = []
         self._sammeln_spaeter: CALLBACK_TYPE | None = None
@@ -737,6 +742,46 @@ class Zentrale:
                 return self.woerter[wid]
         return None
 
+    def bild_tag(self) -> str | None:
+        """Image tag a Docker trainer would fetch on restart, None if it needs none (app, already current)."""
+        info = self.trainer_info
+        if info.get("art") != "docker" or not info.get("version") or info["version"] == self.version:
+            return None
+        return self.version + ("-gpu" if (info.get("beschleuniger") or {}).get("bild") == "gpu" else "")
+
+    def bild_bereit(self) -> bool | None:
+        """True/False once known whether the trainer image of this version is on ghcr.io, None if unknown.
+        Checks again every 5 minutes in the background while it is not there yet."""
+        tag = self.bild_tag()
+        if tag is None:
+            return None
+        bereit, zeit = self._bild.get(tag, (None, 0.0))
+        if not bereit and time.monotonic() - zeit > BILD_PRUEFEN_S:
+            self._bild[tag] = (bereit, time.monotonic())
+            self.hass.async_create_task(self._bild_pruefen(tag))
+        return bereit
+
+    async def _bild_pruefen(self, tag: str) -> None:
+        from aiohttp import ClientTimeout
+        from homeassistant.helpers.aiohttp_client import async_get_clientsession
+
+        sitzung, warten = async_get_clientsession(self.hass), ClientTimeout(total=20)
+        try:
+            async with sitzung.get(BILD_TOKEN, timeout=warten) as antwort:
+                token = (await antwort.json())["token"]
+            async with sitzung.head(f"{BILD_MANIFEST}/{tag}", timeout=warten, headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.oci.image.index.v1+json, application/vnd.docker.distribution.manifest.list.v2+json, "
+                          "application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json",
+            }) as antwort:
+                bereit = antwort.status == 200
+        except Exception as err:
+            _LOGGER.debug("Trainer image check failed: %s", err)
+            return
+        self._bild[tag] = (bereit, time.monotonic())
+        if bereit:
+            self.geaendert()
+
     @callback
     def trainer_meldet(self, status: dict[str, Any]) -> None:
         self.trainer_kontakt = datetime.now(UTC)
@@ -800,6 +845,8 @@ class Zentrale:
             "dauer_min": bericht.get("dauer_min"),
             "training_min": bericht.get("training_min"),
             "kandidaten": (bericht.get("kandidaten") or {}).get("anzahl") or 1,
+            "geraet": bericht.get("geraet") or "cpu",
+            "geraet_rueckfall": bool(bericht.get("geraet_rueckfall")),
         }
         eintrag["status"] = "geprueft" if besser else "verworfen"
         sp.daten["laeufe"].append(lauf)

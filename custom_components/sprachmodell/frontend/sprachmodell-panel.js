@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.28';
+const VERSION = '1.0.29';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -212,6 +212,7 @@ pre{display:block;padding:10px;white-space:pre-wrap;margin:6px 0}
 .g-info{display:flex;gap:10px;margin:10px 0 4px 26px;padding:10px 12px;border-radius:10px;background:rgba(var(--rgb-primary-text-color,0,0,0),.04);font-size:13px;line-height:1.6;transition:background .2s}
 .g-info.an{background:rgba(var(--rgb-primary-color,3,169,244),.1)}.g-info>ha-icon{--mdc-icon-size:20px;color:var(--primary-color);flex:none;margin-top:1px}
 .g-info b{font-weight:500;font-size:14px}.g-rat{display:flex;gap:8px;align-items:center;margin-top:2px}.g-rat .punkt{flex:none}
+.g-info>div{min-width:0}.g-info select{max-width:100%;margin:2px 0}
 @media (max-width:600px){.g-info{margin-left:0}}
 .hinweis{padding:10px 12px;border-radius:10px;background:rgba(var(--rgb-warning-color,255,152,0),.12);font-size:14px;margin-bottom:12px;line-height:1.5}
 .hinweis.ok{background:rgba(var(--rgb-success-color,76,175,80),.14)}
@@ -605,7 +606,9 @@ ${unten}</ha-card>`;
     const cpu = i.prozessor ? i.prozessor.replace(/\((R|TM)\)/g, '').replace(/\s+CPU\b/, '').replace(/\s+/g, ' ').trim() : '';
     const hw = [cpu, i.cpu ? this.t('g_kerne', { n: i.cpu }) : '', i.ram_gb ? this._zahl(i.ram_gb, 0) + ' GB' : '',
       karten.length ? karten.map((k) => k.name).join(', ') : (i.prozessor ? this.t('g_keine_grafik') : '')].filter(Boolean).join(' · ');
-    const lauf = (w.laeufe || []).find((l) => l.dauer_min > 0); // newest first
+    // graphics card: only the GPU image of the trainer tries it (start-up probe); "auto" uses it when it works
+    const b = i.beschleuniger || {}, ziel = b.gpu && this._daten.einstellungen.geraet !== 'cpu' ? 'gpu' : 'cpu';
+    const lauf = (w.laeufe || []).find((l) => l.dauer_min > 0 && (l.geraet || 'cpu') === ziel); // newest first
     let einfach = null, gruendlich = null;
     if (lauf) {
       const n = lauf.kandidaten || 1, je = lauf.training_min ? lauf.training_min / n : lauf.dauer_min * 0.42 / n;
@@ -617,17 +620,40 @@ ${unten}</ha-card>`;
     const endeText = ende ? ende.toLocaleTimeString(this._loc, { hour: '2-digit', minute: '2-digit' }) : '';
     // a night run should be done by 7 in the morning (start before noon: the same day, otherwise the next one)
     const spaet = ende && e.nachts && hh * 60 + mm + gruendlich > (hh < 12 ? 7 * 60 : 31 * 60);
-    if (i.cpu && i.cpu < 4) { stufe = 2; rat = this.t('g_rat_wenig'); }
+    if (ziel === 'cpu' && i.cpu && i.cpu < 4) { stufe = 2; rat = this.t('g_rat_wenig'); }
     else if (spaet) { stufe = 1; rat = this.t('g_rat_spaet', { z: endeText }); }
     else if (ende && e.nachts) rat = this.t('g_rat_nachts', { z: endeText });
-    else rat = this.t(i.cpu >= 8 ? 'g_rat_gut' : 'g_rat_nacht_tipp');
+    else rat = this.t(ziel === 'gpu' ? 'g_rat_gpu' : i.cpu >= 8 ? 'g_rat_gut' : 'g_rat_nacht_tipp');
     const zeilen = [
       hw ? `<div><span class="klein">${esc(this.t('g_hardware'))}</span> ${esc(hw)}</div>` : '',
-      einfach != null ? `<div><span class="klein">${esc(this.t('g_dauer'))}</span> ${esc(this.t('g_dauer_wert', { a: this._dauer(einfach), b: this._dauer(gruendlich) }))}</div>` : `<div class="klein">${esc(this.t('g_dauer_allg'))}</div>`,
+      this._geraetZeile(b, nvidia),
+      einfach != null ? `<div><span class="klein">${esc(this.t('g_dauer'))}</span> ${esc(this.t('g_dauer_wert', { a: this._dauer(einfach), b: this._dauer(gruendlich) }))}</div>` : `<div class="klein">${esc(this.t(ziel === 'gpu' ? 'g_dauer_allg_gpu' : 'g_dauer_allg'))}</div>`,
       `<div class="g-rat"><span class="punkt" style="background:var(--${['success', 'warning', 'error'][stufe]}-color)"></span>${esc(rat)}</div>`,
-      nvidia ? `<div class="klein">${esc(this.t('g_nvidia', { n: nvidia.name }))}</div>` : karten.length ? `<div class="klein">${esc(this.t('g_igpu'))}</div>` : '',
+      !nvidia && b.bild !== 'gpu' && karten.length ? `<div class="klein">${esc(this.t('g_igpu'))}</div>` : '',
     ].join('');
     return `<div class="g-info ${e.gruendlich ? 'an' : ''}"><ha-icon icon="mdi:chip"></ha-icon><div><b>${esc(this.t('g_titel'))}</b>${zeilen}</div></div>`;
+  }
+
+  // where the trainer computes, with a choice only when the graphics card really works
+  _geraetZeile(b, nvidia) {
+    const titel = `<span class="klein">${esc(this.t('g_geraet'))}</span> `;
+    if (b.gpu) {
+      const wahl = this._daten.einstellungen.geraet === 'cpu' ? 'cpu' : 'auto';
+      return `<div>${titel}<select data-zopt="geraet" ${this._admin ? '' : 'disabled'}><option value="auto" ${wahl === 'auto' ? 'selected' : ''}>${esc(this.t('g_geraet_gpu', { n: b.name || nvidia?.name || 'GPU' }))}</option><option value="cpu" ${wahl === 'cpu' ? 'selected' : ''}>${esc(this.t('g_geraet_cpu'))}</option></select></div>`;
+    }
+    if (b.bild === 'gpu' && b.pruefe) return `<div>${titel}${esc(this.t('g_geraet_pruefe'))}</div>`;
+    if (b.bild === 'gpu') {
+      const grund = b.grund === 'keine_karte' || !nvidia ? 'g_gpu_keine' : 'g_gpu_nicht';
+      return `<div>${titel}${esc(this.t('g_geraet_cpu'))}<div class="klein" ${b.fehler ? `title="${esc(b.fehler)}"` : ''}>${esc(this.t(grund, { n: nvidia ? nvidia.name : '' }))}</div></div>`;
+    }
+    return nvidia ? `<div>${titel}${esc(this.t('g_geraet_cpu'))}<div class="klein">${esc(this.t('g_nvidia', { n: nvidia.name }))}</div></div>` : '';
+  }
+
+  _gpuKurz(i) {
+    const b = i.beschleuniger || {};
+    if (b.gpu) return this.t(this._daten.einstellungen.geraet === 'cpu' ? 'g_kurz_aus' : 'g_kurz_an');
+    if (b.bild === 'gpu') return this.t(b.pruefe ? 'g_geraet_pruefe' : 'g_kurz_nicht');
+    return (i.grafik || []).some((k) => k.art === 'nvidia') ? this.t('g_nvidia_kurz') : '';
   }
 
   _steckbrief() {
@@ -636,9 +662,9 @@ ${unten}</ha-card>`;
     const ampel = (stufe) => `<span class="punkt" style="background:var(--${['success', 'warning', 'error'][stufe]}-color)"></span>`;
     const zeilen = [];
     const aelter = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let k = 0; k < 3; k++) if ((x[k] || 0) !== (y[k] || 0)) return (x[k] || 0) < (y[k] || 0); return false; };
-    if (i.version) { const alt = aelter(i.version, VERSION); zeilen.push([this.t('sb_version'), 'v' + i.version + (i.art ? ' · ' + (i.art === 'app' ? this.t('sb_app') : 'Docker') : ''), alt ? 1 : 0, alt ? this.t(this._daten.einstellungen.trainer_neustart ? 'sb_version_alt_knopf' : 'sb_version_alt', { v: VERSION }) : '']); }
+    if (i.version) { const alt = aelter(i.version, VERSION); zeilen.push([this.t('sb_version'), 'v' + i.version + (i.art ? ' · ' + (i.art === 'app' ? this.t('sb_app') : 'Docker') : ''), alt ? 1 : 0, alt ? this.t(tr.bild_bereit === false ? 'sb_version_bild_fehlt' : this._daten.einstellungen.trainer_neustart ? 'sb_version_alt_knopf' : 'sb_version_alt', { v: VERSION }) : '']); }
     if (i.prozessor) zeilen.push([this.t('sb_prozessor'), i.prozessor.replace(/\((R|TM)\)/g, '').replace(/\s+CPU\b/, '').replace(/\s+/g, ' ').trim(), 0, '']);
-    if (i.grafik) zeilen.push([this.t('sb_grafik'), i.grafik.length ? i.grafik.map((k) => k.name).join(', ') : this.t('sb_grafik_keine'), 0, i.grafik.some((k) => k.art === 'nvidia') ? this.t('g_nvidia_kurz') : '']);
+    if (i.grafik) zeilen.push([this.t('sb_grafik'), i.grafik.length ? i.grafik.map((k) => k.name).join(', ') : this.t('sb_grafik_keine'), 0, this._gpuKurz(i)]);
     if (i.cpu) zeilen.push([this.t('sb_kerne'), String(i.cpu) + (i.prozesse ? ' · ' + this.t('sb_prozesse', { n: i.prozesse }) : ''), i.cpu >= 4 ? 0 : i.cpu >= 2 ? 1 : 2, i.cpu >= 4 ? '' : this.t('sb_kerne_wenig')]);
     if (i.ram_gb) zeilen.push([this.t('sb_ram'), this._zahl(i.ram_gb, 1) + ' GB', i.ram_gb >= 6 ? 0 : i.ram_gb >= 4 ? 1 : 2, i.ram_gb >= 6 ? '' : this.t('sb_ram_wenig')]);
     if (i.swap_gb != null) { const q = i.swap_gb ? i.swap_belegt_gb / i.swap_gb : 0; zeilen.push([this.t('sb_swap'), i.swap_gb ? `${this._zahl(i.swap_belegt_gb, 1)} / ${this._zahl(i.swap_gb, 1)} GB` : this.t('sb_swap_kein'), q < 0.25 ? 0 : q < 0.6 ? 1 : 2, q < 0.25 ? '' : this.t('sb_swap_voll')]); }
@@ -1352,7 +1378,7 @@ ${this._details(w, laeuft)}
 <div class="zeile"><label><input type="checkbox" data-wopt="gruendlich" ${e.gruendlich ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_gruendlich'))}</label></div>
 ${this._gruendlichInfo(w, e)}
 <p class="klein">${esc(this.t('t_besser_heisst'))}</p></ha-card>
-<ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
+<ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}${l.geraet === 'gpu' || l.geraet_rueckfall ? `<div class="klein">${esc(this.t(l.geraet_rueckfall ? 'l_rueckfall' : 'l_gpu'))}</div>` : ''}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
   }
 
   // ---------- Qualität ----------
@@ -1589,6 +1615,7 @@ ${Object.keys(g.plaetze).map((p) => { const pl = g.plaetze[p], w = wort(pl.wort)
     const basis = tr.adresse || location.origin;
     const schl = this._zeigeSchl && tr.schluessel ? tr.schluessel : '••••••';
     const docker = `docker run -d --name wake-word-studio-trainer --restart unless-stopped \\\n  -v wake-word-studio-trainer:/data \\\n  -e HA_URL=${basis} \\\n  -e KEY=${schl} \\\n  ${BILD}`;
+    const dockerGpu = docker.replace('--restart unless-stopped', '--restart unless-stopped --gpus all').replace(BILD, BILD.replace(':latest', ':gpu'));
     const proxmox = `bash -c "$(curl -fsSL ${PROXMOX})" -- ${basis} ${schl}`;
     if (!this._admin) return `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('es_trainer'))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(tr.online ? this.t('t_trainer_an') : tr.kontakt ? this.t('t_trainer_zuletzt', { z: this._zeit(tr.kontakt) }) : this.t('t_trainer_nie'))}</span></div><p class="klein">${esc(this.t('nur_admin_hinweis'))}</p></ha-card>
 <div class="klein">${esc(this.t('es_info', { v: d.version_integration, a: d.ablage }))}</div>`;
@@ -1603,6 +1630,7 @@ ${Object.keys(g.plaetze).map((p) => { const pl = g.plaetze[p], w = wort(pl.wort)
 <p class="klein" style="line-height:1.6">${this.t('es_app', { r: esc(REPO) })}</p>
 <p class="klein" style="line-height:1.6">${this.t('es_proxmox')}</p><pre>${esc(proxmox)}</pre>
 <p class="klein" style="line-height:1.6">${this.t('es_docker')}</p><pre>${esc(docker)}</pre>
+<p class="klein" style="line-height:1.6">${this.t('es_docker_gpu')}</p><pre>${esc(dockerGpu)}</pre>
 <table><tr><td>${esc(this.t('es_adresse'))}</td><td><code>${esc(basis)}</code></td></tr><tr><td>${esc(this.t('es_schluessel'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="schluessel">${esc(this.t(this._zeigeSchl ? 'es_verbergen' : 'es_zeigen'))}</button><button class="k leise" data-a="schluessel_neu">${esc(this.t('es_neu_schluessel'))}</button></div></td></tr></table>
 ${this._steckbrief()}${this._neustartTeil()}</ha-card>
 ${this._sendenKarte(tr, basis)}

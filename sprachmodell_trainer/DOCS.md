@@ -45,6 +45,10 @@ docker run -d --name wake-word-studio-trainer --restart unless-stopped \
   ghcr.io/wadim-dev/wake-word-studio-trainer:latest
 ```
 
+With an NVIDIA graphics card (RTX 20, 30, 40) use `--gpus all` and the image `ghcr.io/wadim-dev/wake-word-studio-trainer:gpu`.
+It tries the card at start and falls back to the processor if it cannot use it (RTX 50 is not supported by
+TensorFlow yet). This app itself always trains on the processor.
+
 On **Proxmox VE** one line in the Proxmox shell creates its own container that updates itself on every restart:
 
 ```bash

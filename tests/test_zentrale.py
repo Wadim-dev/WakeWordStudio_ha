@@ -415,3 +415,39 @@ async def test_senden_zustand(hass: HomeAssistant, geladen, geraet) -> None:
         "seite": "off", "seite_entitaet": seite, "behalten": "off", "behalten_entitaet": behalten,
         "ip": "192.168.1.44", "status": "unknown", "status_entitaet": status, "offen": "3", "offen_entitaet": offen,
     }
+
+
+async def test_trainer_bild_bereit(hass: HomeAssistant, geladen, aioclient_mock, freezer: FrozenDateTimeFactory) -> None:
+    """A Docker trainer older than the integration: the studio knows whether the new image is published yet."""
+    from custom_components.sprachmodell.const import BILD_MANIFEST, BILD_TOKEN
+
+    z = geladen.runtime_data
+    z.trainer_info = {"art": "app", "version": "0.1"}
+    assert z.bild_tag() is None and z.bild_bereit() is None  # the app builds its own image
+    z.trainer_info = {"art": "docker", "version": z.version}
+    assert z.bild_tag() is None  # already current
+    z.trainer_info = {"art": "docker", "version": "0.1", "beschleuniger": {"bild": "gpu"}}
+    assert z.bild_tag() == z.version + "-gpu"
+    z.trainer_info = {"art": "docker", "version": "0.1"}
+    aioclient_mock.get(BILD_TOKEN, json={"token": "t"})
+    aioclient_mock.head(f"{BILD_MANIFEST}/{z.version}", status=404)
+    assert z.bild_bereit() is None  # unknown until the first answer
+    await hass.async_block_till_done()
+    assert z.bild_bereit() is False
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(BILD_TOKEN, json={"token": "t"})
+    aioclient_mock.head(f"{BILD_MANIFEST}/{z.version}", status=200)
+    assert z.bild_bereit() is False  # not again within 5 minutes
+    await hass.async_block_till_done()
+    assert not aioclient_mock.mock_calls
+    z._bild[z.version] = (False, 0.0)  # 5 minutes later
+    z.bild_bereit()
+    await hass.async_block_till_done()
+    assert z.bild_bereit() is True
+    # no internet: stays as it was
+    z.trainer_info = {"art": "docker", "version": "0.1", "beschleuniger": {"bild": "gpu"}}
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(BILD_TOKEN, exc=TimeoutError())
+    assert z.bild_bereit() is None
+    await hass.async_block_till_done()
+    assert z.bild_bereit() is None

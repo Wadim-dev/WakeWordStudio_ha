@@ -24,7 +24,7 @@ from typing import Any
 
 import yaml
 
-from .grenzen import kerne
+from .grenzen import beschleuniger, kerne
 from .grunddaten import Grunddaten, platz_frei
 from .ha import HA
 from .vergleich import alltag_bei, vergleichen
@@ -264,6 +264,10 @@ class Lauf:
         self.daten = daten
         self.o = optionen
         self.ordner = Path(daten) / "woerter" / self.wort_id
+        # graphics card only in the GPU image, if the start-up probe worked and the user did not choose the processor
+        wunsch = str(auftrag.get("geraet") or "auto")
+        self.geraet = "gpu" if wunsch != "cpu" and beschleuniger().get("gpu") else "cpu"
+        self.geraet_rueckfall = False
         self._stopp = threading.Event()
         self._prozess: subprocess.Popen | None = None
         self._zuletzt = 0.0
@@ -339,7 +343,7 @@ class Lauf:
         for k in [k for k, b in self.balken.items() if jetzt - b["zeit"] > BALKEN_ALT_S]:
             del self.balken[k]
         return {"protokoll": list(self.protokoll), "schritte": self.schritte, "system": auslastung(self.daten),
-                "start": round(self.start), "balken": sorted(self.balken.values(), key=lambda b: b["name"] != self._schritt_name)[:BALKEN_MAX]}
+                "start": round(self.start), "geraet": self.geraet, "balken": sorted(self.balken.values(), key=lambda b: b["name"] != self._schritt_name)[:BALKEN_MAX]}
 
     def balken_setzen(self, name: str, prozent: float, **mehr: Any) -> None:
         """Show (or update) a progress bar in HA; the same name updates the same bar."""
@@ -373,6 +377,9 @@ class Lauf:
                     takt: int | None = None) -> dict:
         self._pruefen()
         umgebung = {**os.environ, "PYTHONPATH": str(Path(__file__).resolve().parent.parent), "TF_CPP_MIN_LOG_LEVEL": "2"}
+        if self.geraet != "gpu":  # hide the card: TensorFlow then computes on the processor
+            umgebung["CUDA_VISIBLE_DEVICES"] = "-1"
+        umgebung["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"  # take card memory as needed, not all of it at once
         if threads or self.o.get("threads"):
             umgebung["TF_NUM_INTRAOP_THREADS"] = umgebung["OMP_NUM_THREADS"] = str(threads or self.o["threads"])
         self.notiz("Running " + " ".join(Path(a).name if "/" in a else a for a in args[1:4]))
@@ -545,6 +552,10 @@ class Lauf:
 
     def _ausfuehren_lauf(self) -> None:
         self.ordner.mkdir(parents=True, exist_ok=True)
+        b = beschleuniger()
+        self.notiz("Training on the graphics card " + str(b.get("name") or "") if self.geraet == "gpu" else
+                   "Training on the processor" + (" (chosen in the studio)" if b.get("gpu") else
+                                                  f" (graphics card not usable: {b.get('grund')})" if b.get("bild") == "gpu" else ""))
         self._abschnitt("vorbereiten", 0, "grunddaten", True)
         g = Grunddaten(self.daten, lambda s: (self._pruefen(), self._abschnitt("vorbereiten", 0.3, s, True)))
         noetig = PLATZ_GB if not (g.o / "neg" / "speech" / "fertig").exists() else min(PLATZ_GB, 3)
@@ -573,6 +584,9 @@ class Lauf:
         training_min = round((time.time() - t_training) / 60, 1)
         bericht = self._test(tflite, echt, tts, bg, gerede, rir, getrennt=wahl is not None)
         bericht["training_min"] = training_min
+        bericht["geraet"] = self.geraet
+        if self.geraet_rueckfall:
+            bericht["geraet_rueckfall"] = True
         if wahl:
             bericht["kandidaten"] = wahl
         self._abschnitt("test", 1, "senden", True)
@@ -943,7 +957,15 @@ class Lauf:
             self._ausfuehren(args, "training", von, bis, text, cwd=str(self.ordner), schritte_gesamt=sum(schritte),
                              threads=None if not stufe else max(1, kerne() >> stufe), takt=cfg["eval_step_interval"])
 
-        self._wiederholen("Training", versuch)
+        try:
+            self._wiederholen("Training", versuch)
+        except RuntimeError as err:
+            if self.geraet != "gpu" or self._stopp.is_set():
+                raise
+            # the card failed during training (driver, card memory ...): the processor finishes the run
+            self.notiz(f"Graphics card failed ({str(err)[-200:]}) - continuing on the processor", "warnung")
+            self.geraet, self.geraet_rueckfall = "cpu", True
+            self._wiederholen("Training", versuch)
         modell = train / MODELL_DATEI
         if not modell.exists():
             raise RuntimeError("Training produced no model")
