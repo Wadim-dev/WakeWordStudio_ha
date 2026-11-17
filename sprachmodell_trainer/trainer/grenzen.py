@@ -270,5 +270,8 @@ def beschleuniger(warten: bool = True) -> dict:
             aus["fehler"] = (lauf.stderr or "")[-300:]
     except (OSError, subprocess.SubprocessError, ValueError) as err:
         aus["fehler"] = str(err)[-300:]
+    if aus.get("grund") == "keine_karte" and any(k["art"] == "nvidia" for k in hardware()["grafik"]):
+        # the card is passed in, but TensorFlow could not load its libraries: a fault of the image, not of the setup
+        aus["grund"] = "nicht_geladen"
     _beschleuniger = {"bild": "gpu", **aus}
     return _beschleuniger
