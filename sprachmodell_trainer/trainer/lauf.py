@@ -27,7 +27,7 @@ import yaml
 from .grenzen import kerne
 from .grunddaten import Grunddaten, platz_frei
 from .ha import HA
-from .vergleich import vergleichen
+from .vergleich import alltag_bei, vergleichen
 
 _LOG = logging.getLogger("trainer.lauf")
 
@@ -52,6 +52,11 @@ MIN_ECHT_TEST = 5
 # honest test: all speech of the language up to this many hours, plus music and everyday sounds
 TEST_STUNDEN_REDE = 8
 TEST_STUNDEN_GERAEUSCH = 1
+# "Thorough": several candidates per run, the best one is kept. Runs of the same recipe differ a lot, so the
+# best of three is usually clearly better than a single one. Chosen on its own check data, never on the test.
+KANDIDATEN_MAX = 3
+WAHL_STUNDEN_REDE = 1
+WAHL_STUNDEN_GERAEUSCH = 0.25
 PLATZ_GB = float(os.environ.get("PLATZ_GB", "8"))  # erster Lauf (Grunddaten), danach reichen 3 GB
 
 VOKALE_LATEIN = "aeiouyäöü"
@@ -558,8 +563,18 @@ class Lauf:
         echt = self._echte_aufnahmen()
         tts = self._stimmen(stimmen, gerede)
         merkmale = self._merkmale(echt, tts, bg, rir, gerede, g)
-        tflite = self._training(merkmale, self._schlanke_negative(neg))
-        bericht = self._test(tflite, echt, tts, bg, gerede, rir)
+        schlank = self._schlanke_negative(neg)
+        t_training = time.time()
+        anzahl = max(1, min(KANDIDATEN_MAX, int(self.auftrag.get("kandidaten") or 1)))
+        if anzahl > 1:
+            tflite, wahl = self._kandidaten(anzahl, merkmale, schlank, tts, bg, gerede, rir)
+        else:
+            tflite, wahl = self._training(merkmale, schlank), None
+        training_min = round((time.time() - t_training) / 60, 1)
+        bericht = self._test(tflite, echt, tts, bg, gerede, rir, getrennt=wahl is not None)
+        bericht["training_min"] = training_min
+        if wahl:
+            bericht["kandidaten"] = wahl
         self._abschnitt("test", 1, "senden", True)
         try:
             self.ha.ergebnis(self.wort_id, tflite.read_bytes(), bericht)
@@ -879,8 +894,9 @@ class Lauf:
         self.notiz(f"Evaluation uses up to {max_proben} samples per set and {max_frames // 6000} min of ambient audio")
         return aus
 
-    def _training(self, merkmale: dict[str, dict], neg: dict[str, Path]) -> Path:
-        train = self.ordner / "train"
+    def _training(self, merkmale: dict[str, dict], neg: dict[str, Path], train: Path | None = None,
+                  von: float = 0.0, bis: float = 1.0, nr: str = "") -> Path:
+        train = train or self.ordner / "train"
         weiter = (train / "restore").exists() and not self.o.get("schritte")
         self.weiter = weiter
         if weiter:
@@ -912,8 +928,8 @@ class Lauf:
         }
         datei = self.ordner / "training.yaml"
         datei.write_text(yaml.dump(cfg), encoding="utf-8")
-        text = "weitertrainieren" if weiter else "training"
-        self._abschnitt("training", 0, text, True, schritte=sum(schritte))
+        text = f"kandidat:{nr}" if nr else "weitertrainieren" if weiter else "training"
+        self._abschnitt("training", von, text, True, schritte=sum(schritte))
         args = [sys.executable, "-m", "microwakeword.model_train_eval", f"--training_config={datei}",
                 "--train", "1", "--restore_checkpoint", "1",
                 "--test_tf_nonstreaming", "0", "--test_tflite_nonstreaming", "0",
@@ -924,7 +940,7 @@ class Lauf:
                 cfg["batch_size"] = 128 >> stufe
                 datei.write_text(yaml.dump(cfg), encoding="utf-8")
                 self.notiz(f"Training with batch size {cfg['batch_size']}")
-            self._ausfuehren(args, "training", 0, 1, text, cwd=str(self.ordner), schritte_gesamt=sum(schritte),
+            self._ausfuehren(args, "training", von, bis, text, cwd=str(self.ordner), schritte_gesamt=sum(schritte),
                              threads=None if not stufe else max(1, kerne() >> stufe), takt=cfg["eval_step_interval"])
 
         self._wiederholen("Training", versuch)
@@ -933,17 +949,67 @@ class Lauf:
             raise RuntimeError("Training produced no model")
         return modell
 
+    def _kandidaten(self, anzahl: int, merkmale: dict[str, dict], neg: dict[str, Path], tts: dict,
+                    bg: list[Path], gerede: dict[str, Path], rir: Path | None) -> tuple[Path, dict]:
+        """Train several candidates and keep the one that hears best in everyday conditions at about one false
+        wake per hour. They are compared on check data of their own (held-out synthetic voice, FLEURS dev speech,
+        other music/noise files), so the honest test afterwards stays untouched and does not flatter the choice."""
+        basis = self.ordner / "train"
+        ordner = []
+        for k in range(anzahl):
+            ziel = self.ordner / f"train_{k + 1}"
+            shutil.rmtree(ziel, ignore_errors=True)
+            if (basis / "restore").exists():
+                shutil.copytree(basis, ziel)  # every candidate continues from the version before
+            self._pruefen()
+            self.notiz(f"Candidate {k + 1} of {anzahl}")
+            self._training(merkmale, neg, ziel, 0.97 * k / anzahl, 0.97 * (k + 1) / anzahl, f"{k + 1}/{anzahl}")
+            ordner.append(ziel)
+        pos = self._wavs(tts["test_pos"])[1::2]
+        negativ = self._wavs(tts["test_neg"])[1::2]
+        rede = self._wavs(gerede["dev"])
+        geraeusche: list[str] = []
+        for o in bg[:2]:
+            dateien = sorted(str(p) for p in Path(o).glob("*.wav"))
+            random.Random(4).shuffle(dateien)
+            geraeusche += dateien[300:400]  # the test uses the first 300 of each
+        auftrag = {"positiv": [{"datei": f, "person": ""} for f in pos], "negativ": negativ, "gerede": rede,
+                   "bg": geraeusche, "rir": str(rir) if rir else None, "max_stunden": WAHL_STUNDEN_REDE,
+                   "max_stunden_bg": WAHL_STUNDEN_GERAEUSCH}
+        werte = []
+        for k, o in enumerate(ordner):
+            e = self._werkzeug_sicher("pruefen", {**auftrag, "modell": str(o / MODELL_DATEI)}, "training",
+                                      0.97 + 0.03 * k / anzahl, 0.97 + 0.03 * (k + 1) / anzahl, "kandidat_pruefen")
+            je = e["je_schwelle"]
+            fa = min((v.get("fehlausloeser_anzahl") or 0 for v in je.values()), default=0)
+            werte.append({"nr": k + 1, "alltag": alltag_bei(je, 1.0, e.get("stunden")),
+                          "fehlausloeser_min": fa})
+        # best everyday hit rate at about one false wake per hour; a tie goes to fewer false wakes
+        beste = max(range(anzahl), key=lambda i: ((werte[i]["alltag"] or 0.0), -werte[i]["fehlausloeser_min"]))
+        self.notiz("Candidates: " + ", ".join(
+            f"{w['nr']}: {'-' if w['alltag'] is None else round(100 * w['alltag'])} %" for w in werte)
+            + f" - kept {beste + 1}")
+        # the winner becomes the base of the next run
+        shutil.rmtree(basis, ignore_errors=True)
+        shutil.move(str(ordner[beste]), str(basis))
+        for i, o in enumerate(ordner):
+            if i != beste:
+                shutil.rmtree(o, ignore_errors=True)
+        return basis / MODELL_DATEI, {"anzahl": anzahl, "gewaehlt": beste + 1, "werte": werte}
+
     # --- ehrlicher Test -----------------------------------------------------
 
     def _test(self, tflite: Path, echt: dict, tts: dict, bg: list[Path], gerede: dict[str, Path],
-              rir: Path | None = None) -> dict:
+              rir: Path | None = None, getrennt: bool = False) -> dict:
+        """getrennt: candidates were chosen on the odd synthetic clips and FLEURS dev, so the test leaves those out."""
+        halb = slice(0, None, 2) if getrennt else slice(None)
         positiv = echt["wort_test"]
         quelle = "echt"
         if len(positiv) < MIN_ECHT_TEST:
             quelle = "kuenstlich"
-            positiv = positiv + [{"datei": f, "person": ""} for f in self._wavs(tts["test_pos"])[:150]]
-        negativ = [a["datei"] for a in echt["kein_test"]] + self._wavs(tts["test_neg"])[:150]
-        rede = self._wavs(gerede["test"]) + self._wavs(gerede["dev"])
+            positiv = positiv + [{"datei": f, "person": ""} for f in self._wavs(tts["test_pos"])[halb][:150]]
+        negativ = [a["datei"] for a in echt["kein_test"]] + self._wavs(tts["test_neg"])[halb][:150]
+        rede = self._wavs(gerede["test"]) + ([] if getrennt else self._wavs(gerede["dev"]))
         random.Random(3).shuffle(rede)
         # music and everyday sounds (AudioSet) for mixing and for false wakes without speech
         geraeusche: list[str] = []

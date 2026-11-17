@@ -798,6 +798,8 @@ class Zentrale:
             "neu": bericht.get("neu"),
             "alt": bericht.get("alt"),
             "dauer_min": bericht.get("dauer_min"),
+            "training_min": bericht.get("training_min"),
+            "kandidaten": (bericht.get("kandidaten") or {}).get("anzahl") or 1,
         }
         eintrag["status"] = "geprueft" if besser else "verworfen"
         sp.daten["laeufe"].append(lauf)

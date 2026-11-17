@@ -95,6 +95,13 @@ def main() -> None:
         v = vergleichen(ergebnis, ergebnis, 0.97, 0.97)  # the same model against itself: as good
         assert v["urteil"] == "gleich", v
         print(f"SELBSTTEST test ok ({time.time() - t0:.0f} s)", flush=True)
+
+        # "thorough": two candidates, compared on their own check data, the winner becomes the base model
+        tts = {"test_pos": o / "pos", "test_neg": o / "neg"}
+        bester, wahl = lauf._kandidaten(2, merkmale, neg, tts, [o / "bg"], {"dev": o / "lang"}, Path(rir))
+        assert bester.exists() and wahl["gewaehlt"] in (1, 2) and len(wahl["werte"]) == 2, wahl
+        assert not (lauf.ordner / "train_1").exists() and not (lauf.ordner / "train_2").exists()
+        print(f"SELBSTTEST candidates ok ({time.time() - t0:.0f} s, kept {wahl['gewaehlt']})", flush=True)
     print("SELBSTTEST OK", flush=True)
 
 

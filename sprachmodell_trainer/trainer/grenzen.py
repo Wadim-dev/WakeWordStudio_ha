@@ -168,3 +168,50 @@ def steckbrief(platz_pfad: str) -> dict:
     except OSError:
         pass
     return aus
+
+
+def hardware() -> dict:
+    """Processor name and graphics cards the trainer can see, for the advice on the Training page.
+
+    NVIDIA: /dev/nvidia0 (passed into the container) and the name from nvidia-smi or /proc/driver. Intel/AMD:
+    render devices under /sys/class/drm with their vendor; they cannot speed up this training."""
+    import glob
+    import subprocess
+
+    aus: dict = {}
+    try:
+        with open("/proc/cpuinfo", encoding="utf-8") as datei:
+            for zeile in datei:
+                if zeile.startswith("model name"):
+                    aus["prozessor"] = " ".join(zeile.split(":", 1)[1].split())[:80]
+                    break
+    except OSError:
+        pass
+    karten: list[dict] = []
+    if os.path.exists("/dev/nvidia0"):
+        name = "NVIDIA"
+        try:
+            ausgabe = subprocess.run(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
+                                     capture_output=True, text=True, timeout=10, check=False).stdout.strip()
+            if ausgabe:
+                name = ausgabe.splitlines()[0][:80]
+        except (OSError, subprocess.SubprocessError):
+            for info in glob.glob("/proc/driver/nvidia/gpus/*/information"):
+                try:
+                    for zeile in open(info, encoding="utf-8"):
+                        if zeile.startswith("Model:"):
+                            name = zeile.split(":", 1)[1].strip()[:80]
+                except OSError:
+                    pass
+        karten.append({"art": "nvidia", "name": name})
+    hersteller = {"0x8086": "intel", "0x1002": "amd", "0x10de": "nvidia"}
+    for karte in sorted(glob.glob("/sys/class/drm/renderD*/device/vendor")):
+        try:
+            art = hersteller.get(open(karte, encoding="utf-8").read().strip())
+        except OSError:
+            continue
+        if art and art != "nvidia" and not any(k["art"] == art for k in karten):
+            karten.append({"art": art, "name": "AMD graphics" if art == "amd" else "Intel graphics"})
+    aus["grafik"] = karten
+    return aus
+
