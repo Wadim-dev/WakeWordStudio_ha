@@ -144,6 +144,7 @@ def _zentrale_daten(z: Zentrale, admin: bool) -> dict[str, Any]:
             "info": z.trainer_info,
             "last": z.trainer_last(),
             "engpass": z.engpass(),
+            "bild_bereit": z.bild_bereit(),
             "schluessel": z.schluessel if admin else None,
             "adresse": _interne_adresse(z.hass),
         },
@@ -440,6 +441,7 @@ class TrainerAuftrag(_TrainerAnsicht):
                 "anzeige": wort.anzeige,
                 "aktiv": wort.speicher.daten["aktiv"],
                 "kandidaten": 3 if wort.cfg.get("gruendlich") else 1,
+                "geraet": z.opt("geraet"),
             }
         vorpruefen = []
         if auftrag is None and not any(w.speicher.daten["training"].get("phase") in LAEUFT for w in z.woerter.values()):

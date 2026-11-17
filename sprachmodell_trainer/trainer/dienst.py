@@ -11,7 +11,7 @@ import time
 import traceback
 
 from . import __version__
-from .grenzen import hardware, kerne, prozesse, ram_gb, steckbrief
+from .grenzen import beschleuniger, hardware, kerne, prozesse, ram_gb, steckbrief
 from .ha import HA
 from .lauf import Abgebrochen, Lauf
 
@@ -43,6 +43,7 @@ def info() -> dict:
         "art": "app" if os.environ.get("SUPERVISOR_TOKEN") and not os.environ.get("HA_URL") else "docker",
         **steckbrief(os.environ.get("DATEN", "/data")),
         **hardware(),
+        "beschleuniger": beschleuniger(warten=False),
     }
 
 
@@ -123,6 +124,17 @@ def main() -> None:
     daten = os.environ.get("DATEN", "/data")
     os.makedirs(daten, exist_ok=True)
     _LOG.info("Wake Word Studio Trainer %s starting, data in %s", __version__, daten)
+    if os.environ.get("TRAINER_BILD") == "gpu":  # try the graphics card once, in the background
+
+        def _probe() -> None:
+            b = beschleuniger()
+            if b.get("gpu"):
+                _LOG.info("Training on the graphics card %s (compute capability %s)", b.get("name"), b.get("cc"))
+            else:
+                _LOG.warning("Graphics card not usable for training (%s), using the processor: %s",
+                             b.get("grund"), b.get("fehler", ""))
+
+        threading.Thread(target=_probe, daemon=True).start()
     lauf: Lauf | None = None
     faden: threading.Thread | None = None
     # Erste Meldung nach dem Start: ein Lauf, den HA noch fuer aktiv haelt, ist verloren (Absturz, Neustart)

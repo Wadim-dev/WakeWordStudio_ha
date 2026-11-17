@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.29
+- Graphics card version of the trainer (NVIDIA, Docker image `:gpu`, start with `--gpus all`; Linux with the NVIDIA Container Toolkit or Windows with Docker Desktop). At start the trainer tries the card once: if it works, training runs on it, otherwise on the processor, so the `:gpu` image never does worse than the normal one. TensorFlow 2.21 supports cards up to the RTX 40 series; RTX 50 (Blackwell) is not supported by it yet and falls back to the processor. Test reports with real cards welcome.
+- *Training → Automatic* shows where the trainer computes: with a working card a choice *Graphics card (automatic) / Processor only*, otherwise the reason (card not passed in, card not supported, being tested). Durations are estimated per device.
+- Each run in the list says *Graphics card* when it ran there, or *Graphics card failed, processor* if the card failed during the run and the processor finished it.
+- Profile: the graphics card row says whether it is used for training.
+- Version check: if a Docker or Proxmox trainer is older than the integration, the profile says whether the new trainer image is already published (it is built about 30 minutes after a release), so a restart does not silently fetch the old version.
+- *Settings → Trainer* shows the Docker command for the graphics card version.
+
 ## 1.0.28
 - *Thorough* (Training → Automatic, off by default): each run trains three candidates and keeps the one that hears best in everyday conditions at about one false wake per hour. They are compared on check data of their own (held-out synthetic voice, FLEURS dev speech, other music/noise files), never on the test, so the honest test stays untouched; with *Thorough* the test leaves those check clips out. The winner is the base for the next run. A run takes about two to three times as long.
 - Estimate for your trainer right under the switch: processor, cores, memory, graphics card, how long a normal and a thorough run take on it (from the last run) and whether a night run is done by 7 in the morning.

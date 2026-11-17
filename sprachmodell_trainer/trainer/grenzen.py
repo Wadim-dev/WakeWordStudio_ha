@@ -176,6 +176,7 @@ def hardware() -> dict:
     NVIDIA: /dev/nvidia0 (passed into the container) and the name from nvidia-smi or /proc/driver. Intel/AMD:
     render devices under /sys/class/drm with their vendor; they cannot speed up this training."""
     import glob
+    import shutil
     import subprocess
 
     aus: dict = {}
@@ -188,7 +189,8 @@ def hardware() -> dict:
     except OSError:
         pass
     karten: list[dict] = []
-    if os.path.exists("/dev/nvidia0"):
+    # /dev/nvidia0: Linux with the NVIDIA container toolkit; /dev/dxg: Docker Desktop on Windows (WSL2)
+    if os.path.exists("/dev/nvidia0") or (os.path.exists("/dev/dxg") and shutil.which("nvidia-smi")):
         name = "NVIDIA"
         try:
             ausgabe = subprocess.run(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
@@ -215,3 +217,58 @@ def hardware() -> dict:
     aus["grafik"] = karten
     return aus
 
+
+
+# The GPU image sets TRAINER_BILD=gpu. Whether TensorFlow can really train on the card is only known after trying:
+# a card can be found but not supported (e.g. RTX 50: TensorFlow 2.21 ships GPU code up to compute capability 9.0).
+_PROBE = r"""
+import json, os
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+try:
+    import tensorflow as tf
+    karten = tf.config.list_physical_devices("GPU")
+    if not karten:
+        print(json.dumps({"gpu": False, "grund": "keine_karte"}))
+    else:
+        d = tf.config.experimental.get_device_details(karten[0])
+        with tf.device("/GPU:0"):
+            x = tf.random.normal((8, 49, 40, 1))
+            y = tf.keras.layers.Conv2D(8, 3)(x)
+            z = float(tf.reduce_sum(tf.matmul(tf.reshape(y, (8, -1)), tf.reshape(y, (8, -1)), transpose_b=True)))
+        cc = d.get("compute_capability")
+        print(json.dumps({"gpu": z == z, "name": d.get("device_name", ""),
+                          "cc": ".".join(map(str, cc)) if cc else ""}))
+except Exception as err:  # noqa: BLE001
+    print(json.dumps({"gpu": False, "grund": "nicht_unterstuetzt", "fehler": str(err)[-300:]}))
+"""
+_beschleuniger: dict | None = None
+
+
+def beschleuniger(warten: bool = True) -> dict:
+    """{"bild": "gpu"|"cpu", "gpu": bool, "name", "cc", "grund"}; the probe runs once per trainer start.
+    warten=False: do not block, answer {"bild": "gpu", "pruefe": True} while the probe has not finished."""
+    global _beschleuniger  # noqa: PLW0603
+    if _beschleuniger is not None:
+        return _beschleuniger
+    if not warten:
+        return {"bild": os.environ.get("TRAINER_BILD") or "cpu", "gpu": False, "pruefe": True}
+    if os.environ.get("TRAINER_BILD") != "gpu":
+        _beschleuniger = {"bild": "cpu", "gpu": False}
+        return _beschleuniger
+    import json
+    import subprocess
+    import sys
+
+    aus = {"gpu": False, "grund": "nicht_unterstuetzt"}
+    try:
+        lauf = subprocess.run([sys.executable, "-c", _PROBE], capture_output=True, text=True, timeout=300,
+                              check=False)
+        zeilen = [z for z in lauf.stdout.splitlines() if z.startswith("{")]
+        if zeilen:
+            aus = json.loads(zeilen[-1])
+        else:
+            aus["fehler"] = (lauf.stderr or "")[-300:]
+    except (OSError, subprocess.SubprocessError, ValueError) as err:
+        aus["fehler"] = str(err)[-300:]
+    _beschleuniger = {"bild": "gpu", **aus}
+    return _beschleuniger
