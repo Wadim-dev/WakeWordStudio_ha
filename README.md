@@ -81,12 +81,12 @@ Home Assistant Voice PE, ESP32-S3-Box, M5Stack Atom Echo with micro wake word, a
 
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/review.png" alt="Review recordings" width="900"></p>
 
-Every wake-up, every "woke up, then cancelled" and every near miss shows up here with the device, the score and a **suggestion**.
-Listen, then tap *said* or *not said* – or use the keyboard (**Space** play · **1** said · **2** not said · **0** unusable). Accept all suggestions at once if you trust them.
+Every wake-up, every "woke up, then cancelled" and every near miss shows up here with the device, its waveform, the score and a **suggestion**. Tap the waveform to play from that point; a trimmed recording plays only its trimmed part, everywhere.
+Listen, then tap *said* or *not said* – or use the keyboard (**Space** play · **1** said · **2** not said · **0** unusable). The answer shows as a stamp on the recording, which then slides away (with a short vibration on phones). Accept all suggestions at once if you trust them.
 
 **Pre-review**: while the trainer is idle, speech recognition listens to new device recordings; each one shows what was heard, and recordings in which the word was clearly heard are confirmed by themselves (marked *auto*, filter in History, you can always change the answer). Switch: word → Training → Automatic.
 
-**Trim**: *Trim* under a recording shows its waveform with start and end sliders – listen to the selection and save; training then uses only that part. Device wake-ups are trimmed by themselves for training (word at the end, the device's sound after it cut off).
+**Trim**: *Trim* opens an editor like in a recording studio: a large waveform with a time ruler, handles for start and end right in the waveform (drag them, move the whole selection or draw a new one), a play head that runs along, tap to play from any point, *Automatic* finds start and end at the sound. Save, and training uses only that part. Device wake-ups are trimmed by themselves for training (word at the end, the device's sound after it cut off).
 
 ## Record and upload
 
@@ -149,12 +149,12 @@ Without a graphics card OmniVoice is slow, so its clips are built up over severa
 
 Every TECHO device (Echo Show, Echo Spot, Echo Dot, Echo 2nd gen, TECHO5 Panel …, firmware 1.6.43 or newer) can send each wake clip to the Studio the moment it is kept, instead of the Studio collecting it every two minutes. Set it up once per device – *Settings → Devices that send their recordings* walks you through it:
 
-1. Tap **Open setup page** next to the device (home network only). It switches the device's setup page on and opens it.
+1. Tap **Set up** next to the device (home network only). The Studio turns on *Keep wake clips* and the setup page and opens it.
 2. On the page choose **Ask to be let in** and confirm at the device: tap *Allow* on a device with a screen, press the action button briefly on one without.
 3. Under **Voice → Send wake clips to** choose **Custom**, paste the address `http://<home assistant>:8123/api/wake_word_studio` and the token (the trainer key) with the copy buttons, save.
 4. Press **Test**. The device list then shows *sends to the Studio*, with clips still waiting and the last problem, if any.
 
-*Keep wake clips* must be on; the card offers a button when it is off. Other firmware can use the same receiver:
+Each device in the list has its own switches for *Keep wake clips* and the setup page and a *Send to* menu, all set from Home Assistant, so you don't have to look for them in the device's settings. Only the address and the token can't be set from Home Assistant (the firmware allows that on its own page only), and a browser on the home network is let in at the device. Turning *Keep wake clips* off asks first, because the device then deletes its clips. Other firmware can use the same receiver:
 
 | | |
 |---|---|
@@ -262,7 +262,7 @@ Die Startseite zeigt oben, was gerade zählt (Training mit „fertig ca. HH:MM�
 
 Die Seite *Training* zeigt während eines Laufs jeden Schritt mit Startzeit und Dauer, Restzeit und voraussichtliches Ende, eine Karte *Gerade aktiv* mit einem Ladebalken für alles, woran der Trainer gerade arbeitet (der Schritt selbst, der eigene Fortschritt jedes Werkzeugs mit Anzahl, Tempo und Restzeit, der Vorrat von OmniVoice), die Auslastung des Trainers (Prozessor, Arbeitsspeicher, Platte) und das ganze Live-Protokoll des Laufs (bis 500 Zeilen, neueste oben, Filter *Alles / Wichtig / Ausgabe der Werkzeuge*, mit einem Tipp kopierbar), das auch nach einem Fehler stehen bleibt. Eine bessere Version liegt danach bereit; Home Assistant liest neue Modelle beim Start, deshalb bietet eine Reparaturmeldung den Neustart mit einem Tipp an, danach wird das Wort an den Geräten von selbst ausgewählt.
 
-Für das Training kommen rund 50.000 künstliche Aufnahmen dazu, darunter bis zu 9.000 vom modernen Stimmenmodell OmniVoice (Männer, Frauen, Kinder, Ältere, Flüstern), jede vorher per Spracherkennung geprüft. Ähnliche Wörter, die genau wie dein Wort klingen, fliegen raus. Neue Aufnahmen werden tageweise für den Test zurückgehalten. *Vorprüfen* (Schalter unter Training → Automatik): Der Trainer hört neue Aufnahmen ab, zeigt was er verstanden hat und bestätigt eindeutige von selbst (Markierung *automatisch*, jederzeit änderbar). *Zuschneiden* unter jeder Aufnahme: Anfang und Ende mit Schiebern wählen, nur dieser Teil wird trainiert. Geräte, die ihre Aufnahmen selbst senden können, schicken sie direkt: am TECHO auf der Einrichtungsseite unter Voice → *Send wake clips to* → **Custom**, Adresse `http://<home assistant>:8123/api/wake_word_studio`, Token = Schlüssel des Trainers (steht unter *Einstellungen → Geräte, die Aufnahmen selbst senden*).
+Für das Training kommen rund 50.000 künstliche Aufnahmen dazu, darunter bis zu 9.000 vom modernen Stimmenmodell OmniVoice (Männer, Frauen, Kinder, Ältere, Flüstern), jede vorher per Spracherkennung geprüft. Ähnliche Wörter, die genau wie dein Wort klingen, fliegen raus. Neue Aufnahmen werden tageweise für den Test zurückgehalten. *Vorprüfen* (Schalter unter Training → Automatik): Der Trainer hört neue Aufnahmen ab, zeigt was er verstanden hat und bestätigt eindeutige von selbst (Markierung *automatisch*, jederzeit änderbar). *Zuschneiden* öffnet einen Editor wie im Tonstudio: große Wellenform mit Zeitleiste, Griffe für Anfang und Ende direkt in der Wellenform, mitlaufender Abspielstrich, Antippen spielt ab der Stelle, *Automatisch* findet Anfang und Ende am Ton; nur dieser Teil wird trainiert und beim Anhören gespielt. Jede Aufnahme zeigt ihre Wellenform; eine Bewertung erscheint als Stempel, dann gleitet die Aufnahme weg. Geräte, die ihre Aufnahmen selbst senden können, schicken sie direkt: unter *Einstellungen* hat jedes Gerät Schalter für *Aufnahmen behalten* und die Einrichtungsseite, ein Menü *Senden an* und den Knopf *Einrichten*; einmal am TECHO auf der Einrichtungsseite unter Voice → *Send wake clips to* → **Custom**, Adresse `http://<home assistant>:8123/api/wake_word_studio`, Token = Schlüssel des Trainers (steht unter *Einstellungen → Geräte, die Aufnahmen selbst senden*).
 
 Gefunden wird jedes ESPHome-Sprachgerät mit der Auswahl „Aktivierungswort“, egal wie es heißt. Geräte mit Firmware, die Aufnahmen aufhebt (z. B. TECHO, Schalter *Keep wake clips*), liefern ihre Aufnahmen von selbst.
 

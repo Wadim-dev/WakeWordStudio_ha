@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.23
+- Trim like in a recording studio: large waveform with a time ruler, start and end handles right in the waveform (drag, move the selection, draw a new one, arrow keys), a play head that runs along, tap to play from there, *Automatic* finds start and end at the sound.
+- A trimmed recording plays only its trimmed part everywhere (play button, waveform), so reviewing later hears exactly what is trained.
+- Recording tiles: small waveform per recording (tap to play from there, trimmed part highlighted), tidier score line and buttons, selected answers easy to read on every theme.
+- Feedback when answering: the button lights up, a stamp with the answer covers the recording, then it slides away; short vibration on phones.
+- Settings → devices that send their recordings: each device has switches for *Keep wake clips* and the setup page, a *Send to* menu and a *Set up* button that turns both on and opens the page. Turning *Keep wake clips* off asks first.
+
 ## 1.0.22
 - Full transparency on the *Training* page: new card *Running right now* with a progress bar for everything the trainer is doing at the same time – the step itself, the tools' own progress (downloads, loading models, computing features, training steps) with count, speed and time left, and OmniVoice's word and other-speech stock.
 - The log keeps the whole run (up to 500 lines instead of 80), is taller, can be filtered (*Everything*, *Important*, *Tool output*) and copied in one go.

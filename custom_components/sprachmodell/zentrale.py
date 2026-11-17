@@ -364,14 +364,16 @@ class Zentrale:
         seite_id, seite = self._zustand_von(knoten, "switch", "_setup_page")
         behalten_id, behalten = self._zustand_von(knoten, "switch", "_keep_wake_clips")
         _, ip = self._zustand_von(knoten, "sensor", "_ip_address")
-        _, status = self._zustand_von(knoten, "sensor", "_wake_clip_sending")
-        _, offen = self._zustand_von(knoten, "sensor", "_wake_clips_unsent")
+        status_id, status = self._zustand_von(knoten, "sensor", "_wake_clip_sending")
+        offen_id, offen = self._zustand_von(knoten, "sensor", "_wake_clips_unsent")
         ipv4 = next((t.strip() for t in str(ip or "").split(",") if t.strip().count(".") == 3), None)
+        z = self.hass.states.get(ziel_id)
+        optionen = [str(o) for o in (z.attributes.get("options") or [])] if z else []
         return {
-            "ziel": ziel, "ziel_entitaet": ziel_id,
+            "ziel": ziel, "ziel_entitaet": ziel_id, "ziel_optionen": optionen,
             "seite": seite, "seite_entitaet": seite_id,
             "behalten": behalten, "behalten_entitaet": behalten_id,
-            "ip": ipv4, "status": status, "offen": offen,
+            "ip": ipv4, "status": status, "status_entitaet": status_id, "offen": offen, "offen_entitaet": offen_id,
         }
 
     def _zaehlerstand(self, knoten: str) -> int | None:

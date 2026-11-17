@@ -384,21 +384,23 @@ async def test_senden_zustand(hass: HomeAssistant, geladen, geraet) -> None:
     assert z.geraete_zustand()[0]["senden"] is None  # firmware without the select
     reg = er.async_get(hass)
 
-    def anlegen(domain: str, objekt: str, zustand: str, umbenannt: str | None = None) -> str:
+    def anlegen(domain: str, objekt: str, zustand: str, umbenannt: str | None = None, **attr) -> str:
         e = reg.async_get_or_create(domain, "esphome", f"kueche-{objekt}", config_entry=g.eintrag,
                                     suggested_object_id=umbenannt or f"kueche_{objekt}")
-        hass.states.async_set(e.entity_id, zustand)
+        hass.states.async_set(e.entity_id, zustand, attr)
         return e.entity_id
 
-    ziel = anlegen("select", "send_wake_clips_to", "Off", umbenannt="kueche_mikrofon_ziel")
+    ziel = anlegen("select", "send_wake_clips_to", "Off", umbenannt="kueche_mikrofon_ziel",
+                   options=["Off", "Tater Trainer", "wakesmith", "Custom"])
     seite = anlegen("switch", "setup_page", "off")
     anlegen("sensor", "setup_page_asking", "unknown")
     behalten = anlegen("switch", "keep_wake_clips", "off")
     anlegen("sensor", "ip_address", "fd24::1, 192.168.1.44, 2a00::2")
-    anlegen("sensor", "wake_clip_sending", "unknown")
-    anlegen("sensor", "wake_clips_unsent", "3")
+    status = anlegen("sensor", "wake_clip_sending", "unknown")
+    offen = anlegen("sensor", "wake_clips_unsent", "3")
     s = z.geraete_zustand()[0]["senden"]
     assert s == {
-        "ziel": "Off", "ziel_entitaet": ziel, "seite": "off", "seite_entitaet": seite,
-        "behalten": "off", "behalten_entitaet": behalten, "ip": "192.168.1.44", "status": "unknown", "offen": "3",
+        "ziel": "Off", "ziel_entitaet": ziel, "ziel_optionen": ["Off", "Tater Trainer", "wakesmith", "Custom"],
+        "seite": "off", "seite_entitaet": seite, "behalten": "off", "behalten_entitaet": behalten,
+        "ip": "192.168.1.44", "status": "unknown", "status_entitaet": status, "offen": "3", "offen_entitaet": offen,
     }
