@@ -78,9 +78,11 @@ class SprachEntitaet(Entity):
         if self.w is not None:
             # Word device "via" the hub. Set in the registry, because DeviceInfo.via_device is
             # deprecated (HA 2026.11) and via_device_id does not exist in older versions.
+            # Looked up among this entry's own devices: async_get_device by identifiers is deprecated (HA 2026.11)
             reg = dr.async_get(self.hass)
-            geraet = reg.async_get_device(identifiers={(DOMAIN, f"wort_{self.w.id}")})
-            hub = reg.async_get_device(identifiers={GERAET_ZENTRALE})
+            eigene = dr.async_entries_for_config_entry(reg, self.z.entry.entry_id)
+            geraet = next((g for g in eigene if (DOMAIN, f"wort_{self.w.id}") in g.identifiers), None)
+            hub = next((g for g in eigene if GERAET_ZENTRALE in g.identifiers), None)
             if geraet and hub and geraet.via_device_id != hub.id:
                 reg.async_update_device(geraet.id, via_device_id=hub.id)
 
