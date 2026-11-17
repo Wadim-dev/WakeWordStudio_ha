@@ -130,11 +130,11 @@ Without a graphics card OmniVoice is slow, so its clips are built up over severa
 
 ### Devices that send their recordings
 
-Firmware that can send every wake clip to a URL can deliver it directly instead of waiting to be asked. On a TECHO device: setup page → *Voice* → *Send wake clips to* → **Custom**, address `http://<home assistant>:8123/api/sprachmodell` (a home network address), token = the trainer key, then *Test*. *Settings → Devices that send their recordings* shows the values.
+Firmware that can send every wake clip to a URL can deliver it directly instead of waiting to be asked. On a TECHO device: setup page → *Voice* → *Send wake clips to* → **Custom**, address `http://<home assistant>:8123/api/wake_word_studio` (a home network address), token = the trainer key, then *Test*. *Settings → Devices that send their recordings* walks through it step by step, with copy buttons, and lists your devices with their sending status and a button that opens each device's setup page.
 
 | | |
 |---|---|
-| URL | `http://<home assistant>:8123/api/sprachmodell/api/clips` (also `…/api/sprachmodell/clips`; test: `GET …/clips/ping`) |
+| URL | `http://<home assistant>:8123/api/wake_word_studio/api/clips` (test: `GET …/api/clips/ping`; the older `…/api/sprachmodell/api/clips` and `…/api/sprachmodell/clips` keep working) |
 | Header | `Authorization: Bearer <trainer key>` |
 | Body | multipart: `audio` (16 kHz mono WAV, up to 2 MB) and `meta` (JSON: `name`, `device`, `kind`, `at`, `model`, `slot`, `score`, `cutoff`) |
 
@@ -236,7 +236,7 @@ Die Startseite zeigt oben, was gerade zählt (Training mit „fertig ca. HH:MM�
 
 Die Seite *Training* zeigt während eines Laufs jeden Schritt mit Startzeit und Dauer, Restzeit und voraussichtliches Ende, die Auslastung des Trainers (Prozessor, Arbeitsspeicher, Platte) und ein Live-Protokoll (neueste Zeile oben), das auch nach einem Fehler stehen bleibt. Eine bessere Version liegt danach bereit; Home Assistant liest neue Modelle beim Start, deshalb bietet eine Reparaturmeldung den Neustart mit einem Tipp an, danach wird das Wort an den Geräten von selbst ausgewählt.
 
-Für das Training kommen rund 50.000 künstliche Aufnahmen dazu, darunter bis zu 9.000 vom modernen Stimmenmodell OmniVoice (Männer, Frauen, Kinder, Ältere, Flüstern), jede vorher per Spracherkennung geprüft. Ähnliche Wörter, die genau wie dein Wort klingen, fliegen raus. Neue Aufnahmen werden tageweise für den Test zurückgehalten. *Vorprüfen* (Schalter unter Training → Automatik): Der Trainer hört neue Aufnahmen ab, zeigt was er verstanden hat und bestätigt eindeutige von selbst (Markierung *automatisch*, jederzeit änderbar). *Zuschneiden* unter jeder Aufnahme: Anfang und Ende mit Schiebern wählen, nur dieser Teil wird trainiert. Geräte, die ihre Aufnahmen selbst senden können, schicken sie direkt: am TECHO auf der Einrichtungsseite unter Voice → *Send wake clips to* → **Custom**, Adresse `http://<home assistant>:8123/api/sprachmodell`, Token = Schlüssel des Trainers (steht unter *Einstellungen → Geräte, die Aufnahmen selbst senden*).
+Für das Training kommen rund 50.000 künstliche Aufnahmen dazu, darunter bis zu 9.000 vom modernen Stimmenmodell OmniVoice (Männer, Frauen, Kinder, Ältere, Flüstern), jede vorher per Spracherkennung geprüft. Ähnliche Wörter, die genau wie dein Wort klingen, fliegen raus. Neue Aufnahmen werden tageweise für den Test zurückgehalten. *Vorprüfen* (Schalter unter Training → Automatik): Der Trainer hört neue Aufnahmen ab, zeigt was er verstanden hat und bestätigt eindeutige von selbst (Markierung *automatisch*, jederzeit änderbar). *Zuschneiden* unter jeder Aufnahme: Anfang und Ende mit Schiebern wählen, nur dieser Teil wird trainiert. Geräte, die ihre Aufnahmen selbst senden können, schicken sie direkt: am TECHO auf der Einrichtungsseite unter Voice → *Send wake clips to* → **Custom**, Adresse `http://<home assistant>:8123/api/wake_word_studio`, Token = Schlüssel des Trainers (steht unter *Einstellungen → Geräte, die Aufnahmen selbst senden*).
 
 Gefunden wird jedes ESPHome-Sprachgerät mit der Auswahl „Aktivierungswort“, egal wie es heißt. Geräte mit Firmware, die Aufnahmen aufhebt (z. B. TECHO, Schalter *Keep wake clips*), liefern ihre Aufnahmen von selbst.
 

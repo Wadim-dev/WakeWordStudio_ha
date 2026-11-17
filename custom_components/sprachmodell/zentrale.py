@@ -322,8 +322,47 @@ class Zentrale:
                 "knoten": knoten, "name": name, "plaetze": plaetze, "clips": info["clips"],
                 "fehler": self.sammler.fehler.get(knoten),
                 "zaehler": self._zaehlerstand(knoten),
+                "senden": self._senden_zustand(knoten),
             })
         return aus
+
+    def _zustand_von(self, knoten: str, domain: str, endung: str) -> tuple[str | None, str | None]:
+        """(entity_id, state) of the first entity of the device with this ending."""
+        eintrag = esphome_eintraege(self.hass).get(knoten)
+        if eintrag is None:
+            return None, None
+        kern = endung.lstrip("_")
+        for e in er.async_entries_for_config_entry(er.async_get(self.hass), eintrag.entry_id):
+            if e.domain != domain or e.disabled_by:
+                continue
+            # entity ids can be renamed; the ESPHome unique id ends in "-<object id>"
+            if not (e.entity_id.endswith(endung) or str(e.unique_id).endswith(("-" + kern, endung))):
+                continue
+            s = self.hass.states.get(e.entity_id)
+            return e.entity_id, (s.state if s else None)
+        return None, None
+
+    def _senden_zustand(self, knoten: str) -> dict[str, Any] | None:
+        """Firmware that sends its clips itself (TECHO "Send wake clips to"): what the guide in Settings needs.
+
+        None when the device has no such select. The address and token can only be set on the device's own
+        setup page, so the app offers to switch that page on and open it.
+        """
+        ziel_id, ziel = self._zustand_von(knoten, "select", "_send_wake_clips_to")
+        if ziel_id is None:
+            return None
+        seite_id, seite = self._zustand_von(knoten, "switch", "_setup_page")
+        behalten_id, behalten = self._zustand_von(knoten, "switch", "_keep_wake_clips")
+        _, ip = self._zustand_von(knoten, "sensor", "_ip_address")
+        _, status = self._zustand_von(knoten, "sensor", "_wake_clip_sending")
+        _, offen = self._zustand_von(knoten, "sensor", "_wake_clips_unsent")
+        ipv4 = next((t.strip() for t in str(ip or "").split(",") if t.strip().count(".") == 3), None)
+        return {
+            "ziel": ziel, "ziel_entitaet": ziel_id,
+            "seite": seite, "seite_entitaet": seite_id,
+            "behalten": behalten, "behalten_entitaet": behalten_id,
+            "ip": ipv4, "status": status, "offen": offen,
+        }
 
     def _zaehlerstand(self, knoten: str) -> int | None:
         for e in self._entitaeten(knoten, "sensor", "_wake_clips"):

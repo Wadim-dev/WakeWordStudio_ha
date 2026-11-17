@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.19';
+const VERSION = '1.0.20';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -1100,11 +1100,39 @@ ${Object.keys(g.plaetze).map((p) => { const pl = g.plaetze[p], w = wort(pl.wort)
 <p class="klein" style="line-height:1.6">${this.t('es_docker')}</p><pre>${esc(docker)}</pre>
 <table><tr><td>${esc(this.t('es_adresse'))}</td><td><code>${esc(basis)}</code></td></tr><tr><td>${esc(this.t('es_schluessel'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="schluessel">${esc(this.t(this._zeigeSchl ? 'es_verbergen' : 'es_zeigen'))}</button><button class="k leise" data-a="schluessel_neu">${esc(this.t('es_neu_schluessel'))}</button></div></td></tr></table>
 ${this._steckbrief()}</ha-card>
-<ha-card><h2>${esc(this.t('es_senden'))}</h2><p class="klein" style="line-height:1.6">${esc(this.t('es_senden_text'))}</p>
-<table><tr><td>${esc(this.t('es_senden_ziel'))}</td><td><code>Custom</code></td></tr><tr><td>${esc(this.t('es_adresse'))}</td><td><code>${esc(basis.replace(/\/+$/, '') + '/api/sprachmodell')}</code></td></tr><tr><td>${esc(this.t('es_senden_token'))}</td><td><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code></td></tr></table>
-<p class="klein" style="line-height:1.6">${esc(this.t('es_senden_hinweis'))}</p></ha-card>
+${this._sendenKarte(tr, basis)}
 <ha-card><h2>${esc(this.t('es_ablage'))}</h2><p class="klein" style="line-height:1.6">${this.t('es_ablage_text', { a: esc(d.ablage) })}</p></ha-card>
 <div class="klein">${esc(this.t('es_info', { v: d.version_integration, a: d.ablage }))}</div>`;
+  }
+
+  _sendenKarte(tr, basis) {
+    const d = this._daten, adresse = basis.replace(/\/+$/, '') + '/api/wake_word_studio';
+    const geraete = (d.geraete || []).filter((g) => g.senden);
+    const schritte = [1, 2, 3, 4].map((n) => `<li>${esc(this.t('es_senden_s' + n))}</li>`).join('');
+    const zeilen = geraete.map((g) => {
+      const s = g.senden, an = s.ziel === 'Custom';
+      const zustand = an ? this.t('es_senden_an') : s.ziel && s.ziel !== 'Off' ? this.t('es_senden_anders', { z: s.ziel }) : this.t('es_senden_aus');
+      const extra = [s.status && !['unknown', 'unavailable'].includes(s.status) ? s.status : '', s.offen && !['unknown', 'unavailable', '0'].includes(String(s.offen)) ? this.t('es_senden_offen', { n: s.offen }) : ''].filter(Boolean).join(' · ');
+      const knoepfe = [
+        s.behalten === 'off' && s.behalten_entitaet ? `<button class="k leise" data-a="behalten" data-ent="${esc(s.behalten_entitaet)}">${esc(this.t('es_senden_behalten'))}</button>` : '',
+        s.ip && s.seite_entitaet ? `<button class="k" data-a="seite" data-ent="${esc(s.seite_entitaet)}" data-ip="${esc(s.ip)}">${esc(this.t('es_senden_seite'))}</button>` : '',
+      ].join('');
+      return `<tr><td><span class="punkt ${an ? 'an' : ''}"></span>${esc(g.name)}<div class="klein">${esc(zustand)}${extra ? ' · ' + esc(extra) : ''}${s.behalten === 'off' ? ' · ' + esc(this.t('es_senden_behalten_aus')) : ''}</div></td><td style="text-align:right">${knoepfe}</td></tr>`;
+    }).join('');
+    return `<ha-card><h2>${esc(this.t('es_senden'))}</h2><p class="klein" style="line-height:1.6">${esc(this.t('es_senden_text'))}</p>
+<ol class="klein" style="line-height:1.6;padding-left:20px">${schritte}</ol>
+<table><tr><td>${esc(this.t('es_senden_ziel'))}</td><td><code>Custom</code></td></tr><tr><td>${esc(this.t('es_adresse'))}</td><td><div class="schluessel"><code>${esc(adresse)}</code><button class="k leise" data-a="kopieren" data-text="${esc(adresse)}">${esc(this.t('es_kopieren'))}</button></div></td></tr><tr><td>${esc(this.t('es_senden_token'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="kopieren" data-schl="1">${esc(this.t('es_kopieren'))}</button></div></td></tr></table>
+${geraete.length ? `<h3 style="margin:16px 0 4px">${esc(this.t('es_senden_geraete'))}</h3><table>${zeilen}</table>` : `<p class="klein">${esc(this.t('es_senden_keine'))}</p>`}
+<p class="klein" style="line-height:1.6">${esc(this.t('es_senden_hinweis'))}</p></ha-card>`;
+  }
+
+  async _kopieren(text) {
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const f = document.createElement('textarea'); f.value = text; f.style.position = 'fixed'; f.style.opacity = '0';
+      this.shadowRoot.appendChild(f); f.select(); document.execCommand('copy'); f.remove();
+    }
+    this._meldung(this.t('es_kopiert'));
   }
 
   // ---------- Ereignisse ----------
@@ -1145,6 +1173,14 @@ ${this._steckbrief()}</ha-card>
         if (confirm(this.t('q_einspielen_frage', { n: nr }))) { await this._api('POST', 'aktion', { aktion: 'einspielen', wort: this._wortId, nr }); this._meldung(this.t('q_wird', { n: nr })); this._laden(); }
       } else if (a === 'schluessel') { this._zeigeSchl = !this._zeigeSchl; this._zeichnen(); }
       else if (a === 'schluessel_neu') { if (confirm(this.t('es_neu_frage'))) { await this._api('POST', 'aktion', { aktion: 'schluessel_neu' }); this._zeigeSchl = true; this._laden(); } }
+      else if (a === 'kopieren') await this._kopieren(t.dataset.schl ? (this._daten.trainer || {}).schluessel || '' : t.dataset.text);
+      else if (a === 'behalten') { await this._hass.callService('switch', 'turn_on', { entity_id: t.dataset.ent }); this._meldung(this.t('es_senden_behalten_ok')); setTimeout(() => this._laden(), 1500); }
+      else if (a === 'seite') {
+        // the page is off until switched on; give the device a moment, within the click's permission to open a tab
+        await this._hass.callService('switch', 'turn_on', { entity_id: t.dataset.ent });
+        await new Promise((r) => setTimeout(r, 800));
+        window.open('http://' + t.dataset.ip + ':8181/setup', '_blank', 'noopener');
+      }
       else if (a === 'rec') { if (this._rec.an) this._recStopp(); else await this._recStart(); }
       else if (a === 'recspeichern') { t.disabled = true; await this._recSpeichern(); }
       else if (a === 'recverwerfen') { this._rec.takes.forEach((x) => URL.revokeObjectURL(x.url)); this._rec.takes = []; this._recZeichnen(); }
