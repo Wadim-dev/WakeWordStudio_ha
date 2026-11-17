@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.22';
+const VERSION = '1.0.23';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -65,7 +65,7 @@ button.k:disabled{opacity:.45;cursor:default}
 button.k.haupt{background:var(--primary-color);color:var(--text-primary-color,#fff)}
 button.k.gut{background:rgba(var(--rgb-success-color,76,175,80),.2);color:var(--success-color,#4caf50)}
 button.k.schlecht{background:rgba(var(--rgb-error-color,244,67,54),.18);color:var(--error-color,#f44336)}
-button.k.gut.gewaehlt{background:var(--success-color,#4caf50);color:#fff}button.k.schlecht.gewaehlt{background:var(--error-color,#f44336);color:#fff}button.k.leise.gewaehlt{background:var(--secondary-text-color);color:var(--card-background-color,#fff)}
+button.k.gut.gewaehlt{background:color-mix(in srgb,var(--success-color,#4caf50) 72%,#000);color:#fff;box-shadow:0 2px 10px rgba(var(--rgb-success-color,76,175,80),.35)}button.k.schlecht.gewaehlt{background:color-mix(in srgb,var(--error-color,#f44336) 78%,#000);color:#fff;box-shadow:0 2px 10px rgba(var(--rgb-error-color,244,67,54),.35)}button.k{transition:background .2s,box-shadow .2s,transform .1s}button.k:active{transform:scale(.97)}button.k.leise.gewaehlt{background:var(--secondary-text-color);color:var(--card-background-color,#fff)}
 .ablauf{display:grid;grid-template-columns:22px 1fr auto;gap:6px 10px;align-items:center;font-size:14px}.ablauf .klein{text-align:right;white-space:nowrap}.ablauf ha-icon{--mdc-icon-size:18px}.ablauf .spaeter{opacity:.45}
 .drehen{animation:drehen 1.2s linear infinite}@keyframes drehen{to{transform:rotate(360deg)}}
 .last{display:grid;grid-template-columns:auto 1fr auto;gap:8px 12px;align-items:center;font-size:14px}.last .fortschritt{margin:0;height:8px}
@@ -78,14 +78,27 @@ button.k kbd{font:11px monospace;opacity:.6;border:1px solid currentColor;border
 .chip{display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:16px;font-size:13px;background:rgba(var(--rgb-primary-text-color,0,0,0),.06);cursor:pointer;border:0;color:inherit;font-family:inherit;text-decoration:none}
 .chip.an{background:rgba(var(--rgb-primary-color,3,169,244),.18);color:var(--primary-color)}
 .liste{display:flex;flex-direction:column;gap:10px}
-.eintrag{display:grid;grid-template-columns:52px 1fr;gap:12px;padding:12px;border-radius:var(--ha-card-border-radius,12px);background:var(--ha-card-background,var(--card-background-color));border:1px solid var(--divider-color);outline:none}
+.eintrag{display:grid;grid-template-columns:52px 1fr;gap:14px;padding:14px 16px;transition:border-color .2s,box-shadow .2s;border-radius:var(--ha-card-border-radius,12px);background:var(--ha-card-background,var(--card-background-color));border:1px solid var(--divider-color);outline:none}
 .eintrag.aktiv{border-color:var(--primary-color);box-shadow:0 0 0 1px var(--primary-color)}
-.eintrag.weg{opacity:.35;pointer-events:none;transition:opacity .25s}
+.eintrag.weg{pointer-events:none}
+.eintrag{position:relative}
+.eintrag .stempel{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:inherit;font-size:18px;font-weight:600;color:#fff;pointer-events:none;animation:stempel .28s cubic-bezier(.2,.9,.3,1.3) both;z-index:4}
+.eintrag .stempel ha-icon{--mdc-icon-size:30px}
+.stempel.u-wort{background:color-mix(in srgb,var(--success-color,#4caf50) 82%,transparent)}.stempel.u-kein_wort{background:color-mix(in srgb,var(--error-color,#f44336) 82%,transparent)}.stempel.u-verworfen{background:color-mix(in srgb,var(--secondary-text-color,#777) 85%,transparent)}
+@keyframes stempel{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+.knoepfe button.k.drueck{animation:drueck .35s ease-out}@keyframes drueck{0%{box-shadow:0 0 0 0 rgba(var(--rgb-primary-color,3,169,244),.45)}100%{box-shadow:0 0 0 12px rgba(var(--rgb-primary-color,3,169,244),0)}}
+@media (prefers-reduced-motion:reduce){.eintrag .stempel,.knoepfe button.k.drueck{animation:none}}
 .spielen{width:52px;height:52px;border-radius:50%;border:0;background:rgba(var(--rgb-primary-color,3,169,244),.15);color:var(--primary-color);cursor:pointer;position:relative}
 .spielen ha-icon{--mdc-icon-size:28px}
 .spielen svg{position:absolute;inset:0;transform:rotate(-90deg)}
 .spielen circle{fill:none;stroke:var(--primary-color);stroke-width:3;stroke-dasharray:157;stroke-dashoffset:157}
-.titel{font-weight:500}
+.titel{font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.welle{position:relative;height:40px;margin:8px 0 6px;border-radius:8px;background:rgba(var(--rgb-primary-text-color,0,0,0),.05);overflow:hidden;cursor:pointer;touch-action:manipulation}
+.welle canvas{position:absolute;inset:0;width:100%;height:100%}
+.welle .spielkopf{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--primary-text-color);opacity:0;pointer-events:none;transition:opacity .2s}.welle .spielkopf.an{opacity:.9}
+.wertzeile{display:flex;flex-direction:row;align-items:center;gap:10px;font-size:12px;color:var(--secondary-text-color);flex-wrap:wrap}
+.wertzeile .balken{flex:1 1 auto;width:auto;min-width:120px;height:6px;margin:0;max-width:260px}
+.knoepfe .rechts{margin-left:auto;display:flex;gap:6px;align-items:center}
 .balken{position:relative;height:6px;border-radius:3px;background:rgba(var(--rgb-primary-text-color,0,0,0),.08);margin:8px 0 4px;max-width:340px}
 .balken i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--primary-color)}
 .balken b{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--error-color,#f44336)}
@@ -95,9 +108,21 @@ button.k kbd{font:11px monospace;opacity:.6;border:1px solid currentColor;border
 .marke{border-radius:999px;padding:1px 8px;background:color-mix(in srgb,var(--primary-color) 14%,transparent);color:var(--primary-text-color);font-size:11px}
 .schnitt:empty{display:none}
 .schnitt{margin-top:10px;padding:10px;border-radius:10px;background:color-mix(in srgb,var(--primary-text-color) 5%,transparent)}
-.schnitt canvas{width:100%;height:64px;display:block}
-.schnitt .regler{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0}
-.schnitt .regler input{width:100%}
+.studio{position:relative;height:120px;border-radius:10px;background:#0e1014;overflow:hidden;touch-action:none;cursor:crosshair;user-select:none;-webkit-user-select:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.07),0 6px 18px rgba(0,0,0,.25)}
+.studio canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.studio .aus{position:absolute;top:0;bottom:18px;background:rgba(5,6,8,.62);pointer-events:none;transition:background .2s}.studio .links{left:0}.studio .rechts{right:0}
+.studio .wahl{position:absolute;top:0;bottom:18px;cursor:grab;box-shadow:inset 0 2px 0 var(--primary-color),inset 0 -2px 0 var(--primary-color);background:rgba(var(--rgb-primary-color,3,169,244),.07)}.studio.zieht .wahl{cursor:grabbing}
+.studio .griff{position:absolute;top:0;bottom:18px;width:28px;margin-left:-14px;cursor:ew-resize;outline:none;z-index:2}
+.studio .griff::before{content:'';position:absolute;left:13px;top:0;bottom:0;width:2px;background:var(--primary-color)}
+.studio .griff span{position:absolute;top:50%;width:14px;height:34px;margin-top:-17px;background:var(--primary-color);box-shadow:0 2px 8px rgba(0,0,0,.55);transition:transform .15s}
+.studio [data-griff="von"] span{left:15px;border-radius:0 6px 6px 0}.studio [data-griff="bis"] span{right:15px;border-radius:6px 0 0 6px}
+.studio .griff span::after{content:'';position:absolute;left:4px;top:10px;width:6px;height:14px;border-left:2px solid rgba(255,255,255,.75);border-right:2px solid rgba(255,255,255,.75);box-sizing:border-box}
+.studio .griff:hover span,.studio .griff.zieht span{transform:scaleY(1.12)}.studio .griff:focus-visible span{outline:2px solid #fff;outline-offset:2px}
+.studio .spielkopf{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#fff;box-shadow:0 0 10px rgba(255,255,255,.8);pointer-events:none;opacity:0;transition:opacity .25s;z-index:3}
+.studio .spielkopf::before{content:'';position:absolute;top:0;left:-5px;border:6px solid transparent;border-top-color:#fff}.studio .spielkopf.an{opacity:1}
+.studio-leiste{margin-top:10px;flex-wrap:wrap;gap:8px}.zeitanzeige{font-variant-numeric:tabular-nums;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.k.rund{width:40px;height:40px;padding:0;justify-content:center;border-radius:50%}
+@media (prefers-reduced-motion:reduce){.studio .spielkopf{transition:none}}
 .knoepfe{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 select,input[type=time],input[type=text],input[type=number]{font:inherit;font-size:14px;padding:8px 10px;border-radius:10px;border:1px solid var(--divider-color);background:var(--card-background-color);color:var(--primary-text-color);box-sizing:border-box}
 input[type=text]{width:100%;max-width:440px}
@@ -116,6 +141,16 @@ td.z,th.z{text-align:right}
 .gruen{color:var(--success-color,#4caf50)}.rot{color:var(--error-color,#f44336)}.gelb{color:var(--warning-color,#ff9800)}
 .punkt{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;background:var(--disabled-color,#999)}
 .punkt.an{background:var(--success-color,#4caf50)}
+.sgeraete{display:grid;gap:10px}
+.sgeraet{padding:12px 14px;border-radius:12px;border:1px solid var(--divider-color);display:grid;gap:10px;transition:border-color .2s}
+.sgeraet-regler{gap:10px 18px}
+.pille{font-size:12px;padding:3px 10px;border-radius:999px;white-space:nowrap}.pille.gruen{background:rgba(var(--rgb-success-color,76,175,80),.16);color:var(--success-color,#4caf50)}.pille.gelb{background:rgba(var(--rgb-warning-color,255,152,0),.16);color:var(--warning-color,#ff9800)}.pille.rot{background:rgba(var(--rgb-error-color,244,67,54),.16);color:var(--error-color,#f44336)}
+.schalter{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;user-select:none}
+.schalter input{position:absolute;opacity:0;width:0;height:0}
+.schalter i{position:relative;width:36px;height:20px;border-radius:10px;background:rgba(var(--rgb-primary-text-color,0,0,0),.25);transition:background .2s;flex:none}
+.schalter i::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:transform .2s cubic-bezier(.4,0,.2,1)}
+.schalter input:checked+i{background:var(--primary-color)}.schalter input:checked+i::after{transform:translateX(16px)}
+.schalter input:focus-visible+i{outline:2px solid var(--primary-color);outline-offset:2px}.schalter input:disabled+i{opacity:.4}
 .abwurf{border:2px dashed var(--divider-color);border-radius:14px;padding:30px 16px;text-align:center;cursor:pointer}
 .abwurf.ueber{border-color:var(--primary-color);background:rgba(var(--rgb-primary-color,3,169,244),.06)}
 .abwurf ha-icon{--mdc-icon-size:42px;color:var(--primary-color)}
@@ -373,6 +408,7 @@ class SprachmodellPanel extends HTMLElement {
     main.innerHTML = f.call(this);
     const logNeu = main.querySelector('.protokoll'); if (logNeu) logNeu.scrollTop = oben ? 0 : logPos;
     if (this._reiter === 'pruefen') this._markieren(false);
+    if (main.querySelector('[data-welle]')) this._wellen(main);
     if (this._reiter === 'aufnehmen') this._recZeichnen();
     positionen.forEach(([el, y]) => { if (el.scrollTop !== y) el.scrollTop = y; });
     // cards fill in their content a moment later: let go of the height only once they have
@@ -584,20 +620,20 @@ ${l.gesamt > l.eintraege.length ? `<div class="leer klein">${esc(this.t('pr_weit
     const art = a.quelle === 'browser' ? 'browser' : a.art;
     const sc = typeof a.score === 'number' ? a.score : null, cu = typeof a.cutoff === 'number' ? a.cutoff : null;
     const wort = this._daten.wort.einstellungen.wort;
-    const urteil = a.urteil ? `<span class="${a.urteil === 'wort' ? 'gruen' : a.urteil === 'kein_wort' ? 'rot' : ''}">${esc(this.t('u_' + a.urteil))}</span>` : '';
     const grund = a.grund ? this.t('g_' + a.grund) : '';
     return `<div class="eintrag" tabindex="-1" data-id="${esc(a.id)}" data-i="${i}">
 <button class="spielen" data-spielen="${esc(a.id)}" title="${esc(this.t('pr_abspielen'))}"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="25"></circle></svg><ha-icon icon="mdi:play"></ha-icon></button>
 <div><div class="zeile weit"><span class="titel"><ha-icon icon="${ART_ICON[art] || 'mdi:waveform'}" style="--mdc-icon-size:16px"></ha-icon> ${esc(this.t('a_' + art))}${a.echo ? ' · ' + esc(a.echo) : ''}</span><span class="klein">${this._zeit(a.zeit)}${a.dauer ? ' · ' + this._zahl(a.dauer, 1) + ' s' : ''}${a.test ? ' · ' + esc(this.t('pr_test')) : ''}</span></div>
-${sc != null ? `<div class="balken"><i style="width:${Math.min(100, sc * 100)}%"></i>${cu != null ? `<b style="left:${cu * 100}%"></b>` : ''}</div><div class="klein">${esc(this.t('pr_wert', { w: this._zahl(sc) }))}${cu != null ? ' · ' + esc(this.t('pr_schwelle', { w: this._zahl(cu) })) : ''}</div>` : a.notiz ? `<div class="klein">${esc(a.notiz)}</div>` : ''}
+<div class="welle" data-welle="${esc(a.id)}" ${Array.isArray(a.schnitt) ? `data-von="${a.schnitt[0]}" data-bis="${a.schnitt[1]}"` : ''} title="${esc(this.t('pr_welle_t'))}"><canvas></canvas><div class="spielkopf"></div></div>
+${sc != null ? `<div class="wertzeile"><div class="balken"><i style="width:${Math.min(100, sc * 100)}%"></i>${cu != null ? `<b style="left:${cu * 100}%"></b>` : ''}</div><span>${esc(this.t('pr_wert', { w: this._zahl(sc) }))}${cu != null ? ' · ' + esc(this.t('pr_schwelle', { w: this._zahl(cu) })) : ''}</span></div>` : a.notiz ? `<div class="klein">${esc(a.notiz)}</div>` : ''}
 ${a.gehoert != null || a.auto || a.schnitt ? `<div class="klein gehoert">${a.gehoert != null ? `<ha-icon icon="mdi:ear-hearing" style="--mdc-icon-size:14px"></ha-icon> ${esc(a.gehoert ? this.t('pr_gehoert', { t: a.gehoert }) : this.t('pr_nichts_gehoert'))}` : ''}${a.auto ? ` <span class="marke">${esc(this.t('pr_auto'))}</span>` : ''}${a.schnitt ? ` <span class="marke">${esc(this.t('pr_geschnitten', { a: this._zahl(a.schnitt[0], 1), b: this._zahl(a.schnitt[1], 1) }))}</span>` : ''}</div>` : ''}
-${pruefen && a.vorschlag ? `<div class="vorschlag">${esc(this.t('pr_vorschlag'))}: <strong>${esc(a.vorschlag === 'wort' ? this.t('pr_gesagt', { w: wort }) : this.t('pr_nicht'))}</strong>${grund ? ' – ' + esc(grund) : ''}</div>` : !pruefen ? `<div class="vorschlag">${urteil}${a.person ? ' · ' + esc(a.person) : ''}${a.quelle === 'hochgeladen' ? ' · ' + esc(this.t('pr_hochgeladen')) : a.quelle === 'browser' ? ' · ' + esc(this.t('pr_aufgenommen')) : ''}</div>` : ''}
+${pruefen && a.vorschlag ? `<div class="vorschlag">${esc(this.t('pr_vorschlag'))}: <strong>${esc(a.vorschlag === 'wort' ? this.t('pr_gesagt', { w: wort }) : this.t('pr_nicht'))}</strong>${grund ? ' – ' + esc(grund) : ''}</div>` : !pruefen && (a.person || a.quelle === 'hochgeladen' || a.quelle === 'browser') ? `<div class="vorschlag">${[a.person ? esc(a.person) : '', a.quelle === 'hochgeladen' ? esc(this.t('pr_hochgeladen')) : a.quelle === 'browser' ? esc(this.t('pr_aufgenommen')) : ''].filter(Boolean).join(' · ')}</div>` : ''}
 <div class="knoepfe">
 <button class="k gut ${!pruefen && a.urteil === 'wort' ? 'gewaehlt' : ''}" data-urteil="wort" data-id="${esc(a.id)}"><ha-icon icon="mdi:check"></ha-icon>${esc(pruefen ? this.t('pr_gesagt', { w: wort }) : this.t('pr_wort_k'))} <kbd>1</kbd></button>
 <button class="k schlecht ${!pruefen && a.urteil === 'kein_wort' ? 'gewaehlt' : ''}" data-urteil="kein_wort" data-id="${esc(a.id)}"><ha-icon icon="mdi:close"></ha-icon>${esc(this.t('pr_nicht_k'))} <kbd>2</kbd></button>
 <button class="k leise ${!pruefen && a.urteil === 'verworfen' ? 'gewaehlt' : ''}" data-urteil="verworfen" data-id="${esc(a.id)}" title="${esc(this.t('pr_unbrauchbar_t'))}"><ha-icon icon="mdi:delete-outline"></ha-icon>${esc(this.t('u_verworfen'))} <kbd>0</kbd></button>
-${this._personWahl(a.person || (pruefen ? this._person : ''), a.id)}
-<button class="k leise" data-schnitt="${esc(a.id)}" title="${esc(this.t('pr_schneiden_t'))}"><ha-icon icon="mdi:content-cut"></ha-icon>${esc(this.t('pr_schneiden'))}</button>
+<span class="rechts">${this._personWahl(a.person || (pruefen ? this._person : ''), a.id)}
+<button class="k leise" data-schnitt="${esc(a.id)}" title="${esc(this.t('pr_schneiden_t'))}"><ha-icon icon="mdi:content-cut"></ha-icon>${esc(this.t('pr_schneiden'))}</button></span>
 </div><div class="schnitt" data-schnittbox="${esc(a.id)}"></div></div></div>`;
   }
 
@@ -617,52 +653,127 @@ ${this._personWahl(a.person || (pruefen ? this._person : ''), a.id)}
       this._schnitt = { id, url, dauer, daten: puffer.getChannelData(0), von: s[0], bis: Math.min(s[1], dauer) };
     } catch (e) { this._meldung(this.t('ging_nicht', { f: e.message })); return; }
     const z = this._schnitt;
-    box.innerHTML = `<canvas height="64"></canvas>
-<div class="regler"><label class="klein">${esc(this.t('pr_anfang'))}<input type="range" data-sr="von" min="0" max="${z.dauer}" step="0.01" value="${z.von}"></label>
-<label class="klein">${esc(this.t('pr_ende'))}<input type="range" data-sr="bis" min="0" max="${z.dauer}" step="0.01" value="${z.bis}"></label></div>
-<div class="zeile weit"><span class="klein" data-sinfo></span><span class="zeile"><button class="k" data-sa="hoeren"><ha-icon icon="mdi:play"></ha-icon>${esc(this.t('pr_auswahl_hoeren'))}</button><button class="k leise" data-sa="ganz">${esc(this.t('pr_ganz'))}</button><button class="k haupt" data-sa="speichern">${esc(this.t('pr_schnitt_speichern'))}</button></span></div>`;
-    box.querySelectorAll('[data-sr]').forEach((r) => r.addEventListener('input', () => {
-      const v = Number(r.value);
-      if (r.dataset.sr === 'von') z.von = Math.min(v, z.bis - 0.2); else z.bis = Math.max(v, z.von + 0.2);
-      r.value = r.dataset.sr === 'von' ? z.von : z.bis;
-      this._schnittZeichnen(box);
-    }));
+    box.innerHTML = `<div class="studio"><canvas></canvas><div class="wahl"></div><div class="aus links"></div><div class="aus rechts"></div>
+<div class="griff" data-griff="von" tabindex="0" role="slider" aria-label="${esc(this.t('pr_anfang'))}"><span></span></div><div class="griff" data-griff="bis" tabindex="0" role="slider" aria-label="${esc(this.t('pr_ende'))}"><span></span></div><div class="spielkopf"></div></div>
+<div class="zeile weit studio-leiste"><span class="zeile" style="gap:8px"><button class="k rund haupt" data-sa="spielen" title="${esc(this.t('pr_spielen_t'))}"><ha-icon icon="mdi:play"></ha-icon></button><button class="k" data-sa="hoeren"><ha-icon icon="mdi:play-box-outline"></ha-icon>${esc(this.t('pr_auswahl_hoeren'))}</button><button class="k leise" data-sa="auto" title="${esc(this.t('pr_auto_schnitt_t'))}"><ha-icon icon="mdi:auto-fix"></ha-icon>${esc(this.t('pr_auto_schnitt'))}</button></span><span class="klein zeitanzeige" data-sinfo></span></div>
+<div class="zeile weit" style="margin-top:8px;flex-wrap:wrap;gap:8px"><span class="klein">${esc(this.t('pr_studio_hilfe'))}</span><span class="zeile" style="gap:8px"><button class="k leise" data-sa="ganz">${esc(this.t('pr_ganz'))}</button><button class="k haupt" data-sa="speichern"><ha-icon icon="mdi:content-save-outline"></ha-icon>${esc(this.t('pr_schnitt_speichern'))}</button></span></div>`;
+    const st = box.querySelector('.studio');
+    const zeit = (ev) => { const r = st.getBoundingClientRect(); return Math.min(z.dauer, Math.max(0, ((ev.clientX - r.left) / r.width) * z.dauer)); };
+    const MIN = 0.2;
+    let zug = null;
+    st.addEventListener('pointerdown', (ev) => {
+      if (ev.button > 0) return;
+      const g = ev.target.closest('[data-griff]'), t = zeit(ev);
+      zug = { art: g ? g.dataset.griff : t > z.von && t < z.bis ? 'feld' : 'neu', t, von: z.von, bis: z.bis, x: ev.clientX, bewegt: false, g };
+      st.setPointerCapture(ev.pointerId); ev.preventDefault();
+      if (g) { g.classList.add('zieht'); g.focus({ preventScroll: true }); }
+    });
+    st.addEventListener('pointermove', (ev) => {
+      if (!zug) return;
+      if (!zug.bewegt && Math.abs(ev.clientX - zug.x) < 4) return;
+      zug.bewegt = true; st.classList.add('zieht');
+      const t = zeit(ev);
+      if (zug.art === 'von') z.von = Math.max(0, Math.min(t, z.bis - MIN));
+      else if (zug.art === 'bis') z.bis = Math.min(z.dauer, Math.max(t, z.von + MIN));
+      else if (zug.art === 'feld') { const l = zug.bis - zug.von; z.von = Math.min(Math.max(0, zug.von + t - zug.t), z.dauer - l); z.bis = z.von + l; }
+      else { z.von = Math.min(zug.t, t); z.bis = Math.min(z.dauer, Math.max(Math.max(zug.t, t), z.von + MIN)); }
+      this._schnittLage(box);
+    });
+    const los = (ev) => {
+      if (!zug) return;
+      st.classList.remove('zieht'); if (zug.g) zug.g.classList.remove('zieht');
+      if (!zug.bewegt && !zug.g) this._abspielen(z.url, zeit(ev), z.dauer);  // tap: play from here, like in a studio
+      else if (zug.bewegt && zug.art !== 'neu' && zug.art !== 'feld' && ev.type === 'pointerup') this._abspielen(z.url, zug.art === 'von' ? z.von : Math.max(z.von, z.bis - 0.8), z.bis);
+      zug = null;
+    };
+    st.addEventListener('pointerup', los); st.addEventListener('pointercancel', los);
+    st.addEventListener('keydown', (ev) => {
+      const g = ev.target.closest && ev.target.closest('[data-griff]');
+      if (!g || !['ArrowLeft', 'ArrowRight'].includes(ev.key)) return;
+      const d = (ev.key === 'ArrowLeft' ? -1 : 1) * (ev.shiftKey ? 0.1 : 0.01);
+      if (g.dataset.griff === 'von') z.von = Math.max(0, Math.min(z.von + d, z.bis - MIN)); else z.bis = Math.min(z.dauer, Math.max(z.bis + d, z.von + MIN));
+      this._schnittLage(box); ev.preventDefault(); ev.stopPropagation();
+    });
+    if (this._schnittRO) this._schnittRO.disconnect();
+    this._schnittRO = new ResizeObserver(() => this._schnittZeichnen(box));
+    this._schnittRO.observe(st);
     this._schnittZeichnen(box);
+    this._schnittLage(box);
   }
 
+  // waveform with time ruler, drawn once (and on resize); selection, handles and play head are elements on top
   _schnittZeichnen(box) {
     const z = this._schnitt, c = box.querySelector('canvas');
-    if (!z || !c) return;
-    const b = c.clientWidth || 300, h = c.height;
-    c.width = b;
-    const g = c.getContext('2d'), st = getComputedStyle(this);
-    const farbe = st.getPropertyValue('--primary-color') || '#03a9f4', grau = st.getPropertyValue('--secondary-text-color') || '#888';
-    g.clearRect(0, 0, b, h);
-    const schritt = Math.max(1, Math.floor(z.daten.length / b));
-    for (let x = 0; x < b; x++) {
-      let m = 0;
-      for (let i = x * schritt; i < Math.min(z.daten.length, (x + 1) * schritt); i++) m = Math.max(m, Math.abs(z.daten[i]));
-      const t = (x / b) * z.dauer;
-      g.fillStyle = t >= z.von && t <= z.bis ? farbe : grau;
-      g.globalAlpha = t >= z.von && t <= z.bis ? 1 : 0.35;
-      const y = Math.max(1, m * h);
-      g.fillRect(x, (h - y) / 2, 1, y);
+    if (!z || !c || !c.clientWidth) return;
+    const dpr = window.devicePixelRatio || 1, b = c.clientWidth, h = c.clientHeight, lineal = 18, wh = h - lineal;
+    c.width = Math.round(b * dpr); c.height = Math.round(h * dpr);
+    const g = c.getContext('2d'), farbe = (getComputedStyle(this).getPropertyValue('--primary-color') || '#03a9f4').trim();
+    g.scale(dpr, dpr); g.clearRect(0, 0, b, h);
+    const schritt = z.dauer > 3 ? 0.5 : z.dauer > 1.2 ? 0.25 : 0.1;
+    g.font = '10px ui-monospace,Menlo,Consolas,monospace'; g.textBaseline = 'middle';
+    for (let t = 0; t <= z.dauer + 1e-6; t += schritt) {
+      const x = Math.round((t / z.dauer) * b) + 0.5, gross = Math.abs(t / (schritt * 2) - Math.round(t / (schritt * 2))) < 1e-6;
+      g.fillStyle = 'rgba(255,255,255,.05)'; g.fillRect(x, 0, 1, wh);
+      g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(x, wh, 1, gross ? 6 : 3);
+      if (gross && x < b - 24) { g.fillStyle = 'rgba(255,255,255,.55)'; g.fillText(this._zahl(t, schritt < 0.25 ? 1 : 1) + 's', x + 3, wh + 11); }
     }
-    g.globalAlpha = 1;
-    const info = box.querySelector('[data-sinfo]');
-    if (info) info.textContent = this.t('pr_auswahl', { a: this._zahl(z.von, 2), b: this._zahl(z.bis, 2), d: this._zahl(z.bis - z.von, 2) });
+    g.fillStyle = 'rgba(255,255,255,.08)'; g.fillRect(0, wh / 2, b, 1);
+    const verlauf = g.createLinearGradient(0, 0, 0, wh);
+    verlauf.addColorStop(0, farbe); verlauf.addColorStop(0.5, '#ffffff'); verlauf.addColorStop(1, farbe);
+    g.fillStyle = verlauf;
+    const balken = 3, luecke = 1, n = Math.floor(b / (balken + luecke)), proBalken = z.daten.length / n;
+    let spitze = 1e-4;
+    for (let i = 0; i < z.daten.length; i += 7) spitze = Math.max(spitze, Math.abs(z.daten[i]));
+    for (let k = 0; k < n; k++) {
+      let m = 0;
+      for (let i = Math.floor(k * proBalken), e = Math.min(z.daten.length, Math.floor((k + 1) * proBalken)); i < e; i++) { const v = Math.abs(z.daten[i]); if (v > m) m = v; }
+      const y = Math.max(2, Math.min(1, m / spitze) * (wh - 8));
+      g.beginPath(); if (g.roundRect) g.roundRect(k * (balken + luecke), (wh - y) / 2, balken, y, 1.5); else g.rect(k * (balken + luecke), (wh - y) / 2, balken, y); g.fill();
+    }
+  }
+
+  _schnittLage(box) {
+    const z = this._schnitt;
+    if (!z) return;
+    const p = (t) => (t / z.dauer) * 100 + '%', q = (s) => box.querySelector(s);
+    q('.aus.links').style.width = p(z.von); q('.aus.rechts').style.width = p(z.dauer - z.bis);
+    q('.wahl').style.left = p(z.von); q('.wahl').style.width = p(z.bis - z.von);
+    q('[data-griff="von"]').style.left = p(z.von); q('[data-griff="bis"]').style.left = p(z.bis);
+    q('[data-griff="von"]').setAttribute('aria-valuetext', this._zahl(z.von, 2) + ' s'); q('[data-griff="bis"]').setAttribute('aria-valuetext', this._zahl(z.bis, 2) + ' s');
+    this._schnittInfo(box);
+  }
+
+  _schnittInfo(box) {
+    const z = this._schnitt, info = box.querySelector('[data-sinfo]');
+    if (!z || !info) return;
+    const hier = this._audio.src === z.url, t = hier ? this._audio.currentTime : null;
+    info.textContent = (t != null ? '▸ ' + this._zahl(t, 2) + ' s · ' : '') + this.t('pr_auswahl', { a: this._zahl(z.von, 2), b: this._zahl(z.bis, 2), d: this._zahl(z.bis - z.von, 2) });
+  }
+
+  // loudest stretch of the recording, with a little air on both sides
+  _schnittAuto() {
+    const z = this._schnitt, d = z.daten, fenster = Math.max(1, Math.round(d.length / z.dauer / 100)), werte = [];
+    for (let i = 0; i < d.length; i += fenster) { let s = 0; const e = Math.min(d.length, i + fenster); for (let k = i; k < e; k++) s += d[k] * d[k]; werte.push(Math.sqrt(s / (e - i))); }
+    const sortiert = [...werte].sort((a, b) => a - b), boden = sortiert[Math.floor(sortiert.length * 0.2)] || 0, spitze = sortiert[sortiert.length - 1] || 0;
+    const grenze = boden + (spitze - boden) * 0.12;
+    const an = werte.findIndex((v) => v > grenze);
+    let aus = werte.length - 1; while (aus > an && werte[aus] <= grenze) aus--;
+    if (an < 0) return;
+    const sek = z.dauer / werte.length;
+    z.von = Math.max(0, an * sek - 0.12); z.bis = Math.min(z.dauer, Math.max((aus + 1) * sek + 0.15, z.von + 0.2));
   }
 
   async _schnittAktion(was) {
     const z = this._schnitt;
     if (!z) return;
-    if (was === 'hoeren') {
-      this._audio.pause(); this._audio.src = z.url; this._audio.currentTime = z.von; this._spielt = null;
-      const ende = () => { if (this._audio.currentTime >= z.bis) { this._audio.pause(); this._audio.removeEventListener('timeupdate', ende); } };
-      this._audio.addEventListener('timeupdate', ende);
-      try { await this._audio.play(); } catch (e) { this._meldung(this.t('ging_nicht', { f: e.message })); }
-      return;
+    const box = this.shadowRoot.querySelector(`[data-schnittbox="${CSS.escape(z.id)}"]`);
+    if (was === 'hoeren') { this._abspielen(z.url, z.von, z.bis); return; }
+    if (was === 'spielen') {
+      if (this._audio.src === z.url && !this._audio.paused) { this._audio.pause(); return; }
+      const t = this._audio.src === z.url && this._audio.currentTime < z.dauer - 0.05 ? this._audio.currentTime : 0;
+      this._abspielen(z.url, t, z.dauer); return;
     }
+    if (was === 'auto') { this._schnittAuto(); if (box) this._schnittLage(box); this._abspielen(z.url, z.von, z.bis); return; }
     const ganz = was === 'ganz' || (z.von <= 0.01 && z.bis >= z.dauer - 0.01);
     try {
       await this._api('POST', 'aktion', { aktion: 'schnitt', wort: this._wortId, id: z.id, von: ganz ? null : z.von, bis: ganz ? null : z.bis });
@@ -693,6 +804,62 @@ ${this._personWahl(a.person || (pruefen ? this._person : ''), a.id)}
     else if (e.key === '0') this._urteilen(akt.dataset.id, 'verworfen');
   }
 
+  // small waveform per recording: decoded once when it comes into view, cached as 160 peaks
+  _wellen(wurzel) {
+    if (!this._wellenCache) this._wellenCache = new Map();
+    if (this._wellenIO) this._wellenIO.disconnect();
+    this._wellenIO = new IntersectionObserver((eintraege) => eintraege.forEach((e) => { if (e.isIntersecting) { this._wellenIO.unobserve(e.target); this._welleLaden(e.target); } }), { rootMargin: '200px' });
+    wurzel.querySelectorAll('[data-welle]').forEach((el) => {
+      const s = this._wellenCache.get(this._wortId + '/' + el.dataset.welle);
+      if (s) this._welleMalen(el, s); else this._wellenIO.observe(el);
+      if (!el._klick) { el._klick = true; el.addEventListener('click', (ev) => this._welleKlick(el, ev)); }
+    });
+  }
+
+  async _welleLaden(el) {
+    const id = el.dataset.welle, schl = this._wortId + '/' + id;
+    try {
+      const url = await this._blob(id);
+      if (!this._dekoder) this._dekoder = new (window.AudioContext || window.webkitAudioContext)();
+      const p = await this._dekoder.decodeAudioData(await (await fetch(url)).arrayBuffer());
+      const d = p.getChannelData(0), n = 160, je = d.length / n, spitzen = new Float32Array(n);
+      let max = 1e-4;
+      for (let k = 0; k < n; k++) { let m = 0; for (let i = Math.floor(k * je), e = Math.floor((k + 1) * je); i < e; i++) { const v = Math.abs(d[i]); if (v > m) m = v; } spitzen[k] = m; if (m > max) max = m; }
+      const s = { spitzen: spitzen.map((v) => v / max), dauer: p.duration };
+      this._wellenCache.set(schl, s);
+      if (this._wellenCache.size > 300) this._wellenCache.delete(this._wellenCache.keys().next().value);
+      if (el.isConnected) this._welleMalen(el, s);
+    } catch (e) { /* no waveform for this one, the tile works without it */ }
+  }
+
+  _welleMalen(el, s) {
+    const c = el.querySelector('canvas');
+    if (!c || !c.clientWidth) return;
+    const dpr = window.devicePixelRatio || 1, b = c.clientWidth, h = c.clientHeight;
+    c.width = Math.round(b * dpr); c.height = Math.round(h * dpr);
+    const g = c.getContext('2d'); g.scale(dpr, dpr);
+    g.fillStyle = (getComputedStyle(this).getPropertyValue('--primary-color') || '#03a9f4').trim();
+    const n = s.spitzen.length, w = b / n;
+    const von = el.dataset.von != null ? Number(el.dataset.von) : null, bis = el.dataset.bis != null ? Number(el.dataset.bis) : null;
+    for (let k = 0; k < n; k++) {
+      const t = ((k + 0.5) / n) * s.dauer, drin = von == null || (t >= von && t <= bis);
+      g.globalAlpha = drin ? 0.9 : 0.22;  // a trimmed recording: only the trained part in full colour
+      const y = Math.max(2, s.spitzen[k] * (h - 8)); g.fillRect(k * w + 0.5, (h - y) / 2, Math.max(1, w - 1.2), y);
+    }
+    g.globalAlpha = 1;
+    el._dauer = s.dauer;
+  }
+
+  // tap the waveform: play from there (a trimmed recording stops at its trim end)
+  async _welleKlick(el, ev) {
+    const id = el.dataset.welle, a = ((this._liste && this._liste.eintraege) || []).find((x) => x.id === id) || {};
+    const r = el.getBoundingClientRect(), dauer = el._dauer || a.dauer;
+    if (!dauer) { this._spielen(id); return; }
+    const t = Math.max(0, Math.min(dauer, ((ev.clientX - r.left) / r.width) * dauer));
+    const s = Array.isArray(a.schnitt) && a.schnitt.length === 2 ? a.schnitt : null;
+    try { await this._abspielen(await this._blob(id), s ? Math.min(Math.max(t, s[0]), s[1] - 0.05) : t, s ? s[1] : null, id); } catch (e) { this._meldung(this.t('ging_nicht', { f: e.message })); }
+  }
+
   async _blob(id) {
     const schl = this._wortId + '/' + id;
     if (this._blobs.has(schl)) return this._blobs.get(schl);
@@ -708,17 +875,49 @@ ${this._personWahl(a.person || (pruefen ? this._person : ''), a.id)}
     try {
       if (this._spielt === id && !this._audio.paused) { this._audio.pause(); this._spielt = null; this._ring(true); return; }
       this._audio.pause(); this._ring(true);
-      this._audio.src = url || await this._blob(id);
-      this._spielt = id;
-      await this._audio.play();
+      // a trimmed recording plays only its trimmed part, so reviewing later hears exactly what is trained
+      const a = url ? null : ((this._liste && this._liste.eintraege) || []).find((x) => x.id === id);
+      const s = a && Array.isArray(a.schnitt) && a.schnitt.length === 2 ? a.schnitt : null;
+      await this._abspielen(url || await this._blob(id), s ? s[0] : 0, s ? s[1] : null, id);
     } catch (e) { this._meldung(this.t('ging_nicht', { f: e.message })); }
   }
 
-  _ring(aus) {
+  // play src from von to bis (null = to the end); one frame loop moves the play head, the ring and stops at bis
+  async _abspielen(src, von = 0, bis = null, id = null) {
+    const au = this._audio;
+    au.pause();
+    if (au.src !== src) { au.src = src; await new Promise((r) => { if (au.readyState >= 1) r(); else { au.addEventListener('loadedmetadata', r, { once: true }); au.addEventListener('error', r, { once: true }); } }); }
+    this._bereich = [von || 0, bis];
+    this._spielt = id; if (!id) this._ring(true);
+    try { au.currentTime = von || 0; await au.play(); } catch (e) { this._meldung(this.t('ging_nicht', { f: e.message })); return; }
+    cancelAnimationFrame(this._lauf);
+    const schritt = () => {
+      const [a, b] = this._bereich || [0, null];
+      if (b != null && au.currentTime >= b) au.pause();
+      const z = this._schnitt, box = z && this.shadowRoot.querySelector(`[data-schnittbox="${CSS.escape(z.id)}"]`);
+      if (box && au.src === z.url) {
+        const k = box.querySelector('.spielkopf'), knopf = box.querySelector('[data-sa="spielen"] ha-icon');
+        if (k) { k.style.left = (au.currentTime / z.dauer) * 100 + '%'; k.classList.add('an'); }
+        if (knopf) knopf.setAttribute('icon', au.paused ? 'mdi:play' : 'mdi:pause');
+        this._schnittInfo(box);
+      }
+      if (this._spielt) {
+        this._ring(au.paused, a, b);
+        const w = this.shadowRoot.querySelector(`[data-welle="${CSS.escape(this._spielt)}"]`), k = w && w.querySelector('.spielkopf'), d = w && (w._dauer || au.duration);
+        if (k && d) { k.style.left = Math.min(100, (au.currentTime / d) * 100) + '%'; k.classList.toggle('an', !au.paused); }
+      }
+      if (!au.paused) this._lauf = requestAnimationFrame(schritt);
+      else if (this._spielt && b != null) { this._spielt = null; this._ring(true); }
+    };
+    this._lauf = requestAnimationFrame(schritt);
+  }
+
+  _ring(aus, von = null, bis = null) {
+    const [a, e] = von == null ? (this._bereich || [0, null]) : [von, bis];
     this.shadowRoot.querySelectorAll('.spielen').forEach((b) => {
       const an = !aus && b.dataset.spielen === this._spielt;
-      const c = b.querySelector('circle'), d = this._audio.duration || 1;
-      c.style.strokeDashoffset = an ? 157 - 157 * (this._audio.currentTime / d) : 157;
+      const c = b.querySelector('circle'), ende = e != null ? e : this._audio.duration || 1, anteil = Math.min(1, Math.max(0, (this._audio.currentTime - a) / Math.max(0.01, ende - a)));
+      c.style.strokeDashoffset = an ? 157 - 157 * anteil : 157;
       b.querySelector('ha-icon').setAttribute('icon', an && !this._audio.paused ? 'mdi:pause' : 'mdi:play');
     });
   }
@@ -727,11 +926,25 @@ ${this._personWahl(a.person || (pruefen ? this._person : ''), a.id)}
     const zeile = this.shadowRoot.querySelector(`.eintrag[data-id="${CSS.escape(id)}"]`);
     const sel = zeile && zeile.querySelector('select[data-person]');
     const person = urteil === 'wort' ? (sel ? sel.value : this._person) : '';
-    if (zeile && this._reiter !== 'pruefen') zeile.querySelectorAll('[data-urteil]').forEach((b) => b.classList.toggle('gewaehlt', b.dataset.urteil === urteil));
+    // feedback right away: the pressed button lights up (and the phone ticks), before the answer from HA
+    const knopf = zeile && zeile.querySelector(`[data-urteil="${urteil}"]`);
+    if (knopf) { knopf.classList.remove('drueck'); void knopf.offsetWidth; knopf.classList.add('drueck'); }
+    try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* not supported */ }
+    if (zeile) zeile.querySelectorAll('[data-urteil]').forEach((b) => b.classList.toggle('gewaehlt', b.dataset.urteil === urteil));
     try { await this._api('POST', 'urteil', { wort: this._wortId, ids: [id], urteil, person }); }
     catch (e) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(e) })); return; }
     if (this._reiter === 'pruefen' && zeile) {
       zeile.classList.add('weg');
+      // stamp with the answer, then the tile slides away and the list closes the gap
+      const icon = { wort: 'mdi:check-circle', kein_wort: 'mdi:close-circle', verworfen: 'mdi:delete' }[urteil] || 'mdi:check';
+      zeile.insertAdjacentHTML('beforeend', `<div class="stempel u-${esc(urteil)}"><ha-icon icon="${icon}"></ha-icon>${esc(this.t('u_' + urteil))}${urteil === 'wort' && person ? ' · ' + esc(person) : ''}</div>`);
+      const ruhig = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (zeile.animate && !ruhig) {
+        const h = zeile.offsetHeight;
+        zeile.animate([{ opacity: 1, transform: 'none', height: h + 'px', marginBottom: '0px' }, { opacity: 1, transform: 'none', height: h + 'px', offset: 0.45 },
+          { opacity: 0, transform: 'translateX(48px) scale(.97)', height: '0px', paddingTop: '0px', paddingBottom: '0px', marginBottom: '-10px', borderWidth: '0px' }],
+        { duration: 900, easing: 'cubic-bezier(.4,0,.2,1)', fill: 'forwards' });
+      } else setTimeout(() => { zeile.style.display = 'none'; }, 600);
       if (this._spielt === id) this._audio.pause();
       const rest = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')];
       this._aktiv = Math.min(this._aktiv, rest.length - 1);
@@ -1139,20 +1352,27 @@ ${this._sendenKarte(tr, basis)}
     const d = this._daten, adresse = basis.replace(/\/+$/, '') + '/api/wake_word_studio';
     const geraete = (d.geraete || []).filter((g) => g.senden);
     const schritte = [1, 2, 3, 4].map((n) => `<li>${esc(this.t('es_senden_s' + n))}</li>`).join('');
+    // live from Home Assistant where possible, so a switch flips at once; the studio's own snapshot otherwise
+    const live = (ent, sonst) => { const st = ent && this._hass && this._hass.states[ent]; return st ? st.state : sonst; };
     const zeilen = geraete.map((g) => {
-      const s = g.senden, an = s.ziel === 'Custom';
-      const zustand = an ? this.t('es_senden_an') : s.ziel && s.ziel !== 'Off' ? this.t('es_senden_anders', { z: s.ziel }) : this.t('es_senden_aus');
-      const extra = [s.status && !['unknown', 'unavailable'].includes(s.status) ? s.status : '', s.offen && !['unknown', 'unavailable', '0'].includes(String(s.offen)) ? this.t('es_senden_offen', { n: s.offen }) : ''].filter(Boolean).join(' · ');
-      const knoepfe = [
-        s.behalten === 'off' && s.behalten_entitaet ? `<button class="k leise" data-a="behalten" data-ent="${esc(s.behalten_entitaet)}">${esc(this.t('es_senden_behalten'))}</button>` : '',
-        s.ip && s.seite_entitaet ? `<button class="k" data-a="seite" data-ent="${esc(s.seite_entitaet)}" data-ip="${esc(s.ip)}">${esc(this.t('es_senden_seite'))}</button>` : '',
-      ].join('');
-      return `<tr><td><span class="punkt ${an ? 'an' : ''}"></span>${esc(g.name)}<div class="klein">${esc(zustand)}${extra ? ' · ' + esc(extra) : ''}${s.behalten === 'off' ? ' · ' + esc(this.t('es_senden_behalten_aus')) : ''}</div></td><td style="text-align:right">${knoepfe}</td></tr>`;
+      const s = g.senden, ziel = live(s.ziel_entitaet, s.ziel), behalten = live(s.behalten_entitaet, s.behalten), seite = live(s.seite_entitaet, s.seite);
+      const status = live(s.status_entitaet, s.status), offen = live(s.offen_entitaet, s.offen);
+      const an = ziel === 'Custom' && behalten !== 'off';
+      const art = behalten === 'off' ? 'rot' : an ? 'gruen' : 'gelb';
+      const pille = behalten === 'off' ? this.t('es_senden_behalten_aus_kurz') : an ? this.t('es_senden_an') : ziel && ziel !== 'Off' ? this.t('es_senden_anders', { z: ziel }) : this.t('es_senden_aus');
+      const extra = [status && !['unknown', 'unavailable'].includes(status) ? status : '', offen && !['unknown', 'unavailable', '0'].includes(String(offen)) ? this.t('es_senden_offen', { n: offen }) : ''].filter(Boolean).join(' · ');
+      const schalter = (ent, wert, text, warn) => ent ? `<label class="schalter"><input type="checkbox" data-gschalter="${esc(ent)}" ${warn ? 'data-warn="1"' : ''} ${wert === 'on' ? 'checked' : ''} ${['unknown', 'unavailable'].includes(wert) ? 'disabled' : ''}><i></i><span>${esc(text)}</span></label>` : '';
+      const optionen = (s.ziel_optionen && s.ziel_optionen.length ? s.ziel_optionen : [ziel]).filter(Boolean);
+      const auswahl = s.ziel_entitaet ? `<label class="klein zeile" style="gap:6px">${esc(this.t('es_senden_an_wahl'))}<select data-gziel="${esc(s.ziel_entitaet)}">${optionen.map((o) => `<option value="${esc(o)}" ${o === ziel ? 'selected' : ''}>${esc(o === 'Off' ? this.t('es_senden_ziel_aus') : o === 'Custom' ? 'Custom · Wake Word Studio' : o)}</option>`).join('')}</select></label>` : '';
+      const einrichten = s.ip && s.seite_entitaet ? `<button class="k ${an ? 'leise' : 'haupt'}" data-a="seite" data-ent="${esc(s.seite_entitaet)}" data-behalten="${esc(s.behalten_entitaet || '')}" data-ip="${esc(s.ip)}"><ha-icon icon="mdi:open-in-new"></ha-icon>${esc(this.t(an ? 'es_senden_seite' : 'es_senden_einrichten'))}</button>` : '';
+      return `<div class="sgeraet"><div class="zeile weit"><span class="titel"><span class="punkt ${an ? 'an' : ''}"></span>${esc(g.name)}</span><span class="pille ${art}">${esc(pille)}</span></div>
+<div class="zeile sgeraet-regler">${schalter(s.behalten_entitaet, behalten, this.t('es_schalter_behalten'), true)}${schalter(s.seite_entitaet, seite, this.t('es_schalter_seite'))}${auswahl}</div>
+<div class="zeile weit"><span class="klein">${esc(extra || (s.ip ? 'IP ' + s.ip : ''))}</span>${einrichten}</div></div>`;
     }).join('');
     return `<ha-card><h2>${esc(this.t('es_senden'))}</h2><p class="klein" style="line-height:1.6">${esc(this.t('es_senden_text'))}</p>
 <ol class="klein" style="line-height:1.6;padding-left:20px">${schritte}</ol>
 <table><tr><td>${esc(this.t('es_senden_ziel'))}</td><td><code>Custom</code></td></tr><tr><td>${esc(this.t('es_adresse'))}</td><td><div class="schluessel"><code>${esc(adresse)}</code><button class="k leise" data-a="kopieren" data-text="${esc(adresse)}">${esc(this.t('es_kopieren'))}</button></div></td></tr><tr><td>${esc(this.t('es_senden_token'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="kopieren" data-schl="1">${esc(this.t('es_kopieren'))}</button></div></td></tr></table>
-${geraete.length ? `<h3 style="margin:16px 0 4px">${esc(this.t('es_senden_geraete'))}</h3><table>${zeilen}</table>` : `<p class="klein">${esc(this.t('es_senden_keine'))}</p>`}
+${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraete'))}</h3><div class="sgeraete">${zeilen}</div>` : `<p class="klein">${esc(this.t('es_senden_keine'))}</p>`}
 <p class="klein" style="line-height:1.6">${esc(this.t('es_senden_hinweis'))}</p></ha-card>`;
   }
 
@@ -1208,10 +1428,15 @@ ${geraete.length ? `<h3 style="margin:16px 0 4px">${esc(this.t('es_senden_geraet
       else if (a === 'kopieren') await this._kopieren(t.dataset.schl ? (this._daten.trainer || {}).schluessel || '' : t.dataset.text);
       else if (a === 'behalten') { await this._hass.callService('switch', 'turn_on', { entity_id: t.dataset.ent }); this._meldung(this.t('es_senden_behalten_ok')); setTimeout(() => this._laden(), 1500); }
       else if (a === 'seite') {
-        // the page is off until switched on; give the device a moment, within the click's permission to open a tab
+        // the page is off until switched on; give the device a moment, within the click's permission to open a tab.
+        // Sending needs "Keep wake clips", so that goes on too.
+        const fenster = window.open('about:blank', '_blank');
+        if (t.dataset.behalten) await this._hass.callService('switch', 'turn_on', { entity_id: t.dataset.behalten });
         await this._hass.callService('switch', 'turn_on', { entity_id: t.dataset.ent });
         await new Promise((r) => setTimeout(r, 800));
-        window.open('http://' + t.dataset.ip + ':8181/setup', '_blank', 'noopener');
+        const ziel = 'http://' + t.dataset.ip + ':8181/setup';
+        if (fenster) { try { fenster.opener = null; } catch (e2) { /* ignore */ } fenster.location.href = ziel; } else window.open(ziel, '_blank', 'noopener');
+        this._meldung(this.t('es_senden_seite_ok')); setTimeout(() => this._zeichnen(), 1500);
       }
       else if (a === 'rec') { if (this._rec.an) this._recStopp(); else await this._recStart(); }
       else if (a === 'recspeichern') { t.disabled = true; await this._recSpeichern(); }
@@ -1265,6 +1490,18 @@ ${geraete.length ? `<h3 style="margin:16px 0 4px">${esc(this.t('es_senden_geraet
       const g = { ...(this._entwurf.geraete || {}) };
       if (t.value) g[t.dataset.platz] = t.value; else delete g[t.dataset.platz];
       this._entwurf.geraete = g; this._entwurf._geaendert = true; return;
+    }
+    if (t.dataset.gschalter) {
+      // "Keep wake clips" off deletes the clips on the device, so that one asks first
+      if (!t.checked && t.dataset.warn && !confirm(this.t('es_behalten_aus_frage'))) { t.checked = true; return; }
+      try { await this._hass.callService('switch', t.checked ? 'turn_on' : 'turn_off', { entity_id: t.dataset.gschalter }); this._meldung(this.t(t.checked ? 'es_ein' : 'es_aus')); }
+      catch (e2) { t.checked = !t.checked; this._meldung(this.t('ging_nicht', { f: e2.message })); }
+      setTimeout(() => this._zeichnen(), 900); return;
+    }
+    if (t.dataset.gziel) {
+      try { await this._hass.callService('select', 'select_option', { entity_id: t.dataset.gziel, option: t.value }); this._meldung(t.value === 'Custom' ? this.t('es_ziel_custom') : this.t('gespeichert')); }
+      catch (e2) { this._meldung(this.t('ging_nicht', { f: e2.message })); }
+      setTimeout(() => this._zeichnen(), 900); return;
     }
     if (t.dataset.person !== undefined) {
       this._person = t.value; this._merk('person', t.value);
