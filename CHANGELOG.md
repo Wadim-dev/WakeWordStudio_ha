@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.28
+- *Thorough* (Training → Automatic, off by default): each run trains three candidates and keeps the one that hears best in everyday conditions at about one false wake per hour. They are compared on check data of their own (held-out synthetic voice, FLEURS dev speech, other music/noise files), never on the test, so the honest test stays untouched; with *Thorough* the test leaves those check clips out. The winner is the base for the next run. A run takes about two to three times as long.
+- Estimate for your trainer right under the switch: processor, cores, memory, graphics card, how long a normal and a thorough run take on it (from the last run) and whether a night run is done by 7 in the morning.
+- The trainer reports its processor and graphics cards; *Settings → Trainer → Profile* shows them.
+- Version details say which candidate was kept.
+
 ## 1.0.27
 - Easy to read comparison instead of the curve: the *Active version* card now shows, next to *How well it hears*, the version against the one before with two bars per question – *Hears the word in everyday life* (more is better), *Wakes up for nothing, per hour of talk* and *per hour of music/noise* (fewer is better) – each marked *really better*, *really worse* or *no real difference*. *All figures in the comparison* jumps to the full table.
 - Versions tested before 1.0.26 get the same bars from their own test (marked as old test) instead of an empty view.

@@ -439,6 +439,7 @@ class TrainerAuftrag(_TrainerAnsicht):
                 "modell_id": wort.modell_id,
                 "anzeige": wort.anzeige,
                 "aktiv": wort.speicher.daten["aktiv"],
+                "kandidaten": 3 if wort.cfg.get("gruendlich") else 1,
             }
         vorpruefen = []
         if auftrag is None and not any(w.speicher.daten["training"].get("phase") in LAEUFT for w in z.woerter.values()):

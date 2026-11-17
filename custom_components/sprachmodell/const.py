@@ -45,6 +45,8 @@ STANDARD_WORT = {
     "schwelle_automatisch": True,
     # Speech recognition on the trainer listens to new device recordings and confirms those with the word
     "vorpruefen": True,
+    # "Thorough": train three candidates per run and keep the best (a run takes about two to three times as long)
+    "gruendlich": False,
     "farbe": "",
 }
 

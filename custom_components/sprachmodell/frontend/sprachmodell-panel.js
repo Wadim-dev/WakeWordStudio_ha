@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.27';
+const VERSION = '1.0.28';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -209,6 +209,10 @@ td.z,th.z{text-align:right}
 code,pre{font-size:12px;background:rgba(var(--rgb-primary-text-color,0,0,0),.07);padding:2px 6px;border-radius:5px;word-break:break-all}
 pre{display:block;padding:10px;white-space:pre-wrap;margin:6px 0}
 .schluessel{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.g-info{display:flex;gap:10px;margin:10px 0 4px 26px;padding:10px 12px;border-radius:10px;background:rgba(var(--rgb-primary-text-color,0,0,0),.04);font-size:13px;line-height:1.6;transition:background .2s}
+.g-info.an{background:rgba(var(--rgb-primary-color,3,169,244),.1)}.g-info>ha-icon{--mdc-icon-size:20px;color:var(--primary-color);flex:none;margin-top:1px}
+.g-info b{font-weight:500;font-size:14px}.g-rat{display:flex;gap:8px;align-items:center;margin-top:2px}.g-rat .punkt{flex:none}
+@media (max-width:600px){.g-info{margin-left:0}}
 .hinweis{padding:10px 12px;border-radius:10px;background:rgba(var(--rgb-warning-color,255,152,0),.12);font-size:14px;margin-bottom:12px;line-height:1.5}
 .hinweis.ok{background:rgba(var(--rgb-success-color,76,175,80),.14)}
 svg.vert text{font-size:10px;fill:var(--secondary-text-color)}
@@ -595,6 +599,37 @@ ${nachts ? `<div class="klein" style="margin-top:8px"><ha-icon icon="mdi:weather
 ${unten}</ha-card>`;
   }
 
+  // what "thorough" costs on this trainer: its hardware, the last run's duration and when a night run would end
+  _gruendlichInfo(w, e) {
+    const tr = this._daten.trainer, i = tr.info || {}, karten = i.grafik || [], nvidia = karten.find((k) => k.art === 'nvidia');
+    const cpu = i.prozessor ? i.prozessor.replace(/\((R|TM)\)/g, '').replace(/\s+CPU\b/, '').replace(/\s+/g, ' ').trim() : '';
+    const hw = [cpu, i.cpu ? this.t('g_kerne', { n: i.cpu }) : '', i.ram_gb ? this._zahl(i.ram_gb, 0) + ' GB' : '',
+      karten.length ? karten.map((k) => k.name).join(', ') : (i.prozessor ? this.t('g_keine_grafik') : '')].filter(Boolean).join(' · ');
+    const lauf = (w.laeufe || []).find((l) => l.dauer_min > 0); // newest first
+    let einfach = null, gruendlich = null;
+    if (lauf) {
+      const n = lauf.kandidaten || 1, je = lauf.training_min ? lauf.training_min / n : lauf.dauer_min * 0.42 / n;
+      einfach = lauf.dauer_min - (n - 1) * je; gruendlich = einfach + 2 * je;
+    }
+    let stufe = 0, rat;
+    const [hh, mm] = String(this._daten.einstellungen.uhrzeit || '02:00').split(':').map(Number);
+    const ende = gruendlich != null ? new Date(2000, 0, 1, hh, mm + Math.round(gruendlich)) : null;
+    const endeText = ende ? ende.toLocaleTimeString(this._loc, { hour: '2-digit', minute: '2-digit' }) : '';
+    // a night run should be done by 7 in the morning (start before noon: the same day, otherwise the next one)
+    const spaet = ende && e.nachts && hh * 60 + mm + gruendlich > (hh < 12 ? 7 * 60 : 31 * 60);
+    if (i.cpu && i.cpu < 4) { stufe = 2; rat = this.t('g_rat_wenig'); }
+    else if (spaet) { stufe = 1; rat = this.t('g_rat_spaet', { z: endeText }); }
+    else if (ende && e.nachts) rat = this.t('g_rat_nachts', { z: endeText });
+    else rat = this.t(i.cpu >= 8 ? 'g_rat_gut' : 'g_rat_nacht_tipp');
+    const zeilen = [
+      hw ? `<div><span class="klein">${esc(this.t('g_hardware'))}</span> ${esc(hw)}</div>` : '',
+      einfach != null ? `<div><span class="klein">${esc(this.t('g_dauer'))}</span> ${esc(this.t('g_dauer_wert', { a: this._dauer(einfach), b: this._dauer(gruendlich) }))}</div>` : `<div class="klein">${esc(this.t('g_dauer_allg'))}</div>`,
+      `<div class="g-rat"><span class="punkt" style="background:var(--${['success', 'warning', 'error'][stufe]}-color)"></span>${esc(rat)}</div>`,
+      nvidia ? `<div class="klein">${esc(this.t('g_nvidia', { n: nvidia.name }))}</div>` : karten.length ? `<div class="klein">${esc(this.t('g_igpu'))}</div>` : '',
+    ].join('');
+    return `<div class="g-info ${e.gruendlich ? 'an' : ''}"><ha-icon icon="mdi:chip"></ha-icon><div><b>${esc(this.t('g_titel'))}</b>${zeilen}</div></div>`;
+  }
+
   _steckbrief() {
     const tr = this._daten.trainer, i = tr.info || {};
     if (!Object.keys(i).length) return '';
@@ -602,6 +637,8 @@ ${unten}</ha-card>`;
     const zeilen = [];
     const aelter = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let k = 0; k < 3; k++) if ((x[k] || 0) !== (y[k] || 0)) return (x[k] || 0) < (y[k] || 0); return false; };
     if (i.version) { const alt = aelter(i.version, VERSION); zeilen.push([this.t('sb_version'), 'v' + i.version + (i.art ? ' · ' + (i.art === 'app' ? this.t('sb_app') : 'Docker') : ''), alt ? 1 : 0, alt ? this.t(this._daten.einstellungen.trainer_neustart ? 'sb_version_alt_knopf' : 'sb_version_alt', { v: VERSION }) : '']); }
+    if (i.prozessor) zeilen.push([this.t('sb_prozessor'), i.prozessor.replace(/\((R|TM)\)/g, '').replace(/\s+CPU\b/, '').replace(/\s+/g, ' ').trim(), 0, '']);
+    if (i.grafik) zeilen.push([this.t('sb_grafik'), i.grafik.length ? i.grafik.map((k) => k.name).join(', ') : this.t('sb_grafik_keine'), 0, i.grafik.some((k) => k.art === 'nvidia') ? this.t('g_nvidia_kurz') : '']);
     if (i.cpu) zeilen.push([this.t('sb_kerne'), String(i.cpu) + (i.prozesse ? ' · ' + this.t('sb_prozesse', { n: i.prozesse }) : ''), i.cpu >= 4 ? 0 : i.cpu >= 2 ? 1 : 2, i.cpu >= 4 ? '' : this.t('sb_kerne_wenig')]);
     if (i.ram_gb) zeilen.push([this.t('sb_ram'), this._zahl(i.ram_gb, 1) + ' GB', i.ram_gb >= 6 ? 0 : i.ram_gb >= 4 ? 1 : 2, i.ram_gb >= 6 ? '' : this.t('sb_ram_wenig')]);
     if (i.swap_gb != null) { const q = i.swap_gb ? i.swap_belegt_gb / i.swap_gb : 0; zeilen.push([this.t('sb_swap'), i.swap_gb ? `${this._zahl(i.swap_belegt_gb, 1)} / ${this._zahl(i.swap_gb, 1)} GB` : this.t('sb_swap_kein'), q < 0.25 ? 0 : q < 0.6 ? 1 : 2, q < 0.25 ? '' : this.t('sb_swap_voll')]); }
@@ -1311,7 +1348,9 @@ ${this._details(w, laeuft)}
 <div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="nachts" ${e.nachts ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_nachts'))} · ${esc(String(d.einstellungen.uhrzeit).slice(0, 5))}</label></div>
 <div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="automatisch_einspielen" ${e.automatisch_einspielen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_einspielen'))}</label></div>
 <div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="schwelle_automatisch" ${e.schwelle_automatisch ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_schwelle_auto'))}</label></div>
-<div class="zeile"><label><input type="checkbox" data-wopt="vorpruefen" ${e.vorpruefen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_vorpruefen'))}</label></div>
+<div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="vorpruefen" ${e.vorpruefen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_vorpruefen'))}</label></div>
+<div class="zeile"><label><input type="checkbox" data-wopt="gruendlich" ${e.gruendlich ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_gruendlich'))}</label></div>
+${this._gruendlichInfo(w, e)}
 <p class="klein">${esc(this.t('t_besser_heisst'))}</p></ha-card>
 <ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
   }
@@ -1369,7 +1408,8 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
     const kopf = this._urteilZeile(b);
     const tab = vg ? `<table class="vgl-tab"><tr><th>${esc(this.t(b.alt_nr ? 'q_vgl' : 'q_vgl_vorher', { v: b.alt_nr }))}</th><th class="z">${esc(this.t('q_vgl_neu', { v: x.nr }))}</th><th class="z">${esc(b.alt_nr ? 'v' + b.alt_nr : this.t('q_vgl_alt'))}</th><th class="z"></th></tr>${vg.zeilen.map((z) => `<tr class="${z.wichtig ? 'wichtig' : ''}"><td>${esc(name(z))}</td><td class="z">${z.kennzahl === 'alltag_bei_fa' && z.neu == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.neu)}</td><td class="z">${z.kennzahl === 'alltag_bei_fa' && z.alt == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.alt)}</td><td class="z"><ha-icon class="u-${z.urteil}" icon="${icon[z.urteil]}" title="${esc(this.t('u_' + z.urteil))}"></ha-icon></td></tr>`).join('')}</table>
 <div class="klein" style="margin-top:6px">${esc(this.t('q_vgl_basis', { n: vg.testaufnahmen, h: this._zahl(vg.stunden_rede, 1), g: this._zahl(vg.stunden_geraeusch, 1) }))}</div>` : '';
-    return kopf + this._duell(b, x.nr) + tab;
+    const kand = b.kandidaten ? `<div class="klein" style="margin-top:8px">${esc(this.t('g_gewaehlt', { n: b.kandidaten.anzahl, k: b.kandidaten.gewaehlt }))}</div>` : '';
+    return kopf + this._duell(b, x.nr) + tab + kand;
   }
 
   _urteilZeile(b) {
