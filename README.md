@@ -29,7 +29,9 @@
   <img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/hero.png" alt="Wake Word Studio on tablet and phone" width="900">
 </p>
 
-> **Hobby project.** Wake Word Studio is free and not affiliated with Nabu Casa, ESPHome or the microWakeWord project.
+> **Made for [TECHO5](https://github.com/HuskerMinion/techo5), the Echo firmware by [HuskerMinion](https://github.com/HuskerMinion).** Wake Word Studio was built first and foremost for Echo devices running TECHO5 – HuskerMinion's open firmware that turns an Echo Show, Echo Dot, Echo Spot or Echo 2nd gen into a local Home Assistant voice device. TECHO5 keeps every wake-up and near miss and sends it straight to the Studio; the Studio trains a better wake word from it and rolls it back out to the same devices. Other ESPHome voice devices work too. TECHO5 is HuskerMinion's work and all credit for it goes there ([support it](https://buymeacoffee.com/huskerminion)).
+
+> **Hobby project.** Wake Word Studio is free and not affiliated with Nabu Casa, ESPHome, TECHO5 or the microWakeWord project.
 > Training uses the open-source [microWakeWord](https://github.com/kahrendt/microWakeWord) tools.
 
 ---
@@ -52,6 +54,19 @@
 
 ---
 
+## Built for TECHO5
+
+<table>
+  <tr>
+    <td width="50%" valign="top"><h3>📣 TECHO5 on the device</h3>Your Echo runs <a href="https://github.com/HuskerMinion/techo5">TECHO5</a> (<a href="https://github.com/HuskerMinion/techo5-dot">Dot</a>, <a href="https://github.com/HuskerMinion/techo5-spot">Spot</a>, <a href="https://github.com/HuskerMinion/techo5-athena">ATHENA</a>): wake word on the device, <i>Keep wake clips</i> stores every wake-up, near miss and false wake, <i>Send wake clips to → Custom</i> sends each one to the Studio the moment it happens.</td>
+    <td width="50%" valign="top"><h3>🎛️ Wake Word Studio in Home Assistant</h3>You confirm the clips with one tap, the trainer learns a better model from your home, and the new version is rolled out to the same Echos – the threshold follows by itself. The loop runs every night.</td>
+  </tr>
+</table>
+
+TECHO5 is made by **[HuskerMinion](https://github.com/HuskerMinion)**, built on [EchoLocal](https://github.com/ygelfand/echolocal) by Yuri Gelfand. Without their work on the Echo hardware there would be nothing to train for – thank you! Wake Word Studio is a separate hobby project that uses what TECHO5 offers; questions about the firmware belong in the [TECHO5 repository](https://github.com/HuskerMinion/techo5).
+
+Set-up per Echo takes a minute: *Settings → Devices that send their recordings* lists your TECHO5 devices with a button that opens each one's setup page ([details](#devices-that-send-their-recordings)).
+
 ## Supported devices
 
 Every **ESPHome voice device** with a *Wake word* select is found by itself, whatever it is called in your home (renamed devices keep your name):
@@ -60,7 +75,7 @@ Home Assistant Voice PE, ESP32-S3-Box, M5Stack Atom Echo with micro wake word, a
 | Device firmware | Model rollout | Collect wake clips automatically |
 |---|---|---|
 | Any ESPHome voice firmware with micro wake word | ✅ | – (record in the browser or upload zips) |
-| Firmware with wake clips (e.g. TECHO, switch *Keep wake clips*) | ✅ | ✅ every wake-up and near miss |
+| [TECHO5](https://github.com/HuskerMinion/techo5) (Echo Show, Dot, Spot, 2nd gen) | ✅ | ✅ every wake-up and near miss, sent the moment it happens |
 
 ## Review
 
@@ -232,6 +247,8 @@ Diagnostics (*Settings → Devices & services → Wake Word Studio → ⋮ → D
 ---
 
 ## Deutsch
+
+**Gebaut für [TECHO5](https://github.com/HuskerMinion/techo5), die Echo-Firmware von [HuskerMinion](https://github.com/HuskerMinion):** Wake Word Studio ist vor allem für Echo-Geräte mit HuskerMinions offener Firmware TECHO5 entstanden (aufgebaut auf [EchoLocal](https://github.com/ygelfand/echolocal) von Yuri Gelfand; danke für die Arbeit!) (Echo Show, [Dot](https://github.com/HuskerMinion/techo5-dot), [Spot](https://github.com/HuskerMinion/techo5-spot), Echo 2. Gen.). TECHO5 hebt jede Aktivierung und jeden Beinahe-Treffer auf und schickt sie sofort ans Studio, das Studio trainiert daraus ein besseres Aktivierungswort und spielt es wieder auf dieselben Echos. Andere ESPHome-Sprachgeräte gehen auch.
 
 **Wake Word Studio** macht aus Home Assistant eine Werkstatt für eigene Aktivierungswörter: beliebig viele Wörter in jeder Sprache, Geräte und Platz frei wählbar, Aufnahmen mit einem Tipp prüfen, im Browser aufnehmen oder Zips hochladen, nachts trainieren, ehrlich testen und nur bessere Versionen von selbst einspielen. Die ganze Oberfläche gibt es auf Deutsch.
 
