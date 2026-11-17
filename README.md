@@ -130,7 +130,16 @@ Without a graphics card OmniVoice is slow, so its clips are built up over severa
 
 ### Devices that send their recordings
 
-Firmware that can send every wake clip to a URL can deliver it directly instead of waiting to be asked. On a TECHO device: setup page → *Voice* → *Send wake clips to* → **Custom**, address `http://<home assistant>:8123/api/wake_word_studio` (a home network address), token = the trainer key, then *Test*. *Settings → Devices that send their recordings* walks through it step by step, with copy buttons, and lists your devices with their sending status and a button that opens each device's setup page.
+<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/send.png" alt="Devices that send their recordings" width="900"></p>
+
+Every TECHO device (Echo Show, Echo Spot, Echo Dot, Echo 2nd gen, TECHO5 Panel …, firmware 1.6.43 or newer) can send each wake clip to the Studio the moment it is kept, instead of the Studio collecting it every two minutes. Set it up once per device – *Settings → Devices that send their recordings* walks you through it:
+
+1. Tap **Open setup page** next to the device (home network only). It switches the device's setup page on and opens it.
+2. On the page choose **Ask to be let in** and confirm at the device: tap *Allow* on a device with a screen, press the action button briefly on one without.
+3. Under **Voice → Send wake clips to** choose **Custom**, paste the address `http://<home assistant>:8123/api/wake_word_studio` and the token (the trainer key) with the copy buttons, save.
+4. Press **Test**. The device list then shows *sends to the Studio*, with clips still waiting and the last problem, if any.
+
+*Keep wake clips* must be on; the card offers a button when it is off. Other firmware can use the same receiver:
 
 | | |
 |---|---|
