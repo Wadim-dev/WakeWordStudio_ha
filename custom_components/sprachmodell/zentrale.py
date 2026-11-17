@@ -76,11 +76,15 @@ def sprache_aus(hass: HomeAssistant) -> str:
     return sprache if sprache in SPRACHEN else "en"
 
 
+PROTOKOLL_MAX = 500  # log lines of a run kept for the panel (all the trainer sends)
+BALKEN_FELDER = ("name", "prozent", "n", "gesamt", "lief", "rest", "rest_min", "tempo", "zeit")
+
+
 def _live_pruefen(live: dict[str, Any]) -> dict[str, Any]:
     """Keep only what the panel shows, with limits (the trainer is trusted, but the data ends up in the browser)."""
     zeilen = [
         [z[0], str(z[1])[:16], str(z[2])[:300]]
-        for z in (live.get("protokoll") or [])[-100:]
+        for z in (live.get("protokoll") or [])[-PROTOKOLL_MAX:]
         if isinstance(z, list) and len(z) == 3 and isinstance(z[0], int | float)
     ]
     schritte = [
@@ -89,8 +93,14 @@ def _live_pruefen(live: dict[str, Any]) -> dict[str, Any]:
         if isinstance(x, dict)
     ]
     system = {k: v for k, v in (live.get("system") or {}).items() if isinstance(v, int | float) and isinstance(k, str)}
+    balken = [
+        {k: (x[k] if isinstance(x[k], int | float) else str(x[k])[:80]) for k in BALKEN_FELDER
+         if k in x and isinstance(x[k], str | int | float)}
+        for x in (live.get("balken") or [])[:8]
+        if isinstance(x, dict) and isinstance(x.get("prozent"), int | float)
+    ]
     start = live.get("start")
-    return {"protokoll": zeilen, "schritte": schritte, "system": system,
+    return {"protokoll": zeilen, "schritte": schritte, "system": system, "balken": balken,
             "start": start if isinstance(start, int | float) else None, "zeit": jetzt()}
 
 

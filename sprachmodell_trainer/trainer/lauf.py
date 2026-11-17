@@ -57,7 +57,9 @@ MIXEDNET = [
 ]
 MODELL_DATEI = "tflite_stream_state_internal_quant/stream_state_internal_quant.tflite"
 
-PROTOKOLL_ZEILEN = 80
+PROTOKOLL_ZEILEN = 500
+BALKEN_MAX = 8  # progress bars shown at the same time
+BALKEN_ALT_S = 120  # a bar without news for this long is no longer shown
 # Watchdog: a step that neither prints anything nor uses the CPU for this long counts as hung and is
 # stopped (then retried with fewer processes). A step that only prints nothing but keeps computing is left alone,
 # unless it stays silent for STUMM_MAX_S.
@@ -68,6 +70,19 @@ PLATZ_REST_GB = 0.5  # below this the step stops instead of writing broken files
 VERSUCHE = 3  # attempts per step: normal, then half the processes, then a single process
 SCHRITTE_MAX = 40
 _BALKEN = re.compile(r"\d+%\||it/s|s/it|\d+/\d+ \[|Mini-Batch #\d+")  # progress lines overwrite each other
+# tqdm: "name: 62%|######    | 4960/8000 [18:02<11:03, 4.58it/s]"
+_TQDM = re.compile(r"^(?P<name>.*?)[:\s]*(?P<p>\d{1,3})%\|[^|]*\|\s*(?P<n>[\d.]+[kMG]?)/(?P<g>[\d.]+[kMG]?)"
+                   r"(?:\s*\[(?P<lief>[^<\]]*)<(?P<rest>[^,\]]*)(?:,\s*(?P<tempo>[^\]]*))?\])?")
+
+
+def balken_lesen(zeile: str) -> dict[str, Any] | None:
+    """A tqdm progress line as a bar: name, percent, done/total, elapsed, time left, speed."""
+    m = _TQDM.search(zeile.strip())
+    if not m:
+        return None
+    return {"name": m.group("name").strip()[:80], "prozent": min(100, int(m.group("p"))), "n": m.group("n"),
+            "gesamt": m.group("g"), "lief": (m.group("lief") or "").strip()[:12],
+            "rest": (m.group("rest") or "").strip()[:12], "tempo": (m.group("tempo") or "").strip()[:20]}
 
 # Anteil am Gesamtfortschritt je Abschnitt
 ANTEILE = {"vorbereiten": (0, 8), "daten": (8, 12), "stimmen": (12, 35), "merkmale": (35, 50),
@@ -245,6 +260,9 @@ class Lauf:
         # For the detailed view in HA: last log lines and every step with its start time
         self.protokoll: deque[list[Any]] = deque(maxlen=PROTOKOLL_ZEILEN)
         self.schritte: list[dict[str, Any]] = []
+        # every progress bar running right now (tqdm in the tools, our own steps), each with its own line in HA
+        self.balken: dict[str, dict[str, Any]] = {}
+        self._schritt_name = ""
 
     # --- Steuerung --------------------------------------------------------
 
@@ -304,8 +322,19 @@ class Lauf:
     def live(self) -> dict[str, Any]:
         from .grenzen import auslastung
 
+        jetzt = time.time()
+        for k in [k for k, b in self.balken.items() if jetzt - b["zeit"] > BALKEN_ALT_S]:
+            del self.balken[k]
         return {"protokoll": list(self.protokoll), "schritte": self.schritte, "system": auslastung(self.daten),
-                "start": round(self.start)}
+                "start": round(self.start), "balken": sorted(self.balken.values(), key=lambda b: b["name"] != self._schritt_name)[:BALKEN_MAX]}
+
+    def balken_setzen(self, name: str, prozent: float, **mehr: Any) -> None:
+        """Show (or update) a progress bar in HA; the same name updates the same bar."""
+        name = (name or self._schritt_name or "?")[:80]
+        self.balken[name] = {"name": name, "prozent": round(max(0.0, min(100.0, prozent)), 1),
+                             **{k: v for k, v in mehr.items() if v not in (None, "")}, "zeit": round(time.time())}
+        if len(self.balken) > BALKEN_MAX * 2:
+            del self.balken[min(self.balken, key=lambda k: self.balken[k]["zeit"])]
 
     def _abschnitt(self, name: str, anteil: float, schritt: str, sofort: bool = False, **mehr: Any) -> None:
         phase = {"stimmen": "daten"}.get(name, name)
@@ -334,6 +363,7 @@ class Lauf:
         if threads or self.o.get("threads"):
             umgebung["TF_NUM_INTRAOP_THREADS"] = umgebung["OMP_NUM_THREADS"] = str(threads or self.o["threads"])
         self.notiz("Running " + " ".join(Path(a).name if "/" in a else a for a in args[1:4]))
+        self._schritt_name = schritt
         # own process group: the watchdog and cancelling stop the step together with all its workers
         self._prozess = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                                          bufsize=1, cwd=cwd, env=umgebung, start_new_session=True,
@@ -356,14 +386,25 @@ class Lauf:
             if zeile.startswith("FORTSCHRITT "):
                 _, a, b = zeile.split()
                 anteil = int(a) / max(1, int(b))
+                self.balken_setzen(schritt, 100 * anteil, n=a, gesamt=b, **self._rest(verlauf, anteil))
+            elif zeile.startswith("BALKEN "):
+                name, _, rest = zeile[7:].partition("|")
+                a, _, b = rest.partition("|")
+                if a.isdigit() and b.isdigit():
+                    self.balken_setzen(name, 100 * int(a) / max(1, int(b)), n=a, gesamt=b)
+                continue
             elif zeile.startswith("ERGEBNIS "):
                 ergebnis = json.loads(zeile[9:])
             elif schritte_gesamt and takt and (m := re.search(r"Validation Batch #(\d+).*Mini-Batch #(\d+)", zeile)):
                 # microWakeWord's line per training step: (evaluation round, step within the round)
                 anteil = ((int(m.group(1)) - 1) * takt + int(m.group(2))) / schritte_gesamt
+                self.balken_setzen(schritt, 100 * anteil, n=str(round(anteil * schritte_gesamt)),
+                                   gesamt=str(schritte_gesamt), **self._rest(verlauf, anteil))
                 self._ausgabe(zeile)
             elif schritte_gesamt and (m := re.search(r"Step #?(\d+)", zeile)):
                 anteil = int(m.group(1)) / schritte_gesamt
+                self.balken_setzen(schritt, 100 * anteil, n=m.group(1), gesamt=str(schritte_gesamt),
+                                   **self._rest(verlauf, anteil))
                 if "Validation" in zeile:
                     self.notiz(zeile)
                 else:
@@ -373,6 +414,7 @@ class Lauf:
             if anteil is not None:
                 self._abschnitt(abschnitt, von + (bis - von) * anteil, schritt, **self._restzeit(verlauf, anteil))
         code = self._prozess.wait()
+        self.balken.clear()  # the step's bars are done; the next step brings its own
         self._beenden()  # workers left behind by a crashed step
         self._prozess = None
         self._pruefen()
@@ -400,6 +442,10 @@ class Lauf:
         if jetzt - zeit < 120 or anteil <= alt:
             return {}
         return {"restzeit_min": max(1, round((1 - anteil) * (jetzt - zeit) / (anteil - alt) / 60))}
+
+    def _rest(self, verlauf: deque[tuple[float, float]], anteil: float) -> dict[str, int]:
+        rz = self._restzeit(verlauf, anteil)
+        return {"rest_min": rz["restzeit_min"]} if rz else {}
 
     def _waechter(self, prozess: subprocess.Popen) -> None:
         """Never wait silently: stop a step that hangs or is about to run out of memory."""
@@ -462,6 +508,10 @@ class Lauf:
         if not z:
             return
         if _BALKEN.search(z):
+            b = balken_lesen(z)
+            if b:
+                name = b.pop("name") or "·"  # unnamed bar of a tool: shown as "detail" next to the step's own bar
+                self.balken_setzen(name, b.pop("prozent"), **b)
             self.notiz(z, "balken", ersetzen=True)
         elif z.startswith("SPEICHER") or re.search(r"error|fehler|traceback|killed", z, re.IGNORECASE):
             self.notiz(z, "fehler")

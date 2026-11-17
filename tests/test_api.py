@@ -170,6 +170,8 @@ async def test_trainer(hass: HomeAssistant, hass_client_no_auth, admin, api) -> 
         "protokoll": [[1700000000, "info", "merkmale: 1/3"], "kaputt", [1, 2]],
         "schritte": [{"phase": "merkmale", "schritt": "merkmale", "start": 1700000000, "fremd": [1]}, "kaputt"],
         "system": {"cpu": 87, "ram_gb": 5.4, "name": "x"}, "start": 1700000000,
+        "balken": [{"name": "merkmale:2/3", "prozent": 62.5, "n": "4960", "gesamt": "8000", "tempo": "4.58it/s",
+                    "rest_min": 11, "fremd": [1]}, {"name": "ohne Prozent"}, "kaputt"],
     }
     r = await client.post("/api/sprachmodell/trainer/status", headers=kopf,
                           json={"wort_id": "hey_lumi", "phase": "training", "prozent": 51, "live": live})
@@ -178,6 +180,8 @@ async def test_trainer(hass: HomeAssistant, hass_client_no_auth, admin, api) -> 
     assert d["wort"]["live"]["protokoll"] == [[1700000000, "info", "merkmale: 1/3"]]
     assert d["wort"]["live"]["schritte"] == [{"phase": "merkmale", "schritt": "merkmale", "start": 1700000000}]
     assert d["wort"]["live"]["system"] == {"cpu": 87, "ram_gb": 5.4} and d["wort"]["live"]["start"] == 1700000000
+    assert d["wort"]["live"]["balken"] == [{"name": "merkmale:2/3", "prozent": 62.5, "n": "4960", "gesamt": "8000",
+                                            "rest_min": 11, "tempo": "4.58it/s"}]
     # details only (end of a run): the stored state stays as it is
     r = await client.post("/api/sprachmodell/trainer/status", headers=kopf,
                           json={"wort_id": "hey_lumi", "live": {"protokoll": [], "start": "x"}})

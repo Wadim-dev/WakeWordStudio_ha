@@ -26,6 +26,11 @@ def _fortschritt(i: int, n: int) -> None:
     print(f"FORTSCHRITT {i} {n}", flush=True)
 
 
+def _balken(name: str, i: int, n: int) -> None:
+    """An extra progress bar of its own in Home Assistant (next to the step's bar)."""
+    print(f"BALKEN {name}|{i}|{n}", flush=True)
+
+
 def _dateien(ordner: list[str]) -> list[str]:
     return sorted(f for d in ordner for f in glob.glob(os.path.join(d, "*.wav")))
 
@@ -253,23 +258,29 @@ def omni(a: dict) -> dict:
         except Exception as err:  # noqa: BLE001
             print(f"OmniVoice: {type(err).__name__}: {err}"[:240], flush=True)
             break
+        behalten, weg = 0, []
         for x in audio:
             x = resample_poly(np.asarray(x, dtype=np.float32), 16000, 24000)
             if len(x) < 3200 or len(x) > 16000 * 4 or np.abs(x).max() < 1e-3:
                 s["verworfen"] += 1
+                weg.append("(too short/long or silent)")
                 continue
             gehoert = _hoeren(ohr, x, a["sprache"])
             if enthaelt_wort(gehoert, a["wort"]) != (art == "pos"):
                 s["verworfen"] += 1
-                if os.environ.get("OMNI_ZEIGEN"):
-                    print(f"rejected {art}: {gehoert!r}", flush=True)
+                weg.append(repr(gehoert[:40]))
                 continue
+            behalten += 1
             x = x / (np.abs(x).max() + 1e-6) * rnd.uniform(0.3, 0.95)
             datei = os.path.join(s["ziel"], f"{s['nr']:06d}.wav")
             sf.write(datei + ".tmp", (x * 32767).astype(np.int16), 16000, format="WAV")
             os.replace(datei + ".tmp", datei)
             s["nr"] += 1
             s["da"] += 1
+        name = "OmniVoice: word" if art == "pos" else "OmniVoice: other speech"
+        print(f"{name}: {behalten} of {len(audio)} kept" + (f", rejected after listening: {', '.join(weg[:4])}" if weg else "")
+              + f" - {s['da']}/{s['n']}", flush=True)
+        _balken("omni_wort" if art == "pos" else "omni_gerede", min(s["da"], s["n"]), s["n"])
         # progress by time budget or stock, whichever is further: the step ends at the first of both
         voll = sum(min(s["da"], s["n"]) for s in stand.values()) / max(1, gesamt)
         _fortschritt(round(1000 * max(voll, (time.monotonic() - start) / dauer)), 1000)
