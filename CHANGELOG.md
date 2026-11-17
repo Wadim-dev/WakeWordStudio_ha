@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.21
+- Fix: while a training ran, the *Training* page jumped back to the top every time the trainer reported (about every 20 seconds), so scrolling down to the log was hardly possible. Refreshing a page now keeps its scroll position, also in Home Assistant setups where the page scrolls inside the frame.
+
 ## 1.0.20
 - Settings → *Devices that send their recordings* is now a step-by-step guide for every TECHO device (Echo Show, Spot, Dot, Echo 2nd gen, TECHO5 Panel …): copy buttons for address and token, and a list of your devices with whether each one is sending, how many clips are waiting, the last problem, a button that switches the device's setup page on and opens it, and one that turns on *Keep wake clips* when it is off.
 - Devices that send their recordings: the address to enter is now `http://<home assistant>:8123/api/wake_word_studio`, named like the integration. The older address `…/api/sprachmodell` keeps working, so devices set up with it need no change.
