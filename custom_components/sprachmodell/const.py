@@ -61,9 +61,11 @@ STANDARD_ZENTRALE = {
     "personen": [],
     # a button entity that restarts the trainer (Proxmox, Portainer, app ...), empty = none
     "trainer_neustart": "",
-    "alle_plaetze": False,
+    "alle_plaetze": False,  # auch Aufnahmen von Plaetzen sammeln, die keinem Wort gehoeren
     # where the trainer computes: "auto" = graphics card if the trainer can use one, "cpu" = processor only
-    "geraet": "auto",  # auch Aufnahmen von Plaetzen sammeln, die keinem Wort gehoeren
+    "geraet": "auto",
+    # which trainer gets the next run when several are connected: "auto" = the fastest free one, else a trainer id
+    "trainer_wahl": "auto",
 }
 
 # Signal an Entitaeten und Seite: Daten haben sich geaendert
@@ -76,6 +78,10 @@ BILD_PRUEFEN_S = 300
 
 # Trainer gilt als verbunden, wenn er sich in dieser Zeit gemeldet hat
 TRAINER_ONLINE_S = 180
+# Trainer that has not reported for this long is removed from the list (it can simply connect again)
+TRAINER_VERGESSEN_S = 30 * 24 * 3600
+# Id of trainers older than 1.0.31, which do not send one
+TRAINER_OHNE_ID = "trainer"
 
 # Repairs: a device of a word missing this long, trainings waiting without trainer this long
 GERAET_FEHLT_S = 15 * 60

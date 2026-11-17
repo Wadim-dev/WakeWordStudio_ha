@@ -53,8 +53,11 @@ from .const import (
     STANDARD_WORT,
     STANDARD_ZENTRALE,
     TRAINER_FEHLT_S,
+    TRAINER_OHNE_ID,
     TRAINER_ONLINE_S,
+    TRAINER_VERGESSEN_S,
 )
+from .dauer import schaetzen
 from .sammler import WAHL_ENDUNGEN, Sammler, alle_geraete, esphome_eintraege, geraete_info
 from .speicher import Speicher, jetzt, sichere_id
 
@@ -81,6 +84,22 @@ def sprache_aus(hass: HomeAssistant) -> str:
 
 PROTOKOLL_MAX = 500  # log lines of a run kept for the panel (all the trainer sends)
 BALKEN_FELDER = ("name", "prozent", "n", "gesamt", "lief", "rest", "rest_min", "tempo", "zeit")
+
+
+def trainer_name(info: dict[str, Any]) -> str:
+    """Name to show: the one set with TRAINER_NAME, else processor and graphics card (the container name is random)."""
+    if info.get("name_eigen") and info.get("name"):
+        return str(info["name"])
+    if info.get("art") == "app":
+        return "Home Assistant App"
+    cpu = str(info.get("prozessor") or "")
+    for weg in ("(R)", "(TM)", "CPU", "Processor", "11th Gen", "12th Gen", "13th Gen", "14th Gen", "Intel ", "AMD "):
+        cpu = cpu.replace(weg, "")
+    cpu = " ".join(cpu.split("@")[0].split())
+    gpu = next((str(k.get("name", "")).split(",")[0].replace("NVIDIA ", "").replace("GeForce ", "")
+                for k in info.get("grafik") or [] if k.get("art") == "nvidia"), "")
+    teile = [x for x in (cpu.replace("Core ", ""), gpu) if x]
+    return " + ".join(teile) or str(info.get("name") or "Trainer")
 
 
 def _live_pruefen(live: dict[str, Any]) -> dict[str, Any]:
@@ -186,8 +205,8 @@ class Zentrale:
         self.daten: dict[str, Any] = {}
         self.woerter: dict[str, Wort] = {}
         self.sammler = Sammler(hass, self)
-        self.trainer_kontakt: datetime | None = None
-        self.trainer_info: dict[str, Any] = {}
+        # every trainer that reported: id -> {"info", "kontakt" (datetime), "frei" (takes a run now)}
+        self.trainer: dict[str, dict[str, Any]] = {}
         self._abgeholt: dict[str, float] = {}
         self.version = "0"
         # is the trainer image of this version published yet? (Docker trainers fetch it on restart)
@@ -226,6 +245,12 @@ class Zentrale:
             wort.speicher.laden()
             wort.speicher.vorschlaege()
             self.woerter[wid] = wort
+        for tid, t in (daten.get("trainer") or {}).items():
+            try:
+                kontakt = datetime.fromisoformat(t["zuletzt"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            self.trainer[tid] = {"info": dict(t.get("info") or {}), "kontakt": kontakt, "frei": False}
         if neu:  # first start: keep the trainer key from now on
             self.speichern()
 
@@ -233,6 +258,13 @@ class Zentrale:
         with self._sperre:
             self.daten["woerter"] = {wid: w.cfg for wid, w in self.woerter.items()}
             self.daten["gesehen"] = self.daten["gesehen"][-5000:]
+            pause = self.daten.get("trainer_pause") or []
+            self.daten["trainer"] = {
+                tid: {"info": {k: v for k, v in t["info"].items() if k not in ("swap_belegt_gb", "platz_frei_gb")},
+                      "zuletzt": t["kontakt"].isoformat()}
+                for tid, t in self.trainer.items()
+            }
+            self.daten["trainer_pause"] = [tid for tid in pause if tid in self.trainer]
             pfad = os.path.join(self.ablage, DATEI)
             with open(pfad + ".tmp", "w", encoding="utf-8") as datei:
                 json.dump(self.daten, datei, ensure_ascii=False, indent=1)
@@ -257,12 +289,100 @@ class Zentrale:
             s.attributes.get("friendly_name") or s.entity_id for s in self.hass.states.async_all("person")
         )
 
+    # --- Trainer ----------------------------------------------------------
+
+    def ist_online(self, tid: str) -> bool:
+        t = self.trainer.get(tid)
+        return bool(t and (datetime.now(UTC) - t["kontakt"]).total_seconds() < TRAINER_ONLINE_S)
+
     @property
     def trainer_online(self) -> bool:
-        return bool(
-            self.trainer_kontakt
-            and (datetime.now(UTC) - self.trainer_kontakt).total_seconds() < TRAINER_ONLINE_S
-        )
+        return any(self.ist_online(tid) for tid in self.trainer)
+
+    @property
+    def trainer_kontakt(self) -> datetime | None:
+        return max((t["kontakt"] for t in self.trainer.values()), default=None)
+
+    @trainer_kontakt.setter
+    def trainer_kontakt(self, wert: datetime) -> None:
+        for t in self.trainer.values():
+            t["kontakt"] = wert
+
+    def haupt_trainer(self) -> str | None:
+        """The trainer shown where only one fits (sensor, single-trainer view): the one running a run, else the
+        one that would get the next run, else the one heard from last."""
+        for wort in self.woerter.values():
+            t = wort.speicher.daten["training"]
+            if t.get("phase") in LAEUFT and t.get("trainer") in self.trainer:
+                return str(t["trainer"])
+        return self.ziel_trainer() or max(self.trainer, key=lambda k: self.trainer[k]["kontakt"], default=None)
+
+    @property
+    def trainer_info(self) -> dict[str, Any]:
+        tid = self.haupt_trainer()
+        return dict(self.trainer[tid]["info"]) if tid else {}
+
+    @trainer_info.setter
+    def trainer_info(self, info: dict[str, Any]) -> None:
+        self.trainer_sehen(TRAINER_OHNE_ID)["info"] = dict(info)
+
+    def trainer_sehen(self, tid: str, frei: bool | None = None) -> dict[str, Any]:
+        """A trainer asked or reported: remember when, and whether it could take a run now."""
+        t = self.trainer.get(tid)
+        if t is None:
+            t = self.trainer[tid] = {"info": {}, "kontakt": datetime.now(UTC), "frei": True}
+            if tid != TRAINER_OHNE_ID and "trainer_alt" not in self.daten:
+                # runs from before trainers had an id were made by the first trainer that sends one
+                self.daten["trainer_alt"] = tid
+            if TRAINER_OHNE_ID in self.trainer and tid != TRAINER_OHNE_ID and not self.ist_online(TRAINER_OHNE_ID):
+                self.trainer.pop(TRAINER_OHNE_ID)  # the same trainer, updated: it now sends an id
+            self.speichern_spaeter()
+        t["kontakt"] = datetime.now(UTC)
+        if frei is not None:
+            t["frei"] = frei
+        return t
+
+    def trainer_pausiert(self, tid: str) -> bool:
+        return tid in (self.daten.get("trainer_pause") or [])
+
+    async def trainer_einstellen(self, tid: str, pause: bool | None = None, vergessen: bool = False) -> None:
+        """Let a trainer take runs or not, or remove it from the list (it appears again when it reports)."""
+        liste = [x for x in self.daten.get("trainer_pause") or [] if x != tid]
+        if pause:
+            liste.append(tid)
+        self.daten["trainer_pause"] = liste
+        if vergessen:
+            self.trainer.pop(tid, None)
+            if self.opt("trainer_wahl") == tid:
+                self.daten.setdefault("einstellungen", {})["trainer_wahl"] = "auto"
+        await self.hass.async_add_executor_job(self.speichern)
+        self.geaendert()
+
+    def laeuft_bei(self, tid: str) -> list[Wort]:
+        """Words whose run this trainer is working on (runs from trainers without id count for those too)."""
+        return [w for w in self.woerter.values() if w.speicher.daten["training"].get("phase") in LAEUFT
+                and w.speicher.daten["training"].get("trainer", TRAINER_OHNE_ID) in (tid, TRAINER_OHNE_ID)]
+
+    def dauer(self, wort: Wort | None = None) -> dict[str, dict[str, Any] | None]:
+        """Estimated duration of the next run of a word (else of the word with the most runs) on each trainer."""
+        if wort is None:
+            wort = max(self.woerter.values(), key=lambda w: len(w.speicher.daten["laeufe"]), default=None)
+        laeufe = wort.speicher.daten["laeufe"] if wort else []
+        return schaetzen(laeufe, {tid: t["info"] for tid, t in self.trainer.items()}, str(self.opt("geraet")),
+                         self.daten.get("trainer_alt"))
+
+    def ziel_trainer(self, wort: Wort | None = None) -> str | None:
+        """The trainer that gets the next run: the chosen one if it is on, free and not paused (busy: the run waits
+        for it), otherwise the fastest free one. None if no trainer can take a run now."""
+        moeglich = [tid for tid in self.trainer if self.ist_online(tid) and not self.trainer_pausiert(tid)]
+        wahl = str(self.opt("trainer_wahl"))
+        frei = [tid for tid in moeglich if self.trainer[tid].get("frei", True) and not self.laeuft_bei(tid)]
+        if wahl in moeglich:
+            return wahl if wahl in frei else None
+        if len(frei) <= 1:
+            return frei[0] if frei else None
+        dauer = self.dauer(wort)
+        return min(frei, key=lambda tid: ((dauer.get(tid) or {}).get("einfach") or float("inf"), tid))
 
     @callback
     def geaendert(self) -> None:
@@ -567,6 +687,9 @@ class Zentrale:
         return True
 
     async def _stuendlich(self, _now: Any = None) -> None:
+        for tid in [tid for tid, t in self.trainer.items()
+                    if (datetime.now(UTC) - t["kontakt"]).total_seconds() > TRAINER_VERGESSEN_S]:
+            await self.trainer_einstellen(tid, vergessen=True)
         weg = 0
         for wort in self.woerter.values():
             weg += await self.hass.async_add_executor_job(
@@ -727,32 +850,48 @@ class Zentrale:
         if wid in self.daten["reihe"]:
             self.daten["reihe"].remove(wid)
         if wort.speicher.daten["training"].get("phase") in LAEUFT:
-            self.daten["abbrechen"] = wid
+            # only the trainer running it is told (another one asking meanwhile must not take the message away)
+            self.daten.setdefault("abbrechen_bei", {})[wid] = wort.speicher.daten["training"].get("trainer")
         wort.speicher.daten["training"] = {"phase": "bereit"}
         self.hass.async_add_executor_job(wort.speicher.speichern)
         self.speichern_spaeter()
         self.geaendert()
 
-    def naechster_auftrag(self) -> Wort | None:
-        """Next queued run. A run just handed out is held back briefly, so a second trainer never takes it too."""
+    def abbruch_fuer(self, tid: str) -> str | None:
+        """A cancelled run for this trainer to stop, once."""
+        offen = self.daten.get("abbrechen_bei") or {}
+        for wid, von in list(offen.items()):
+            if von in (tid, None, TRAINER_OHNE_ID):
+                offen.pop(wid)
+                return str(wid)
+        return None
+
+    def naechster_auftrag(self, tid: str = TRAINER_OHNE_ID) -> Wort | None:
+        """Next queued run for this trainer (None if another trainer should take it). A run just handed out is held
+        back briefly, so a second trainer never takes it too."""
+        if tid not in self.trainer:
+            self.trainer_sehen(tid)
+        reihe = self.reihe()
+        if not reihe or self.ziel_trainer(self.woerter[reihe[0]]) != tid:
+            return None
         frist = time.monotonic() - ABGEHOLT_SPERRE_S
-        for wid in self.reihe():
+        for wid in reihe:
             if wid not in self._abgeholt or self._abgeholt[wid] < frist:
                 self._abgeholt[wid] = time.monotonic()
                 return self.woerter[wid]
         return None
 
-    def bild_tag(self) -> str | None:
+    def bild_tag(self, info: dict[str, Any] | None = None) -> str | None:
         """Image tag a Docker trainer would fetch on restart, None if it needs none (app, already current)."""
-        info = self.trainer_info
+        info = self.trainer_info if info is None else info
         if info.get("art") != "docker" or not info.get("version") or info["version"] == self.version:
             return None
         return self.version + ("-gpu" if (info.get("beschleuniger") or {}).get("bild") == "gpu" else "")
 
-    def bild_bereit(self) -> bool | None:
+    def bild_bereit(self, info: dict[str, Any] | None = None) -> bool | None:
         """True/False once known whether the trainer image of this version is on ghcr.io, None if unknown.
         Checks again every 5 minutes in the background while it is not there yet."""
-        tag = self.bild_tag()
+        tag = self.bild_tag(info)
         if tag is None:
             return None
         bereit, zeit = self._bild.get(tag, (None, 0.0))
@@ -760,6 +899,12 @@ class Zentrale:
             self._bild[tag] = (bereit, time.monotonic())
             self.hass.async_create_task(self._bild_pruefen(tag))
         return bereit
+
+    def aktualisieren_fuer(self, tid: str) -> str | None:
+        """Image tag a Docker trainer with access to the engine should update itself to, once it is published."""
+        info = (self.trainer.get(tid) or {}).get("info") or {}
+        tag = self.bild_tag(info) if info.get("selbst_update") else None
+        return tag if tag and self.bild_bereit(info) else None
 
     async def _bild_pruefen(self, tag: str) -> None:
         from aiohttp import ClientTimeout
@@ -783,15 +928,18 @@ class Zentrale:
             self.geaendert()
 
     @callback
-    def trainer_meldet(self, status: dict[str, Any]) -> None:
-        self.trainer_kontakt = datetime.now(UTC)
+    def trainer_meldet(self, status: dict[str, Any], tid: str = TRAINER_OHNE_ID) -> None:
+        t = self.trainer_sehen(tid)
         if isinstance(status.get("info"), dict):
-            self.trainer_info = status["info"]
+            alt = t["info"]
+            t["info"] = status["info"]
+            if any(alt.get(k) != status["info"].get(k) for k in ("version", "tempo", "name", "prozessor")):
+                self.speichern_spaeter()
         if status.get("neustart"):
-            # Trainer ist neu gestartet (Absturz, Speicher voll, Update): Laeufe, die noch als aktiv gelten, sind verloren
-            for anderes in self.woerter.values():
-                if anderes.speicher.daten["training"].get("phase") in LAEUFT:
-                    self._lauf_verloren(anderes)
+            # Trainer ist neu gestartet (Absturz, Speicher voll, Update): seine Laeufe, die noch als aktiv gelten,
+            # sind verloren (die eines anderen Trainers laufen weiter)
+            for anderes in self.laeuft_bei(tid):
+                self._lauf_verloren(anderes)
         wid = status.get("wort_id")
         wort = self.woerter.get(str(wid)) if wid else None
         if wort is None:
@@ -805,6 +953,7 @@ class Zentrale:
         alt = wort.speicher.daten["training"]
         neu = {**{k: v for k, v in status.items() if k not in ("info", "wort_id", "live")}, "aktualisiert": jetzt()}
         if neu.get("phase") in LAEUFT:
+            neu["trainer"] = tid
             # Auftrag ist angenommen: aus der Reihe nehmen
             if alt.get("phase") not in LAEUFT:
                 neu.setdefault("start", jetzt())
@@ -826,7 +975,8 @@ class Zentrale:
             wort.speicher.stand += 1
         self.geaendert()
 
-    async def ergebnis(self, wort: Wort, tflite: bytes, bericht: dict[str, Any]) -> dict[str, Any]:
+    async def ergebnis(self, wort: Wort, tflite: bytes, bericht: dict[str, Any],
+                       tid: str = TRAINER_OHNE_ID) -> dict[str, Any]:
         """Neue Version vom Trainer: ablegen, Lauf merken, wenn besser einspielen."""
         sp = wort.speicher
         if bericht.get("alt") and sp.daten.get("aktiv"):
@@ -847,7 +997,12 @@ class Zentrale:
             "kandidaten": (bericht.get("kandidaten") or {}).get("anzahl") or 1,
             "geraet": bericht.get("geraet") or "cpu",
             "geraet_rueckfall": bool(bericht.get("geraet_rueckfall")),
+            "trainer": tid,
         }
+        info = (self.trainer.get(tid) or {}).get("info") or {}
+        if info.get("tempo"):
+            lauf["tempo"] = info["tempo"]  # to scale this run for other trainers later
+        lauf["trainer_name"] = trainer_name(info)
         eintrag["status"] = "geprueft" if besser else "verworfen"
         sp.daten["laeufe"].append(lauf)
         sp.daten["training"] = {"phase": "fertig", "seit": jetzt(), "version": eintrag["nr"], "besser": besser,

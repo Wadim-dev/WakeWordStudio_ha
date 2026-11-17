@@ -1005,9 +1005,11 @@ class Lauf:
             je = e["je_schwelle"]
             fa = min((v.get("fehlausloeser_anzahl") or 0 for v in je.values()), default=0)
             werte.append({"nr": k + 1, "alltag": alltag_bei(je, 1.0, e.get("stunden")),
+                          "schwer": alltag_bei(je, 1.0, e.get("stunden"), "trefferquote_schwer"),
                           "fehlausloeser_min": fa})
-        # best everyday hit rate at about one false wake per hour; a tie goes to fewer false wakes
-        beste = max(range(anzahl), key=lambda i: ((werte[i]["alltag"] or 0.0), -werte[i]["fehlausloeser_min"]))
+        # best everyday hit rate at about one false wake per hour; a tie goes to the hard test, then to fewer false wakes
+        beste = max(range(anzahl), key=lambda i: ((werte[i]["alltag"] or 0.0), (werte[i]["schwer"] or 0.0),
+                                                  -werte[i]["fehlausloeser_min"]))
         self.notiz("Candidates: " + ", ".join(
             f"{w['nr']}: {'-' if w['alltag'] is None else round(100 * w['alltag'])} %" for w in werte)
             + f" - kept {beste + 1}")
@@ -1091,6 +1093,7 @@ class Lauf:
         return cut, {
             "trefferquote": w["trefferquote"], "trefferquote_musik": w["trefferquote_musik"],
             "trefferquote_alltag": w.get("trefferquote_alltag"), "bedingungen": w.get("bedingungen"),
+            "trefferquote_schwer": w.get("trefferquote_schwer"), "schwer": w.get("schwer"),
             "fehlausloeser_geraeusch_pro_stunde": None if w.get("fehlausloeser_geraeusch_pro_stunde") is None
             else round(w["fehlausloeser_geraeusch_pro_stunde"], 2),
             "fehlausloeser_pro_stunde": None if w["fehlausloeser_pro_stunde"] is None else round(w["fehlausloeser_pro_stunde"], 2),

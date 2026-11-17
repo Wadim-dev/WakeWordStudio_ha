@@ -220,7 +220,7 @@ def hardware() -> dict:
 
 
 # The GPU image sets TRAINER_BILD=gpu. Whether TensorFlow can really train on the card is only known after trying:
-# a card can be found but not supported (e.g. RTX 50: TensorFlow 2.21 ships GPU code up to compute capability 9.0).
+# a card can be found but not usable (missing CUDA libraries, a card too old for the GPU code TensorFlow ships).
 _PROBE = r"""
 import json, os
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
@@ -275,3 +275,103 @@ def beschleuniger(warten: bool = True) -> dict:
         aus["grund"] = "nicht_geladen"
     _beschleuniger = {"bild": "gpu", **aus}
     return _beschleuniger
+
+
+# Short speed test (about a minute): how fast this trainer prepares data (all processes, the processor's share of a
+# run) and trains (a small model shaped like the wake word models, on the processor and on the graphics card).
+# Home Assistant scales the durations of real runs with these numbers to estimate other trainers.
+_TEMPO_VORBEREITEN = r"""
+import json, os, sys, time
+from concurrent.futures import ProcessPoolExecutor
+import numpy as np
+
+def stueck(k):
+    rnd = np.random.default_rng(k)
+    x = rnd.standard_normal(16000 * 3).astype(np.float32)
+    for _ in range(6):
+        f = np.abs(np.fft.rfft(x.reshape(-1, 480) * np.hanning(480), axis=1))
+        x = (x + np.convolve(x, np.ones(9) / 9, "same")).astype(np.float32)
+    return float(f.sum())
+
+if __name__ == "__main__":
+    n = int(sys.argv[1])
+    with ProcessPoolExecutor(n) as pool:
+        list(pool.map(stueck, range(n)))
+        t = time.monotonic()
+        list(pool.map(stueck, range(2400)))
+        print(json.dumps({"s": time.monotonic() - t}))
+"""
+_TEMPO_RECHNEN = r"""
+import json, os, time
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+import numpy as np
+import tensorflow as tf
+x = np.random.default_rng(1).standard_normal((2048, 98, 40)).astype("float32")
+y = (np.random.default_rng(2).random(2048) > 0.5).astype("float32")
+m = tf.keras.Sequential([tf.keras.Input((98, 40)), tf.keras.layers.Reshape((98, 1, 40)),
+    tf.keras.layers.Conv2D(32, (5, 1), activation="relu"), tf.keras.layers.DepthwiseConv2D((9, 1), activation="relu"),
+    tf.keras.layers.Conv2D(64, 1, activation="relu"), tf.keras.layers.DepthwiseConv2D((11, 1), activation="relu"),
+    tf.keras.layers.Conv2D(64, 1, activation="relu"), tf.keras.layers.GlobalAveragePooling2D(),
+    tf.keras.layers.Dense(1, activation="sigmoid")])
+m.compile("adam", "binary_crossentropy")
+m.fit(x[:256], y[:256], batch_size=128, epochs=1, verbose=0)
+t = time.monotonic()
+m.fit(x, y, batch_size=128, epochs=8, verbose=0)
+print(json.dumps({"s": time.monotonic() - t}))
+"""
+_tempo: dict | None = None
+
+
+def _tempo_lauf(skript: str, args: list[str], umgebung: dict[str, str] | None = None) -> float | None:
+    import json
+    import subprocess
+    import sys
+
+    try:
+        lauf = subprocess.run([sys.executable, "-c", skript, *args], capture_output=True, text=True, timeout=300,
+                              check=False, env={**os.environ, **(umgebung or {})})
+        zeilen = [z for z in lauf.stdout.splitlines() if z.startswith("{")]
+        if zeilen:
+            wert = json.loads(zeilen[-1])
+            return round(float(wert["s"]), 2)
+    except (OSError, subprocess.SubprocessError, ValueError, TypeError):
+        pass
+    return None
+
+
+def tempo(daten: str | None = None, warten: bool = True) -> dict:
+    """{"vorbereiten_s", "rechnen_cpu_s", "rechnen_gpu_s"} (seconds, smaller is faster), measured once per trainer
+    version and hardware and kept in the data folder. warten=False: what is known now ({} while it is measured)."""
+    global _tempo  # noqa: PLW0603
+    import json
+
+    if _tempo is not None or not warten:
+        return dict(_tempo or {})
+    from . import __version__
+
+    b = beschleuniger()
+    schluessel = "|".join([__version__, b.get("bild", "cpu"), str(b.get("name") or ""), str(prozesse()),
+                           os.environ.get("TF_NUM_INTRAOP_THREADS", "")])
+    pfad = os.path.join(daten or os.environ.get("DATEN", "/data"), "tempo.json")
+    try:
+        with open(pfad, encoding="utf-8") as datei:
+            gespeichert = json.load(datei)
+        if gespeichert.get("schluessel") == schluessel:
+            _tempo = gespeichert["werte"]
+            return dict(_tempo)
+    except (OSError, ValueError, KeyError, TypeError):
+        pass
+    werte: dict = {}
+    if (s := _tempo_lauf(_TEMPO_VORBEREITEN, [str(prozesse())])) is not None:
+        werte["vorbereiten_s"] = s
+    if (s := _tempo_lauf(_TEMPO_RECHNEN, [], {"CUDA_VISIBLE_DEVICES": "-1"})) is not None:
+        werte["rechnen_cpu_s"] = s
+    if b.get("gpu") and (s := _tempo_lauf(_TEMPO_RECHNEN, [], {"TF_FORCE_GPU_ALLOW_GROWTH": "true"})) is not None:
+        werte["rechnen_gpu_s"] = s
+    try:
+        with open(pfad, "w", encoding="utf-8") as datei:
+            json.dump({"schluessel": schluessel, "werte": werte}, datei)
+    except OSError:
+        pass
+    _tempo = werte
+    return dict(werte)

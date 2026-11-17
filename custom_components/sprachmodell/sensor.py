@@ -70,6 +70,7 @@ class Trainer(SprachEntitaet, SensorEntity):
         return {
             "last_contact": self.z.trainer_kontakt.isoformat() if self.z.trainer_kontakt else None,
             "queue": [self.z.woerter[w].wort for w in self.z.reihe()],
+            "trainers": len(self.z.trainer),
             **{k: info[k] for k in ("name", "version", "cpu", "ram_gb", "gpu") if k in info},
         }
 

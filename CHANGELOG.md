@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.31
+- Several trainers: for example the Proxmox container as the main trainer and a PC with a graphics card that is only on now and then. Each trainer gets its own id; all train from the same recordings and data in Home Assistant.
+- *Training → Automatic → Next run on*: *Automatic (fastest free one)* or a fixed trainer (if it is off or does not take runs, the others take over). Each trainer shows its status and how long a normal and a thorough run take on it: measured from its own last run, otherwise estimated from a short speed test every trainer runs at start.
+- *Settings → Trainer* lists all trainers with their profile, a switch *Takes runs* and *Remove from the list* for one that is off (removed by itself after 30 days). A restart only affects the run on that trainer; cancelling reaches the trainer that runs it. Each run says which trainer ran it.
+- *Set up a trainer*: a tab each for the Home Assistant app, Proxmox, Windows PC and Linux / NAS with three steps and one line to copy (works in PowerShell, cmd and Linux shells; the button copies it with the key, the page shows it masked).
+- Docker trainers update themselves: started with `-v /var/run/docker.sock:/var/run/docker.sock`, the trainer fetches a new version while idle and swaps its container for one with the same settings; if the new one does not keep running, the old one starts again.
+- Graphics cards: tested with an RTX 5080 (Blackwell), it trains on the card with TensorFlow 2.21. The earlier note that RTX 50 is not supported was wrong and is removed.
+- Hard test: every test recording is also played far beyond daily life (very far away in another room, a TV louder than you, music louder than you, everything at once). Hardly any version reaches 100 % there, so a version that hears everything at home can still be told apart from a better one. The comparison counts it like everyday detection (at about one false wake per hour, beyond chance); *Thorough* uses it to break ties between candidates. Shown on the Quality page (tile, bars, versions table) and as a bar pair in the version comparison. Versions from before 1.0.31 get their hard-test value in the next run, which tests the active version again.
+- Animations: while a word trains, sound flows into a small network that fires layer by layer and the result lights up; the progress bar has a glowing tip; a better version is greeted with a short burst of confetti (once); cards fade in when a page opens. Pure CSS, the loop does not restart when the page refreshes, and everything stays still with *reduce motion* switched on.
+- Quality: the active version shows its freshest measurement (from the latest comparison run in everyday conditions) instead of the values from when it was trained.
+
 ## 1.0.30
 - Graphics card version: TensorFlow could not find one CUDA library (`libcusolver.so.11`) and therefore ignored the card, even on a supported setup. All CUDA libraries are now registered with the system loader, and the image build fails if any of them cannot be loaded.
 - If the card is passed in but its libraries cannot be loaded, the Training page now says so (instead of "sees no card") and asks to report it.

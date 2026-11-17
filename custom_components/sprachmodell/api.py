@@ -30,11 +30,11 @@ Devices (header "Authorization: Bearer <trainer key>"), the clip upload format o
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import hmac
 from http import HTTPStatus
 import json
 import os
+import re
 import secrets
 from typing import Any
 
@@ -45,9 +45,9 @@ from homeassistant.helpers.http import KEY_AUTHENTICATED, KEY_HASS, HomeAssistan
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from . import zentrale_holen
-from .const import DOMAIN, KEIN_WORT, LAEUFT, SPRACHEN, STANDARD_WORT, STANDARD_ZENTRALE, VORPRUEFEN_JE_MAL, WORT
+from .const import DOMAIN, KEIN_WORT, SPRACHEN, STANDARD_WORT, STANDARD_ZENTRALE, TRAINER_OHNE_ID, VORPRUEFEN_JE_MAL, WORT
 from .speicher import sichere_id
-from .zentrale import Wort, Zentrale
+from .zentrale import Wort, Zentrale, trainer_name
 
 GROESSTE_ZIP = 200 * 1024 * 1024
 GROESSTE_AUFNAHME = 10 * 1024 * 1024
@@ -56,7 +56,7 @@ _ANGEMELDET = f"{DOMAIN}_ansichten"
 # Actions that change the setup or reach the devices: administrators only
 NUR_ADMIN = {
     "einstellungen", "schluessel_neu", "reihe", "wort_neu", "wort_aendern", "wort_loeschen",
-    "einspielen", "auswaehlen", "schwelle",
+    "einspielen", "auswaehlen", "schwelle", "trainer",
 }
 
 
@@ -125,6 +125,23 @@ def _vorhandene_modelle(ordner: str) -> list[dict[str, Any]]:
     return aus
 
 
+def _trainer_liste(z: Zentrale) -> list[dict[str, Any]]:
+    """Every known trainer for the studio: state, hardware, what it runs and how long a run takes there."""
+    dauer = z.dauer(z.woerter[z.reihe()[0]] if z.reihe() else None)
+    return sorted(({
+        "id": tid,
+        "name": trainer_name(t["info"]),
+        "info": t["info"],
+        "online": z.ist_online(tid),
+        "kontakt": t["kontakt"].isoformat(),
+        "pause": z.trainer_pausiert(tid),
+        "laeuft": [w.wort for w in z.laeuft_bei(tid)] if tid in z.trainer else [],
+        "dauer": dauer.get(tid),
+        "bild_bereit": z.bild_bereit(t["info"]),
+        "alt": tid == TRAINER_OHNE_ID,
+    } for tid, t in z.trainer.items()), key=lambda x: (not x["online"], x["name"]))
+
+
 def _zentrale_daten(z: Zentrale, admin: bool) -> dict[str, Any]:
     return {
         "admin": admin,
@@ -142,6 +159,8 @@ def _zentrale_daten(z: Zentrale, admin: bool) -> dict[str, Any]:
             "online": z.trainer_online,
             "kontakt": z.trainer_kontakt.isoformat() if z.trainer_kontakt else None,
             "info": z.trainer_info,
+            "liste": _trainer_liste(z),
+            "ziel": z.ziel_trainer(),
             "last": z.trainer_last(),
             "engpass": z.engpass(),
             "bild_bereit": z.bild_bereit(),
@@ -165,6 +184,7 @@ def _wort_daten(z: Zentrale, wort: Wort) -> dict[str, Any]:
         "versionen": sorted(sp.daten["versionen"], key=lambda v: v["nr"], reverse=True),
         "aktiv": sp.daten["aktiv"],
         "schwellen": z.schwellen_jetzt(wort),
+        "dauer": z.dauer(wort),
         "neu_seit_lauf": wort.neue_seit_letztem_lauf(),
         "ordner": sp.ordner,
     }
@@ -352,6 +372,12 @@ class AktionAnsicht(HomeAssistantView):
             z.daten["schluessel"] = secrets.token_urlsafe(24)
             await hass.async_add_executor_job(z.speichern)
             return None
+        if aktion == "trainer":
+            tid = str(daten["trainer"])
+            if tid not in z.trainer:
+                raise ValueError("trainer_unbekannt")
+            await z.trainer_einstellen(tid, pause=bool(daten.get("pause")), vergessen=bool(daten.get("vergessen")))
+            return None
         if aktion == "reihe":
             reihe = [w for w in daten.get("reihe") or [] if w in z.woerter]
             z.daten["reihe"] = reihe + [w for w in z.reihe() if w not in reihe]
@@ -407,6 +433,12 @@ class AktionAnsicht(HomeAssistantView):
 # --- Trainer ------------------------------------------------------------
 
 
+def _kennung(request: web.Request) -> str:
+    """Id the trainer sends (since 1.0.31); older trainers send none and share one."""
+    wert = request.headers.get("X-Sprachmodell-Trainer", "")
+    return wert if re.fullmatch(r"[A-Za-z0-9_-]{1,40}", wert) else TRAINER_OHNE_ID
+
+
 class _TrainerAnsicht(HomeAssistantView):
     requires_auth = False
 
@@ -418,7 +450,7 @@ class _TrainerAnsicht(HomeAssistantView):
         mit_ha = bool(request.get(KEY_AUTHENTICATED)) and benutzer is not None and benutzer.is_admin
         if not (mit_schluessel or mit_ha):
             raise _fehler(web.HTTPUnauthorized, "falscher_schluessel")
-        z.trainer_kontakt = datetime.now(UTC)
+        z.trainer_sehen(_kennung(request))
         return z
 
 
@@ -428,8 +460,11 @@ class TrainerAuftrag(_TrainerAnsicht):
 
     async def get(self, request: web.Request) -> web.Response:
         z = self._pruefen(request)
-        abbrechen = z.daten.pop("abbrechen", None)
-        wort = z.naechster_auftrag()
+        tid = _kennung(request)
+        frei = request.query.get("frei") != "0"
+        z.trainer_sehen(tid, frei)
+        abbrechen = z.abbruch_fuer(tid)
+        wort = z.naechster_auftrag(tid) if frei else None
         auftrag = None
         if wort is not None:
             auftrag = {
@@ -444,14 +479,16 @@ class TrainerAuftrag(_TrainerAnsicht):
                 "geraet": z.opt("geraet"),
             }
         vorpruefen = []
-        if auftrag is None and not any(w.speicher.daten["training"].get("phase") in LAEUFT for w in z.woerter.values()):
-            # nothing to train: the trainer may listen to new recordings meanwhile
+        # nothing to train: the trainer may listen to new recordings meanwhile (only one trainer, the one that would
+        # get the next run, so two never listen to the same recordings)
+        if auftrag is None and frei and not z.laeuft_bei(tid) and z.ziel_trainer() == tid:
             for w in z.woerter.values():
                 if w.cfg.get("vorpruefen") and (ids := w.speicher.zum_hoeren(VORPRUEFEN_JE_MAL)):
                     vorpruefen.append({"wort_id": w.id, "wort": w.wort, "sprache": w.sprache, "ids": ids})
         return self.json({
             "auftrag": auftrag,
             "vorpruefen": vorpruefen,
+            "aktualisieren": z.aktualisieren_fuer(tid) if frei and auftrag is None else None,
             "abbrechen": abbrechen,
             "woerter": [{"id": w.id, "wort": w.wort, "sprache": w.sprache} for w in z.woerter.values()],
         })
@@ -496,7 +533,7 @@ class TrainerStatus(_TrainerAnsicht):
 
     async def post(self, request: web.Request) -> web.Response:
         z = self._pruefen(request)
-        z.trainer_meldet(await _json(request))
+        z.trainer_meldet(await _json(request), _kennung(request))
         return self.json({"ok": True})
 
 
@@ -522,7 +559,7 @@ class TrainerErgebnis(_TrainerAnsicht):
                     bericht = {}
         if b"TFL3" not in modell[:16]:
             return self.json_message("kein_tflite", HTTPStatus.BAD_REQUEST)
-        eintrag = await z.ergebnis(wort, modell, bericht if isinstance(bericht, dict) else {})
+        eintrag = await z.ergebnis(wort, modell, bericht if isinstance(bericht, dict) else {}, _kennung(request))
         return self.json({"version": eintrag["nr"], "status": eintrag["status"]})
 
 

@@ -15,7 +15,7 @@ SCHWELLEN = (0.8, 0.85, 0.9, 0.92, 0.95, 0.97, 0.98, 0.99)
 
 
 def _ergebnis(alltag: dict[float, float], fa: dict[float, int], stunden: float = 6.0, n: int = 40,
-              leise: float = 0.9, geraeusch: int = 1) -> dict:
+              leise: float = 0.9, geraeusch: int = 1, schwer: dict[float, float] | None = None) -> dict:
     je = {}
     for c in SCHWELLEN:
         q = alltag[c]
@@ -27,6 +27,8 @@ def _ergebnis(alltag: dict[float, float], fa: dict[float, int], stunden: float =
             "fehlausloeser_geraeusch_pro_stunde": geraeusch, "fehlausloeser_geraeusch_anzahl": geraeusch,
             "je_person": {"Anna": {"trefferquote": 1.0, "anzahl": 10}},
         }
+        if schwer:
+            je[str(c)]["trefferquote_schwer"] = schwer[c]
     return {"je_schwelle": je, "positiv": n, "negativ": 180, "stunden": stunden, "stunden_geraeusch": 1.0}
 
 
@@ -75,3 +77,22 @@ def test_alte_berichte_ohne_alltag() -> None:
     assert vergleich.alltag_bei(_ergebnis(QUOTE, FA_ALT)["je_schwelle"], 0.1) is None  # never that quiet
     assert vergleich.alltag_bei(_ergebnis(QUOTE, FA_ALT)["je_schwelle"], 1.0) == 0.86
     assert vergleich.alltag_bei(_ergebnis(QUOTE, FA_ALT)["je_schwelle"], 1.0, 6.0) == 0.9  # allows for chance
+
+
+def test_beide_hoeren_alles_der_haertetest_entscheidet() -> None:
+    """Both versions hear everything in daily life (100 %): the hard test still tells them apart."""
+    alles = dict.fromkeys(QUOTE, 1.0)
+    schwach = {c: q - 0.3 for c, q in QUOTE.items()}
+    stark = {c: q - 0.1 for c, q in QUOTE.items()}
+    neu = _ergebnis(alles, FA_ALT, schwer=stark)
+    alt = _ergebnis(alles, FA_ALT, schwer=schwach)
+    v = vergleich.vergleichen(neu, alt, 0.99, 0.99)
+    zeile = next(z for z in v["zeilen"] if z["kennzahl"] == "schwer_bei_fa")
+    assert zeile["wichtig"] and abs(zeile["neu"] - 0.8) < 1e-9 and abs(zeile["alt"] - 0.6) < 1e-9
+    assert v["urteil"] == "besser" and v["besser_in"] == ["schwer_bei_fa"]
+    assert vergleich.vergleichen(alt, neu, 0.99, 0.99)["urteil"] == "schlechter"
+    # same hard test: as good
+    assert vergleich.vergleichen(neu, neu, 0.99, 0.99)["urteil"] == "gleich"
+    # reports from before the hard test have no such row
+    assert all(z["kennzahl"] != "schwer_bei_fa" for z in vergleich.vergleichen(
+        _ergebnis(alles, FA_ALT), _ergebnis(alles, FA_ALT), 0.99, 0.99)["zeilen"])

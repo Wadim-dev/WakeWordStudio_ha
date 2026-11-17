@@ -34,20 +34,17 @@ honest test it is put on your voice satellites automatically.
 
 ## Running it on another computer (Docker)
 
-A faster computer in your network can do the training instead. Take the key from
-**Wake Word Studio → Settings → Trainer** and start:
+A faster computer in your network can do the training too. **Wake Word Studio → Settings → Trainer → Set up a trainer**
+shows the steps for a Windows PC, Linux or Proxmox and one line to copy with your key, for example:
 
 ```bash
-docker run -d --name wake-word-studio-trainer --restart unless-stopped \
-  -e HA_URL=http://homeassistant.local:8123 \
-  -e KEY=<key from the panel> \
-  -v wake-word-studio-trainer:/data \
-  ghcr.io/wadim-dev/wake-word-studio-trainer:latest
+docker run -d --name wake-word-studio-trainer --restart unless-stopped -v wake-word-studio-trainer:/data -v /var/run/docker.sock:/var/run/docker.sock -e HA_URL=http://homeassistant.local:8123 -e KEY=<key from the panel> ghcr.io/wadim-dev/wake-word-studio-trainer:latest
 ```
 
-With an NVIDIA graphics card (RTX 20, 30, 40) use `--gpus all` and the image `ghcr.io/wadim-dev/wake-word-studio-trainer:gpu`.
-It tries the card at start and falls back to the processor if it cannot use it (RTX 50 is not supported by
-TensorFlow yet). This app itself always trains on the processor.
+With `-v /var/run/docker.sock:/var/run/docker.sock` the container updates itself when a new version is out.
+With an NVIDIA graphics card (RTX 20 to RTX 50, tested with an RTX 5080) add `--gpus all` and use the image
+`ghcr.io/wadim-dev/wake-word-studio-trainer:gpu`. It tries the card at start and falls back to the processor if it
+cannot use it. This app itself always trains on the processor.
 
 On **Proxmox VE** one line in the Proxmox shell creates its own container that updates itself on every restart:
 
@@ -55,7 +52,10 @@ On **Proxmox VE** one line in the Proxmox shell creates its own container that u
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh)" -- http://homeassistant.local:8123 <key>
 ```
 
-Optional variables: `THREADS`, `ZIEL_FEHLAUSLOESER`, `SCHRITTE`, `TRAINER_NAME`. Only one trainer should run at a time.
+Several trainers can run at the same time (for example this app and a PC with a graphics card). The studio shows how
+long a run takes on each one and gives the next run to the fastest free one, or to the one you choose.
+
+Optional variables: `THREADS`, `ZIEL_FEHLAUSLOESER`, `SCHRITTE`, `TRAINER_NAME`.
 
 ---
 
@@ -70,5 +70,7 @@ Stimmen). Danach trainiert er auf den bewerteten Aufnahmen plus künstlichen Sti
 denselben Testaufnahmen und wählt die Schwelle so, dass die Fehlauslöser unter dem Ziel bleiben.
 
 Einstellungen: `threads` (0 = alle), `ziel_fehlausloeser` (pro Stunde Gerede, Standard 1,0),
-`schritte` (0 = automatisch). Für einen anderen Rechner den Docker- oder Proxmox-Befehl oben nehmen, Schlüssel aus
-**Wake Word Studio → Einstellungen → Trainer**.
+`schritte` (0 = automatisch). Für einen anderen Rechner (Windows-PC, Linux, Proxmox) zeigt
+**Wake Word Studio → Einstellungen → Trainer → Trainer einrichten** die Schritte und einen Befehl zum Kopieren; ein
+Docker-Trainer aktualisiert sich damit selbst. Mehrere Trainer können gleichzeitig laufen, das Studio zeigt die Dauer
+je Trainer und gibt den nächsten Lauf dem schnellsten freien oder dem gewählten.

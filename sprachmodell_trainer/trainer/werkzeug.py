@@ -401,6 +401,9 @@ def _verlauf(m, x: np.ndarray) -> np.ndarray:
 # Everyday conditions of the test. Every model of a run hears exactly the same audio (fixed random seed), so
 # old and new are compared on identical clips.
 BEDINGUNGEN = ("ruhig", "leise", "hall", "musik", "gerede", "alltag")
+# Hard test: far harder than daily life, so a good version does not reach 100 % here and two versions that both
+# hear everything in daily life can still be told apart (who has more reserve).
+SCHWER = ("weit", "laut_tv", "laut_musik", "chaos")
 
 
 def _ausloesen(m, x: np.ndarray, zuletzt: dict, t0: float, ausloeser: dict) -> None:
@@ -431,7 +434,7 @@ def pruefen(a: dict) -> dict:
     rede_dateien = a.get("gerede") or []
     rir = a.get("rir") or ""
     raeume = sorted(glob.glob(os.path.join(rir, "*.wav")))[:200] if os.path.isdir(rir) else [rir] if rir else []
-    gesamt = len(a["positiv"]) * len(BEDINGUNGEN) + len(a["negativ"]) + max(1, len(rede_dateien)) + 1
+    gesamt = len(a["positiv"]) * (len(BEDINGUNGEN) + len(SCHWER)) + len(a["negativ"]) + max(1, len(rede_dateien)) + 1
     schritt = [0]
 
     def weiter() -> None:
@@ -470,7 +473,7 @@ def pruefen(a: dict) -> dict:
         y *= np.sqrt((np.mean(x.astype(np.float32) ** 2) + 1e-9) / (np.mean(y ** 2) + 1e-9))
         return np.clip(y, -32768, 32767).astype(np.int16)
 
-    werte: dict[str, list[float]] = {b: [] for b in BEDINGUNGEN}
+    werte: dict[str, list[float]] = {b: [] for b in BEDINGUNGEN + SCHWER}
     personen = []
     for p in a["positiv"]:
         x = np.concatenate([pause, _laden(p["datei"]), pause])
@@ -482,7 +485,12 @@ def pruefen(a: dict) -> dict:
             "gerede": mischen(x, rede_dateien, 5),
         }
         fassungen["alltag"] = mischen(leiser(hall(x), 8), bg if rnd.random() < 0.5 else rede_dateien, 10)
-        for b in BEDINGUNGEN:
+        # hard test: very far away in another room, a loud TV, loud music, everything at once (fixed seed as above)
+        fassungen["weit"] = leiser(hall(x), 30)
+        fassungen["laut_tv"] = mischen(x, rede_dateien, -3)
+        fassungen["laut_musik"] = mischen(x, bg, -3)
+        fassungen["chaos"] = mischen(leiser(hall(x), 18), bg if rnd.random() < 0.5 else rede_dateien, 3)
+        for b in BEDINGUNGEN + SCHWER:
             werte[b].append(float(_verlauf(m, fassungen[b]).max()))
             weiter()
         personen.append(p.get("person") or "")
@@ -523,12 +531,15 @@ def pruefen(a: dict) -> dict:
         for wert, person in zip(werte["ruhig"], personen):
             if person:
                 jp.setdefault(person, []).append(1.0 if wert >= c else 0.0)
-        bed = {b: float((v >= c).mean()) if len(v) else None for b, v in arr.items()}
+        bed = {b: float((v >= c).mean()) if len(v) else None for b, v in arr.items() if b in BEDINGUNGEN}
+        schwer = {b: float((arr[b] >= c).mean()) if len(arr[b]) else None for b in SCHWER}
         je[str(c)] = {
             "trefferquote": bed["ruhig"],
             "trefferquote_musik": bed["musik"],
             "trefferquote_alltag": float(np.mean([v for v in bed.values()])) if len(werte["ruhig"]) else None,
             "bedingungen": bed,
+            "schwer": schwer,
+            "trefferquote_schwer": float(np.mean([v for v in schwer.values()])) if len(werte["ruhig"]) else None,
             "gegenbeispiele": float((gegen_a >= c).mean()) if len(gegen) else None,
             "gegenbeispiele_anzahl": int((gegen_a >= c).sum()),
             "fehlausloeser_pro_stunde": ausloeser[c] / stunden if rede_dateien else None,
