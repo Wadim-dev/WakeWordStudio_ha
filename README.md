@@ -138,11 +138,11 @@ Training needs a lot of computing power, so it runs in its own container. It ada
 **Set up a trainer:** *Settings → Trainer → Set up a trainer* has a tab per place – *Home Assistant app*, *Proxmox*, *Windows PC*, *Linux / NAS* – with three short steps and one command to copy (one line, works in PowerShell, cmd and any Linux shell; the button copies it with your key).
 
 - **Home Assistant app**: *Settings → Apps → App store → ⋮ → Repositories*, add `https://github.com/Wadim-dev/WakeWordStudio_ha`, install **Wake Word Studio Trainer** and start it. It connects by itself.
-- **Proxmox VE** (own LXC container, updates itself on every restart) – in the Proxmox shell:
+- **Proxmox VE** (own LXC container, updates itself) – in the Proxmox shell:
   ```bash
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh)" -- http://homeassistant.local:8123 <key>
   ```
-  The container is placed on a local disk of the Proxmox host (the one with most free space, never network storage such as a NAS – training reads its data all the time). `CT_STORAGE=<name>` chooses one. If an existing trainer container lives on network storage: stop it, then *Resources → Root Disk → Volume Action → Move Volume* to a local storage.
+  A Proxmox trainer set up before 1.0.32 updates on every restart; to let it update while running too, paste the line its profile shows once (`… proxmox.sh)" -- update`, container and data stay). The container is placed on a local disk of the Proxmox host (the one with most free space, never network storage such as a NAS – training reads its data all the time). `CT_STORAGE=<name>` chooses one. If an existing trainer container lives on network storage: stop it, then *Resources → Root Disk → Volume Action → Move Volume* to a local storage.
 - **Windows PC** (Docker Desktop) or **Linux / NAS** (Docker), one line:
   ```bash
   docker run -d --name wake-word-studio-trainer --restart unless-stopped -v wake-word-studio-trainer:/data -v /var/run/docker.sock:/var/run/docker.sock -e HA_URL=http://homeassistant.local:8123 -e KEY=<key> ghcr.io/wadim-dev/wake-word-studio-trainer:latest

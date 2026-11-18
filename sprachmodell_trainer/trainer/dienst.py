@@ -41,6 +41,7 @@ def info() -> dict:
     return {
         "name": os.environ.get("TRAINER_NAME") or platform.node(),
         "name_eigen": bool(os.environ.get("TRAINER_NAME")),
+        "ort": os.environ.get("TRAINER_ORT") or "",  # "proxmox" when set up by proxmox.sh
         "version": __version__,
         "cpu": kerne(),
         "ram_gb": ram_gb(),

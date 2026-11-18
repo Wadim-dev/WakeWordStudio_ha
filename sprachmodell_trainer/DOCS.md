@@ -46,7 +46,7 @@ With an NVIDIA graphics card (RTX 20 to RTX 50, tested with an RTX 5080) add `--
 `ghcr.io/wadim-dev/wake-word-studio-trainer:gpu`. It tries the card at start and falls back to the processor if it
 cannot use it. This app itself always trains on the processor.
 
-On **Proxmox VE** one line in the Proxmox shell creates its own container that updates itself on every restart:
+On **Proxmox VE** one line in the Proxmox shell creates its own container that updates itself:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh)" -- http://homeassistant.local:8123 <key>

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.32
+- Proxmox trainers update themselves too: the container set up by the Proxmox script now has access to Docker inside it, so the trainer fetches a new version while idle instead of only on a restart. For an existing Proxmox trainer the profile shows the one line to paste once into the Proxmox shell (`proxmox.sh update`); container, data and key stay.
+- The profile no longer tells Proxmox trainers to "set the container up again": it says they update on every restart and offers that one line.
+
 ## 1.0.31
 - Several trainers: for example the Proxmox container as the main trainer and a PC with a graphics card that is only on now and then. Each trainer gets its own id; all train from the same recordings and data in Home Assistant.
 - *Training → Automatic → Next run on*: *Automatic (fastest free one)* or a fixed trainer (if it is off or does not take runs, the others take over). Each trainer shows its status and how long a normal and a thorough run take on it: measured from its own last run, otherwise estimated from a short speed test every trainer runs at start.
