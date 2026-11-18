@@ -5,9 +5,10 @@
 # HA_URL e.g. http://192.168.1.10:8123, KEY = trainer key shown in Wake Word Studio (Settings -> Trainer).
 # Optional environment: CT_CORES (4), CT_RAM_MB (6144), CT_DISK_GB (100), CT_STORAGE (local storage with most free space), CT_BRIDGE (vmbr0)
 #
-# The trainer updates itself every time the container starts: restarting the container
-# (Proxmox, or the "Restart" button of the Proxmox integration in Home Assistant) installs the newest version.
-# Existing container from an older script: run this script once with the single argument "update".
+# The trainer updates itself: while it is idle as soon as a new version is published (it has access to Docker inside
+# its container), and every time the container starts.
+# Existing container from an older script: run this script once with the single argument "update" (container and
+# downloaded data stay).
 set -euo pipefail
 
 command -v pct >/dev/null || { echo "Run this in the Proxmox VE shell."; exit 1; }
@@ -37,7 +38,7 @@ if [ -n "\$NEU" ] && { [ "\$NEU" != "\$LAEUFT" ] || [ "\$GRENZE_JETZT" = "0" ]; 
   # Memory limit of this LXC container also for Docker, so the trainer sees it and adapts
   GRENZE_MB=\$(( \$(awk '/^MemTotal:/{print \$2}' /proc/meminfo) * 9 / 10 / 1024 ))
   docker run -d --name $NAME --restart unless-stopped --memory \${GRENZE_MB}m --env-file $ENV \\
-    -v "\$VOLUME":/data "\$BILD" >/dev/null
+    -v "\$VOLUME":/data -v /var/run/docker.sock:/var/run/docker.sock "\$BILD" >/dev/null
   docker image prune -af >/dev/null 2>&1 || true
   echo "Trainer updated"
 else
@@ -93,9 +94,10 @@ if [ "${1:-}" = "update" ]; then
       echo "Settings not found. Run: proxmox.sh update <HA_URL> <KEY>"; exit 1
     fi
   fi
+  grep -q '^TRAINER_ORT=' "/tmp/$NAME.env" || echo 'TRAINER_ORT=proxmox' >>"/tmp/$NAME.env"
   pct exec "$ID" -- docker rm -f "$NAME" "$ALT" >/dev/null 2>&1 || true   # recreated from the settings file
   einrichten "$ID"
-  echo "Done. Container $ID runs the newest trainer and updates itself on every restart."
+  echo "Done. Container $ID runs the newest trainer and updates itself (data and settings kept)."
   exit 0
 fi
 
@@ -134,10 +136,10 @@ echo "== Docker"
 pct exec "$ID" -- bash -c "apt-get update -qq && DEBIAN_FRONTEND=noninteractive apt-get install -y -qq docker.io ca-certificates >/dev/null"
 
 echo "== Trainer"
-printf 'HA_URL=%s\nKEY=%s\nTRAINER_NAME=Proxmox\n' "$HA_URL" "$KEY" >"/tmp/$NAME.env"
+printf 'HA_URL=%s\nKEY=%s\nTRAINER_NAME=Proxmox\nTRAINER_ORT=proxmox\n' "$HA_URL" "$KEY" >"/tmp/$NAME.env"
 einrichten "$ID"
 
 echo
 echo "Done. Container $ID runs the trainer; it shows up as connected in Wake Word Studio within a minute."
 echo "Logs: pct exec $ID -- docker logs -f $NAME"
-echo "Updates: restart the container - it installs the newest trainer by itself."
+echo "Updates: the trainer installs new versions by itself."

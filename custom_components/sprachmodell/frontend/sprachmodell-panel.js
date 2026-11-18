@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.31';
+const VERSION = '1.0.32';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -723,10 +723,16 @@ ${unten}</ha-card>`;
     if (i.ram_gb) zeilen.push([this.t('sb_ram'), this._zahl(i.ram_gb, 1) + ' GB', i.ram_gb >= 6 ? 0 : i.ram_gb >= 4 ? 1 : 2, i.ram_gb >= 6 ? '' : this.t('sb_ram_wenig')]);
     if (i.swap_gb != null) { const q = i.swap_gb ? i.swap_belegt_gb / i.swap_gb : 0; zeilen.push([this.t('sb_swap'), i.swap_gb ? `${this._zahl(i.swap_belegt_gb, 1)} / ${this._zahl(i.swap_gb, 1)} GB` : this.t('sb_swap_kein'), q < 0.25 ? 0 : q < 0.6 ? 1 : 2, q < 0.25 ? '' : this.t('sb_swap_voll')]); }
     if (i.platz_frei_gb != null) zeilen.push([this.t('sb_platte'), this.t('sb_platte_wert', { f: this._zahl(i.platz_frei_gb, 0), g: this._zahl(i.platz_gb, 0) }), i.platz_frei_gb >= 40 ? 0 : i.platz_frei_gb >= 15 ? 1 : 2, i.platz_frei_gb >= 40 ? '' : this.t('sb_platte_wenig')]);
-    if (i.art === 'docker' && i.version && !aelter(i.version, '1.0.31')) zeilen.push([this.t('sb_selbst'), this.t(i.selbst_update ? 'sb_selbst_ja' : 'sb_selbst_nein'), i.selbst_update ? 0 : 1, i.selbst_update ? '' : this.t('sb_selbst_tipp')]);
+    if (i.art === 'docker' && i.version && !aelter(i.version, '1.0.31')) {
+      // a Proxmox container fetches the newest version on every restart anyway; one command lets it update while running
+      const proxmox = i.ort === 'proxmox' || (i.name_eigen && i.name === 'Proxmox');
+      if (i.selbst_update) zeilen.push([this.t('sb_selbst'), this.t('sb_selbst_ja'), 0, '']);
+      else if (proxmox) zeilen.push([this.t('sb_selbst'), this.t('sb_selbst_neustart'), 0, this.t('sb_selbst_proxmox'), `bash -c "$(curl -fsSL ${PROXMOX})" -- update`]);
+      else zeilen.push([this.t('sb_selbst'), this.t('sb_selbst_nein'), 1, this.t('sb_selbst_tipp')]);
+    }
     if (tr.engpass && (!t || t.laeuft.length)) zeilen.push([this.t('sb_lauf'), this.t('h_tr_engpass_' + tr.engpass), 2, '']);
-    if (t) return `<table class="steckbrief">${zeilen.map(([k, v, st, tipp]) => `<tr><td>${esc(k)}</td><td>${ampel(st)}${esc(v)}${tipp ? `<div class="klein">${esc(tipp)}</div>` : ''}</td></tr>`).join('')}</table>`;
-    return `<h3>${esc(this.t('sb_titel'))}</h3><table class="steckbrief">${zeilen.map(([k, v, st, tipp]) => `<tr><td>${esc(k)}</td><td>${ampel(st)}${esc(v)}${tipp ? `<div class="klein">${esc(tipp)}</div>` : ''}</td></tr>`).join('')}</table>`;
+    if (t) return `<table class="steckbrief">${zeilen.map(([k, v, st, tipp, befehl]) => `<tr><td>${esc(k)}</td><td>${ampel(st)}${esc(v)}${tipp ? `<div class="klein">${esc(tipp)}</div>` : ''}${befehl ? `<div class="schluessel" style="margin-top:4px"><code style="white-space:normal;word-break:break-all">${esc(befehl)}</code><button class="k leise" data-a="kopieren" data-text="${esc(befehl)}">${esc(this.t('es_kopieren'))}</button></div>` : ''}</td></tr>`).join('')}</table>`;
+    return `<h3>${esc(this.t('sb_titel'))}</h3><table class="steckbrief">${zeilen.map(([k, v, st, tipp, befehl]) => `<tr><td>${esc(k)}</td><td>${ampel(st)}${esc(v)}${tipp ? `<div class="klein">${esc(tipp)}</div>` : ''}${befehl ? `<div class="schluessel" style="margin-top:4px"><code style="white-space:normal;word-break:break-all">${esc(befehl)}</code><button class="k leise" data-a="kopieren" data-text="${esc(befehl)}">${esc(this.t('es_kopieren'))}</button></div>` : ''}</td></tr>`).join('')}</table>`;
   }
 
   _trName(t) { return t.alt ? this.t('tr_alt_name') : t.name; }
