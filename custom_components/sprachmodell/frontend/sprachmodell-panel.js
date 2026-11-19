@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.32';
+const VERSION = '1.0.33';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -60,6 +60,7 @@ h3{font-size:14px;font-weight:500;margin:18px 0 6px;color:var(--secondary-text-c
 .wortkarte .reihe{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
 .zeile{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .zeile.weit{justify-content:space-between}
+.zeile.unter{margin:6px 0 0 26px}.zeile.unter.aus{opacity:.5}
 button.k{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:18px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer;background:rgba(var(--rgb-primary-text-color,0,0,0),.07);color:var(--primary-text-color)}
 button.k:disabled{opacity:.45;cursor:default}
 button.k.haupt{background:var(--primary-color);color:var(--text-primary-color,#fff)}
@@ -635,7 +636,7 @@ ${nachts ? `<div class="klein" style="margin-top:8px"><ha-icon icon="mdi:weather
       : `${this._tage(tage, f)}<div class="zeile weit klein"><span>${esc(this.t('h_tage', { n: summe }))}</span><span>${w.fehlausloeser != null ? esc(this.t('z_fehl', { n: this._zahl(w.fehlausloeser, 1) })) : ''}</span></div>`;
     const status = t.phase === 'fehler' ? `<span class="mini rot-f">${esc(this.t('p_fehler'))}</span>` : t.phase === 'wartet' || w.in_reihe ? `<span class="mini">${esc(this.t('h_in_reihe'))}</span>` : '';
     return `<ha-card class="kachel wortkarte ${laeuft ? 'laeuft' : ''}" style="--wf:${f}" data-reiter="${laeuft ? 'training' : w.offen ? 'pruefen' : 'uebersicht'}" data-wort="${esc(w.id)}">
-<div class="wk-kopf"><div style="min-width:0"><div class="klein">${esc(SPRACHNAMEN[this._spr][w.sprache] || w.sprache)} · ${esc(n === 1 ? this.t('z_geraet') : n ? this.t('z_geraete', { n }) : this.t('z_kein_geraet'))}</div><div class="name">${esc(w.wort)}</div>
+<div class="wk-kopf"><div style="min-width:0"><div class="klein">${esc(SPRACHNAMEN[this._spr][w.sprache] || this._sprachname(w.sprache))} · ${esc(n === 1 ? this.t('z_geraet') : n ? this.t('z_geraete', { n }) : this.t('z_kein_geraet'))}</div><div class="name">${esc(w.wort)}</div>
 <div class="zeile" style="gap:6px"><span class="mini">${w.aktiv ? 'v' + w.aktiv : esc(this.t('z_keine_version'))}</span>${w.offen ? `<span class="mini gelb-f">${esc(this.t('h_offen_kurz', { n: w.offen }))}</span>` : ''}${status}</div></div>${this._quoteRing(w.trefferquote, f)}</div>
 ${unten}</ha-card>`;
   }
@@ -1522,6 +1523,7 @@ ${this._details(w, laeuft)}
 <div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="schwelle_automatisch" ${e.schwelle_automatisch ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_schwelle_auto'))}</label></div>
 <div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="vorpruefen" ${e.vorpruefen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_vorpruefen'))}</label></div>
 <div class="zeile"><label><input type="checkbox" data-wopt="gruendlich" ${e.gruendlich ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_gruendlich'))}</label></div>
+<div class="zeile unter ${e.gruendlich ? '' : 'aus'}"><label><input type="checkbox" data-wopt="mitteln" ${e.mitteln ? 'checked' : ''} ${this._admin && e.gruendlich ? '' : 'disabled'}> ${esc(this.t('t_mitteln'))}</label></div>
 ${this._gruendlichInfo(w, e)}
 <p class="klein">${esc(this.t('t_besser_heisst'))}</p></ha-card>
 <ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}${l.geraet === 'gpu' || l.geraet_rueckfall ? `<div class="klein">${esc(this.t(l.geraet_rueckfall ? 'l_rueckfall' : 'l_gpu'))}</div>` : ''}${l.trainer_name && (this._daten.trainer.liste || []).length > 1 ? `<div class="klein">${esc(l.trainer_name)}</div>` : ''}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
@@ -1580,8 +1582,16 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
     const kopf = this._urteilZeile(b);
     const tab = vg ? `<table class="vgl-tab"><tr><th>${esc(this.t(b.alt_nr ? 'q_vgl' : 'q_vgl_vorher', { v: b.alt_nr }))}</th><th class="z">${esc(this.t('q_vgl_neu', { v: x.nr }))}</th><th class="z">${esc(b.alt_nr ? 'v' + b.alt_nr : this.t('q_vgl_alt'))}</th><th class="z"></th></tr>${vg.zeilen.map((z) => `<tr class="${z.wichtig ? 'wichtig' : ''}"><td>${esc(name(z))}</td><td class="z">${z.kennzahl.endsWith('_bei_fa') && z.neu == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.neu)}</td><td class="z">${z.kennzahl.endsWith('_bei_fa') && z.alt == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.alt)}</td><td class="z"><ha-icon class="u-${z.urteil}" icon="${icon[z.urteil]}" title="${esc(this.t('u_' + z.urteil))}"></ha-icon></td></tr>`).join('')}</table>
 <div class="klein" style="margin-top:6px">${esc(this.t('q_vgl_basis', { n: vg.testaufnahmen, h: this._zahl(vg.stunden_rede, 1), g: this._zahl(vg.stunden_geraeusch, 1) }))}</div>` : '';
-    const kand = b.kandidaten ? `<div class="klein" style="margin-top:8px">${esc(this.t('g_gewaehlt', { n: b.kandidaten.anzahl, k: b.kandidaten.gewaehlt }))}</div>` : '';
+    const kand = b.kandidaten ? `<div class="klein" style="margin-top:8px">${esc(this._kandidatText(b.kandidaten))}</div>` : '';
     return kopf + this._duell(b, x.nr) + tab + kand;
+  }
+
+  _kandidatText(k) {
+    const w = (k.werte || [])[k.gewaehlt - 1] || {};
+    const auf = k.grundlage === 'echt' ? this.t('g_auf_echt', { a: k.wahl_aufnahmen }) : this.t('g_auf_eigen');
+    const was = w.rezept === 'gemittelt' ? this.t('g_gewaehlt_mittel', { n: k.anzahl })
+      : this.t('g_gewaehlt', { n: k.anzahl, k: k.gewaehlt }) + (w.rezept === 'abgebrochen' ? ' ' + this.t('g_rezept_abgebrochen') : '');
+    return `${was} ${auf}`;
   }
 
   _urteilZeile(b) {
@@ -1690,8 +1700,18 @@ ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.s
   }
 
   // ---------- Wort-Einstellungen und neues Wort ----------
+  _sprachname(code) {
+    try {
+      return new Intl.DisplayNames([this._spr], { type: 'language' }).of(code) || code;
+    } catch (e) {
+      return code;
+    }
+  }
+
   _sprachWahl(wert) {
-    return `<select data-feld="sprache">${this._daten.sprachen.map((s) => `<option value="${s}" ${s === wert ? 'selected' : ''}>${esc(SPRACHNAMEN[this._spr][s] || s)}</option>`).join('')}</select>`;
+    const name = (s) => SPRACHNAMEN[this._spr][s] || this._sprachname(s);
+    const liste = [...this._daten.sprachen].sort((a, b) => name(a).localeCompare(name(b), this._spr));
+    return `<select data-feld="sprache">${liste.map((s) => `<option value="${s}" ${s === wert ? 'selected' : ''}>${esc(name(s))}</option>`).join('')}</select>`;
   }
 
   _plaetze(e, eigeneId) {

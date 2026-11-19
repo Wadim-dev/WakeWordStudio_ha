@@ -29,7 +29,10 @@ QUELLE_HOCHGELADEN = "hochgeladen"
 QUELLE_BROWSER = "browser"     # in der App aufgenommen
 
 # Sprachen, fuer die der Trainer Grunddaten (fremde Stimmen, Gerede) mitbringt
-SPRACHEN = ("de", "en", "ru", "fr", "es", "it", "nl", "pl", "uk", "tr", "pt", "cs", "sv")
+SPRACHEN = (
+    "de", "en", "ru", "fr", "es", "it", "nl", "pl", "uk", "tr", "pt", "cs", "sv",
+    "ar", "bg", "ca", "cy", "da", "el", "et", "fa", "fi", "hi", "hu", "id", "is", "ka", "kk", "ko", "lb", "lv", "no", "ro", "sk", "sl", "sr", "sw", "vi",
+)
 
 # Einstellungen eines Worts
 STANDARD_WORT = {
@@ -47,6 +50,9 @@ STANDARD_WORT = {
     "vorpruefen": True,
     # "Thorough": train three candidates per run and keep the best (a run takes about two to three times as long)
     "gruendlich": False,
+    # With "thorough": also one model that averages the candidates (fewer false wakes, but it needs about three
+    # times the memory on the device). It is only used if it does better than the best single candidate.
+    "mitteln": False,
     "farbe": "",
 }
 

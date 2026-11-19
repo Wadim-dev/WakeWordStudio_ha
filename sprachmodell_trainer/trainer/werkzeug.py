@@ -319,6 +319,21 @@ def _init(opt: dict) -> None:
         )
 
 
+def _abgebrochen(x: np.ndarray) -> np.ndarray:
+    """The word broken off part-way, as when somebody starts it and stops or says a longer word that begins the
+    same: from the start of the voice up to a random point between a quarter and 60 % of it."""
+    rahmen = 320  # 20 ms
+    n = len(x) // rahmen
+    if n < 4:
+        return x
+    energie = np.sqrt((x[: n * rahmen].reshape(n, rahmen) ** 2).mean(axis=1))
+    stimme = np.flatnonzero(energie > 0.15 * (energie.max() + 1e-9))
+    if len(stimme) < 2:
+        return x
+    von, bis = int(stimme[0]) * rahmen, (int(stimme[-1]) + 1) * rahmen
+    return x[: von + int((bis - von) * random.uniform(0.25, 0.6))]
+
+
 def _merkmal(f: str) -> list[np.ndarray]:
     import soundfile as sf
     from microwakeword.audio.audio_utils import generate_features_for_clip, remove_silence_webrtc
@@ -335,7 +350,7 @@ def _merkmal(f: str) -> list[np.ndarray]:
             x = remove_silence_webrtc(x)
         aus = []
         for _ in range(_OPT["wiederholungen"]):
-            s = generate_features_for_clip(_AUG.augment_clip(x), 10)[-_OPT.get("frames", 220):]
+            s = generate_features_for_clip(_AUG.augment_clip(_abgebrochen(x) if _OPT.get("abschneiden") else x), 10)[-_OPT.get("frames", 220):]
             aus.append(np.clip(np.round(s / FAKTOR), 0, 65535).astype(np.uint16))
         return aus
     except Exception as err:  # noqa: BLE001 - one broken file must not stop the step, but it is reported
@@ -345,7 +360,7 @@ def _merkmal(f: str) -> list[np.ndarray]:
 
 def merkmale(a: dict) -> dict:
     """a: ziel (…_mmap), ordner [..] oder dateien [..], wiederholungen (0 = lang/unveraendert), frames, trim,
-    bg [..], rir, snr_min, prozesse."""
+    bg [..], rir, snr_min, prozesse, abschneiden (the word broken off part-way, as a negative)."""
     from concurrent.futures import ProcessPoolExecutor
     from concurrent.futures.process import BrokenProcessPool
 
@@ -590,7 +605,61 @@ def schlank(a: dict) -> dict:
     return aus
 
 
-BEFEHLE = {"tts": tts, "merkmale": merkmale, "pruefen": pruefen, "schlank": schlank, "hoeren": hoeren, "omni": omni, "proben": proben}
+def mitteln(a: dict) -> dict:
+    """One streaming model that averages several trained candidates (their log-odds, then one sigmoid).
+
+    a: config (training.yaml of the run, for the model shape and the calibration audio of the int8 conversion),
+    gewichte [best_weights.weights.h5 of each candidate], modell_args (the mixednet flags they were trained with),
+    ziel (folder; the model lands in ziel/<MODELL_DATEI>). Candidates trained from different random starts make
+    different mistakes while the word scores high in all of them, so their mean wakes less often by mistake. The
+    file needs about as many times the device memory as it has candidates."""
+    import argparse
+
+    import tensorflow as tf
+
+    from microwakeword import mixednet, model_train_eval, utils
+    from microwakeword import data as input_data
+    from microwakeword.layers import modes
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--training_config")
+    mixednet.model_parameters(parser)
+    flags = parser.parse_args([f"--training_config={a['config']}", *a["modell_args"]])
+    config = model_train_eval.load_config(flags, mixednet)
+    config["train_dir"] = a["ziel"]
+    os.makedirs(a["ziel"], exist_ok=True)
+    teile = []
+    for i, w in enumerate(a["gewichte"]):
+        m = mixednet.model(flags, shape=config["training_input_shape"], batch_size=1)
+        m.load_weights(w)
+        # the last layer without its sigmoid: the candidates' log-odds are averaged and one sigmoid follows, so
+        # the output keeps the 1/256 steps the device expects (a plain mean of probabilities would be
+        # quantized with another scale, and the device would read it twice as high)
+        kopf = [lay for lay in m.layers if isinstance(lay, tf.keras.layers.Dense)][-1]
+        kopf.activation = tf.keras.activations.linear
+        s = utils.to_streaming_inference(m, config, modes.Modes.STREAM_INTERNAL_STATE_INFERENCE)
+        teile.append(s)
+        _fortschritt(i + 1, len(a["gewichte"]) + 2)
+    eingang = tf.keras.layers.Input(shape=teile[0].input.shape[1:], batch_size=1, dtype=tf.float32,
+                                    name="input_audio")
+    ausgang = tf.keras.layers.Activation("sigmoid", name="wahrscheinlichkeit")(
+        tf.keras.layers.Average(name="mittel")([t(eingang) for t in teile]))
+    gesamt = tf.keras.Model(eingang, ausgang, name="gemittelt")
+    pfad = os.path.join(a["ziel"], "stream_state_internal")
+    archiv = tf.keras.export.ExportArchive()
+    archiv.track(gesamt)
+    archiv.add_endpoint(name="serve", fn=gesamt.call,
+                        input_signature=[tf.TensorSpec(shape=gesamt.input.shape, dtype=tf.float32)])
+    archiv.write_out(pfad)
+    _fortschritt(len(a["gewichte"]) + 1, len(a["gewichte"]) + 2)
+    utils.convert_saved_model_to_tflite(config, input_data.FeatureHandler(config), pfad,
+                                        os.path.join(a["ziel"], "tflite_stream_state_internal_quant"),
+                                        "stream_state_internal_quant.tflite", quantize=True)
+    datei = os.path.join(a["ziel"], "tflite_stream_state_internal_quant", "stream_state_internal_quant.tflite")
+    return {"datei": datei, "groesse": os.path.getsize(datei), "teile": len(teile)}
+
+
+BEFEHLE = {"tts": tts, "merkmale": merkmale, "pruefen": pruefen, "schlank": schlank, "hoeren": hoeren, "omni": omni, "proben": proben, "mitteln": mitteln}
 
 if __name__ == "__main__":
     with open(sys.argv[2], encoding="utf-8") as datei:

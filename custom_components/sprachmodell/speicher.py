@@ -670,6 +670,13 @@ class Speicher:
     def version(self, nr: int) -> dict[str, Any] | None:
         return next((v for v in self.daten["versionen"] if v["nr"] == nr), None)
 
+    def arena(self, nr: int) -> int:
+        """Device memory the model needs: one model 30000 bytes, an averaged one as many times as it has parts."""
+        try:
+            return max(30000, int(((self.version(nr) or {}).get("bericht") or {}).get("tensor_arena") or 30000))
+        except (TypeError, ValueError):
+            return 30000
+
     def modell_datei(self, nr: int) -> str:
         return self.pfad("modelle", f"v{nr}", "modell.tflite")
 
@@ -692,7 +699,7 @@ class Speicher:
                 "probability_cutoff": cutoff,
                 "feature_step_size": 10,
                 "sliding_window_size": 5,
-                "tensor_arena_size": 30000,
+                "tensor_arena_size": self.arena(nr),
                 "minimum_esphome_version": "2024.7.0",
             },
         }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.33
+- *Thorough* chooses on your real recordings: with 20 or more real test recordings, the candidates are compared on half of them and the test reports on the other half, so the choice is made on what your devices really hear without flattering the result. With fewer it chooses on its own check data as before.
+- *Thorough* tries different recipes: the second candidate also learns cut-off copies of the word as negatives (someone starts the word and stops, or says a longer word that begins the same). The check decides which recipe suits the word.
+- New switch *Averaged model* (below *Thorough*): one more model averages the three candidates (their log-odds, then one sigmoid, so the device reads it like a single model). It wakes less often by mistake but needs about three times the memory on the device, so it is off by default and only used when it does better than the best single candidate. The model description gets the larger memory size by itself.
+- 38 languages instead of 13: every language with Piper voices that espeak speaks and FLEURS speech for the honest test (added: Arabic, Bulgarian, Catalan, Danish, Estonian, Finnish, Georgian, Greek, Hindi, Hungarian, Icelandic, Indonesian, Kazakh, Korean, Latvian, Luxembourgish, Norwegian, Persian, Romanian, Serbian, Slovak, Slovenian, Swahili, Vietnamese, Welsh). The language list is sorted by name.
+- The Quality page says what a thorough run chose and on what (real recordings or check data, averaged model, recipe).
+- Trainer self-test: also trains with cut-off words, chooses on real halves, builds the averaged model and checks that it reads exactly like a single one on the device.
+
 ## 1.0.32
 - Proxmox trainers update themselves too: the container set up by the Proxmox script now has access to Docker inside it, so the trainer fetches a new version while idle instead of only on a restart. For an existing Proxmox trainer the profile shows the one line to paste once into the Proxmox shell (`proxmox.sh update`); container, data and key stay.
 - The profile no longer tells Proxmox trainers to "set the container up again": it says they update on every restart and offers that one line.

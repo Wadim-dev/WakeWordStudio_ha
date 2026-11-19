@@ -159,6 +159,17 @@ def test_versionen(s: Speicher, tmp_path) -> None:
     assert beschreibung["author"] == "Wake Word Studio v2"
     assert s.daten["aktiv"] == 2 and s.version(1)["status"] == "frueher"
     assert s.version(9) is None
+    assert beschreibung["micro"]["tensor_arena_size"] == 30000
+
+
+def test_gemitteltes_modell_braucht_mehr_speicher(s: Speicher, tmp_path) -> None:
+    s.version_neu(b"TFL3gemittelt", {"tensor_arena": 90000, "modell_teile": 3})
+    s.version_neu(b"TFL3kaputt", {"tensor_arena": "viel"})
+    ziel = str(tmp_path / "custom_wake_words")
+    s.einspielen_dateien(1, ziel, "hey_lumi", "Hey Lumi", 0.95, "en")
+    assert json.load(open(os.path.join(ziel, "hey_lumi.json"), encoding="utf-8"))["micro"]["tensor_arena_size"] == 90000
+    s.einspielen_dateien(2, ziel, "hey_lumi", "Hey Lumi", 0.95, "en")
+    assert json.load(open(os.path.join(ziel, "hey_lumi.json"), encoding="utf-8"))["micro"]["tensor_arena_size"] == 30000
 
 
 def test_vorhandenes_uebernehmen(s: Speicher, tmp_path) -> None:
