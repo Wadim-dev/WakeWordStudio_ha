@@ -232,9 +232,15 @@ td.z,th.z{text-align:right}
 .schalter i::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.4);transition:transform .2s cubic-bezier(.4,0,.2,1)}
 .schalter input:checked+i{background:var(--primary-color)}.schalter input:checked+i::after{transform:translateX(16px)}
 .schalter input:focus-visible+i{outline:2px solid var(--primary-color);outline-offset:2px}.schalter input:disabled+i{opacity:.4}
-.abwurf{border:2px dashed var(--divider-color);border-radius:14px;padding:30px 16px;text-align:center;cursor:pointer}
-.abwurf.ueber{border-color:var(--primary-color);background:rgba(var(--rgb-primary-color,3,169,244),.06)}
-.abwurf ha-icon{--mdc-icon-size:42px;color:var(--primary-color)}
+.abwurf{border:2px dashed color-mix(in srgb,var(--primary-color) 35%,var(--divider-color));border-radius:20px;padding:30px 16px;text-align:center;cursor:pointer;background:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--primary-color) 10%,transparent),transparent 70%);transition:border-color .25s,background .25s,transform .25s}
+.abwurf:hover{border-color:var(--primary-color)}
+.abwurf.ueber{border-color:var(--primary-color);border-style:solid;background:radial-gradient(ellipse at 50% 30%,color-mix(in srgb,var(--primary-color) 22%,transparent),transparent 75%);transform:scale(1.015);box-shadow:0 0 0 4px color-mix(in srgb,var(--primary-color) 18%,transparent),0 10px 40px color-mix(in srgb,var(--primary-color) 25%,transparent)}
+.ab-ikon{position:relative;display:flex;margin:0 auto 4px;width:72px;height:72px;align-items:center;justify-content:center;border-radius:50%;background:color-mix(in srgb,var(--primary-color) 14%,transparent)}
+.abwurf .ab-ikon ha-icon{--mdc-icon-size:38px;color:var(--primary-color);transition:transform .3s cubic-bezier(.2,.9,.3,1.4)}
+.ab-ikon i{position:absolute;inset:0;border-radius:50%;border:2px solid var(--primary-color);opacity:0}
+main:not(.still) .ab-ikon i{animation:raum-welle 3.2s ease-out infinite}main:not(.still) .ab-ikon i+i{animation-delay:1.6s}
+.abwurf.ueber .ab-ikon ha-icon{transform:translateY(6px) scale(1.15)}main:not(.still) .abwurf.ueber .ab-ikon i{animation-duration:1.1s}
+@media (prefers-reduced-motion:reduce){.ab-ikon i{animation:none!important}}
 code,pre{font-size:12px;background:rgba(var(--rgb-primary-text-color,0,0,0),.07);padding:2px 6px;border-radius:5px;word-break:break-all}
 pre{display:block;padding:10px;white-space:pre-wrap;margin:6px 0}
 .schluessel{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
@@ -255,8 +261,13 @@ pre{display:block;padding:10px;white-space:pre-wrap;margin:6px 0}
 .hinweis{padding:10px 12px;border-radius:10px;background:rgba(var(--rgb-warning-color,255,152,0),.12);font-size:14px;margin-bottom:12px;line-height:1.5}
 .hinweis.ok{background:rgba(var(--rgb-success-color,76,175,80),.14)}
 svg.vert text{font-size:10px;fill:var(--secondary-text-color)}
-.platz{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--divider-color)}
-.platz:last-child{border-bottom:0}
+.platz{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;margin:8px 0;border-radius:16px;border:1px solid var(--divider-color);background:rgba(var(--rgb-primary-text-color,0,0,0),.025);transition:border-color .3s,background .3s,box-shadow .3s}
+.pl-ikon{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--secondary-text-color);background:rgba(var(--rgb-primary-text-color,0,0,0),.06);transition:color .3s,background .3s}.pl-ikon ha-icon{--mdc-icon-size:20px}
+.pl-name{font-weight:500}
+.platz.an{border-color:color-mix(in srgb,var(--primary-color) 45%,transparent);background:color-mix(in srgb,var(--primary-color) 7%,transparent);box-shadow:0 4px 18px color-mix(in srgb,var(--primary-color) 12%,transparent)}
+.platz.an .pl-ikon{color:var(--primary-color);background:color-mix(in srgb,var(--primary-color) 16%,transparent)}main:not(.still) .platz.an .pl-ikon ha-icon{animation:atmen 2.6s ease-in-out infinite}
+.platz select{border-radius:12px}
+@media (max-width:600px){.platz{grid-template-columns:auto minmax(0,1fr)}.platz select{grid-column:1 / -1}}
 .farbwahl{display:flex;gap:8px;flex-wrap:wrap}
 .farbwahl button{width:28px;height:28px;border-radius:50%;border:3px solid transparent;cursor:pointer;outline:2px solid transparent}
 .farbwahl button.an{outline-color:var(--primary-text-color)}
@@ -512,6 +523,35 @@ main:not(.still) .sz-netz circle{animation:m-feuern 2s ease-in-out infinite;anim
 .sz-funke{fill:#fff;filter:drop-shadow(0 0 8px var(--farbe));animation:sz-funke 2.2s cubic-bezier(.45,0,.3,1) infinite;animation-delay:var(--d0)}@keyframes sz-funke{0%{transform:none;opacity:0}15%{opacity:1}100%{transform:translateX(380px);opacity:0}}
 @media (max-width:600px){.zp-st{width:40px}.zp-name{display:none}.zp-st.jetzt{width:auto;min-width:40px}.zp-st.jetzt .zp-name{display:block;max-width:80px}.szene svg{height:90px}}
 @media (prefers-reduced-motion:reduce){.zauber *,.szene *{animation:none!important}.sz-wahl,.sz-flieg{opacity:1}}
+/* Figures as tiles, people as cards (1.0.36) */
+.stat-raster{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:12px}.stat-raster.klein-stat{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:0}
+.stat{--sf:var(--primary-color);position:relative;padding:14px 16px;border-radius:18px;background:linear-gradient(145deg,color-mix(in srgb,var(--sf) 12%,var(--ha-card-background,var(--card-background-color))),var(--ha-card-background,var(--card-background-color)) 70%);border:1px solid color-mix(in srgb,var(--sf) 22%,var(--divider-color));overflow:hidden;transition:transform .2s,box-shadow .25s}
+div.stat{background:linear-gradient(145deg,color-mix(in srgb,var(--sf) 10%,transparent),transparent 75%)}
+.stat.kachel:hover{transform:translateY(-2px);box-shadow:0 8px 26px color-mix(in srgb,var(--sf) 25%,transparent)}
+main:not(.still) .stat{animation:auftauchen .45s cubic-bezier(.2,.8,.3,1) both;animation-delay:calc(var(--n,0) * 70ms)}
+.stat.ton-gruen{--sf:var(--success-color,#4caf50)}.stat.ton-gelb{--sf:var(--warning-color,#ff9800)}.stat.ton-rot{--sf:var(--error-color,#f44336)}.stat.ton-laeuft{--sf:#9c6bff}
+.st-kopf{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--secondary-text-color)}.st-ikon{width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex:none;color:var(--sf);background:color-mix(in srgb,var(--sf) 16%,transparent)}.st-ikon ha-icon{--mdc-icon-size:17px}
+.st-mitte{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 2px}.stat .wert{font-size:30px;font-weight:300;margin:0;font-variant-numeric:tabular-nums;color:var(--primary-text-color)}.klein-stat .stat .wert{font-size:24px}
+.stat.ton-gelb .wert,.stat.ton-rot .wert{color:var(--sf)}
+.st-ring{width:46px;height:46px;transform:rotate(-90deg);flex:none}.klein-stat .st-ring{width:38px;height:38px}.st-ring circle{fill:none;stroke-width:5;stroke-linecap:round}.st-ring .hinten{stroke:rgba(var(--rgb-primary-text-color,0,0,0),.08)}.st-ring .vorn{stroke:var(--sf);filter:drop-shadow(0 0 4px color-mix(in srgb,var(--sf) 60%,transparent))}
+main:not(.still) .st-ring .vorn{animation:ring-fuellen 1.1s cubic-bezier(.3,.8,.3,1) both;animation-delay:calc(.15s + var(--n,0) * 70ms)}
+.st-unter{font-size:12.5px;color:var(--secondary-text-color);line-height:1.4}
+.stat.ton-laeuft .st-ikon ha-icon{animation:k-funke 2.4s ease-in-out infinite}
+.personen{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin:6px 0}
+.person{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;background:rgba(var(--rgb-primary-text-color,0,0,0),.04)}main:not(.still) .person{animation:auftauchen .4s both;animation-delay:calc(var(--n) * 60ms)}
+.p-kreis{width:32px;height:32px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-weight:600;color:#fff;background:radial-gradient(circle at 30% 25%,color-mix(in srgb,var(--pf) 70%,#fff),var(--pf))}
+.p-mitte{flex:1;min-width:0}.p-mitte b{font-weight:500}.p-spur{height:6px;border-radius:3px;margin-top:5px;background:rgba(var(--rgb-primary-text-color,0,0,0),.08);overflow:hidden}.p-spur i{display:block;height:100%;width:var(--w);border-radius:3px;background:var(--pf)}main:not(.still) .p-spur i{animation:balken-wachsen .8s .2s cubic-bezier(.2,.8,.3,1) both}
+@media (max-width:600px){.stat-raster{grid-template-columns:1fr 1fr;gap:8px}.stat{padding:12px}.stat .wert{font-size:24px}.st-ring{width:38px;height:38px}}
+@media (prefers-reduced-motion:reduce){.stat,.st-ring .vorn,.person,.p-spur i,.st-ikon ha-icon{animation:none!important}}
+.laeufe{position:relative;display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.laeufe::before{content:'';position:absolute;left:15px;top:8px;bottom:8px;width:2px;background:linear-gradient(var(--divider-color),transparent)}
+.lauf{--lf:var(--secondary-text-color);position:relative;display:flex;gap:12px;align-items:flex-start}.lauf.gut{--lf:var(--success-color,#4caf50)}.lauf.gut2{--lf:var(--primary-color)}.lauf.rot{--lf:var(--error-color,#f44336)}
+main:not(.still) .lauf{animation:auftauchen .4s both;animation-delay:calc(var(--n) * 60ms)}
+.l-punkt{position:relative;z-index:1;width:32px;height:32px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;color:var(--lf);background:color-mix(in srgb,var(--lf) 18%,var(--ha-card-background,var(--card-background-color)));box-shadow:0 0 0 3px var(--ha-card-background,var(--card-background-color))}.l-punkt ha-icon{--mdc-icon-size:17px}
+.lauf.gut .l-punkt{box-shadow:0 0 0 3px var(--ha-card-background,var(--card-background-color)),0 0 14px color-mix(in srgb,var(--lf) 50%,transparent)}
+.l-inhalt{flex:1;min-width:0;padding:8px 12px;border-radius:14px;background:rgba(var(--rgb-primary-text-color,0,0,0),.035)}.l-titel{font-weight:500;color:var(--lf)}.l-v{font-size:12px;padding:1px 7px;border-radius:999px;background:color-mix(in srgb,var(--lf) 16%,transparent)}
+.l-werte{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;color:var(--secondary-text-color);margin:3px 0 1px}.l-werte b{color:var(--primary-text-color);font-weight:500}.l-werte ha-icon{--mdc-icon-size:15px;opacity:.6}
+@media (prefers-reduced-motion:reduce){.lauf{animation:none!important}}
 /* Prüfen: tiles 1.0.36 */
 .pr-kopf{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 16px;margin-bottom:12px;border-radius:18px;background:linear-gradient(120deg,color-mix(in srgb,var(--primary-color) 16%,transparent),color-mix(in srgb,var(--primary-color) 4%,transparent));border:1px solid color-mix(in srgb,var(--primary-color) 22%,transparent)}
 .pr-ring .ziel-ring,.pr-ring .ziel-ring svg{width:54px;height:54px}.pr-ring .ziel-ring span{font-size:13px}.pr-ring.tick{animation:rd-pop .5s cubic-bezier(.2,.9,.3,1.5)}
@@ -784,6 +824,15 @@ class SprachmodellPanel extends HTMLElement {
     if (t.restzeit_min == null) return '';
     const u = new Date(Date.now() + t.restzeit_min * 60000).toLocaleTimeString(this._loc, { hour: '2-digit', minute: '2-digit' });
     return this.t(kurz ? 't_fertig_kurz' : t.phase === 'training' ? 't_fertig_training' : 't_fertig', { u });
+  }
+
+  // a figure as a small glowing tile: icon, number that counts up, optional ring (0..1) and a line below
+  _stat({ icon, titel, wert, unter = '', ton = '', ring = null, reiter = '', titelHilfe = '', n = 0 }) {
+    const u = 2 * Math.PI * 19, a = ring == null ? null : Math.max(0, Math.min(1, ring));
+    return `<${reiter ? 'ha-card' : 'div'} class="stat ${reiter ? 'kachel' : ''} ${ton ? 'ton-' + ton : ''}" ${reiter ? `data-reiter="${reiter}"` : ''} ${titelHilfe ? `title="${esc(titelHilfe)}"` : ''} style="--n:${n}">
+<div class="st-kopf"><span class="st-ikon"><ha-icon icon="${icon}"></ha-icon></span><span class="st-titel">${esc(titel)}</span></div>
+<div class="st-mitte"><div class="wert">${esc(wert)}</div>${a == null ? '' : `<svg class="st-ring" viewBox="0 0 46 46"><circle cx="23" cy="23" r="19" class="hinten"/><circle cx="23" cy="23" r="19" class="vorn" style="stroke-dasharray:${u.toFixed(1)};stroke-dashoffset:${(u * (1 - a)).toFixed(1)};--voll:${u.toFixed(1)}"/></svg>`}</div>
+${unter ? `<div class="st-unter">${unter}</div>` : ''}</${reiter ? 'ha-card' : 'div'}>`;
   }
 
   _quoteRing(q, farbe) {
@@ -1111,11 +1160,14 @@ ${this._neustartKnopf(t)}</div>
     const namen = Object.fromEntries(d.geraete.map((g) => [g.knoten, g.name]));
     const geraete = Object.entries(e.geraete || {}).map(([k, p]) => (namen[k] || k) + ' · ' + this.t('w_platz', { n: p }));
     return `
-<div class="raster">
-  <ha-card class="kachel" data-reiter="pruefen"><div class="klein"><ha-icon icon="mdi:playlist-check"></ha-icon> ${esc(this.t('ue_warten'))}</div><div class="wert ${s.offen ? 'gelb' : ''}">${s.offen}</div><div class="klein">${s.offen ? esc(this.t('ue_aelteste', { z: this._zeit(s.aeltestes_offen) })) : esc(this.t('ue_alles'))}</div></ha-card>
-  <ha-card class="kachel" data-reiter="qualitaet"><div class="klein"><ha-icon icon="mdi:bullseye-arrow"></ha-icon> ${esc(this.t('ue_aktiv'))}</div><div class="wert">${v ? 'v' + v.nr : '–'}</div><div class="klein">${b.trefferquote != null ? esc(this.t('z_erkennt', { q: this._pct(b.trefferquote) }) + ' · ' + this.t('z_fehl', { n: this._zahl(b.fehlausloeser_pro_stunde, 1) })) : v ? esc(this.t('ue_eingespielt', { z: this._zeit(v.eingespielt) })) : esc(this.t('q_keine'))}</div></ha-card>
-  <ha-card class="kachel ${laeuft ? 'laeuft' : ''}" data-reiter="training"><div class="klein"><ha-icon icon="mdi:school-outline"></ha-icon> ${esc(this.t('r_training'))}</div><div class="wert" style="font-size:22px">${esc(this.t('p_' + t.phase))}</div>${laeuft && t.prozent != null ? `<div class="fortschritt"><i style="width:${t.prozent}%"></i></div>` : ''}<div class="klein">${laeuft ? esc(this._schritt(t.schritt)) : `<span class="punkt ${d.trainer.online ? 'an' : ''}"></span>${esc(d.trainer.online ? this.t('t_trainer_an') : this.t('t_kein_trainer'))}`}${!laeuft && w.neu_seit_lauf > 0 ? ' · ' + esc(this.t('ue_neue_bew', { n: w.neu_seit_lauf })) : ''}</div></ha-card>
-  <ha-card class="kachel" data-reiter="${this._admin ? 'wort' : 'geraete'}"><div class="klein"><ha-icon icon="mdi:speaker-wireless"></ha-icon> ${esc(this.t('ue_geraete'))}</div><div class="wert">${geraete.length}</div><div class="klein">${geraete.map(esc).join(', ') || esc(this.t('z_kein_geraet'))}</div></ha-card>
+<div class="stat-raster">
+${this._stat({ icon: 'mdi:playlist-check', titel: this.t('ue_warten'), wert: String(s.offen), ton: s.offen ? 'gelb' : 'gruen', reiter: 'pruefen', n: 0,
+    unter: esc(s.offen ? this.t('ue_aelteste', { z: this._zeit(s.aeltestes_offen) }) : this.t('ue_alles')) })}
+${this._stat({ icon: 'mdi:bullseye-arrow', titel: this.t('ue_aktiv'), wert: v ? 'v' + v.nr : '–', ring: b.trefferquote != null ? b.trefferquote : null, reiter: 'qualitaet', n: 1,
+    unter: esc(b.trefferquote != null ? this.t('z_erkennt', { q: this._pct(b.trefferquote) }) + ' · ' + this.t('z_fehl', { n: this._zahl(b.fehlausloeser_pro_stunde, 1) }) : v ? this.t('ue_eingespielt', { z: this._zeit(v.eingespielt) }) : this.t('q_keine')) })}
+${this._stat({ icon: laeuft ? 'mdi:auto-fix' : 'mdi:school-outline', titel: this.t('r_training'), wert: laeuft && t.prozent != null ? Math.round(t.prozent) + ' %' : this.t('p_' + t.phase), ring: laeuft && t.prozent != null ? t.prozent / 100 : null, ton: laeuft ? 'laeuft' : '', reiter: 'training', n: 2,
+    unter: laeuft ? esc(this._schritt(t.schritt)) : `<span class="punkt ${d.trainer.online ? 'an' : ''}"></span>${esc(d.trainer.online ? this.t('t_trainer_an') : this.t('t_kein_trainer'))}${w.neu_seit_lauf > 0 ? ' · ' + esc(this.t('ue_neue_bew', { n: w.neu_seit_lauf })) : ''}` })}
+${this._stat({ icon: 'mdi:speaker-wireless', titel: this.t('ue_geraete'), wert: String(geraete.length), reiter: this._admin ? 'wort' : 'geraete', n: 3, unter: esc(geraete.join(', ') || this.t('z_kein_geraet')) })}
 </div>
 <ha-card><h2>${esc(this.t('ue_alltag'))}</h2>${this._alltag()}</ha-card>
 ${this._weg(w, v)}`;
@@ -1157,11 +1209,13 @@ ${vs.map((v, i) => `<g class="ku-punkt" style="--n:${i}"><circle cx="${x(i).toFi
     const a = this._daten.wort.statistik.alltag;
     if (!a.aufgewacht && !a.verpasst) return `<div class="klein">${esc(this.t('al_leer'))}</div>`;
     const quote = a.aufgewacht ? a.richtig / a.aufgewacht : null;
-    return `<div class="raster" style="margin:0"><div><div class="klein">${esc(this.t('al_richtig'))}</div><div class="wert gruen" style="font-size:24px">${a.richtig}</div></div>
-<div><div class="klein">${esc(this.t('al_falsch'))}</div><div class="wert ${a.falsch ? 'rot' : ''}" style="font-size:24px">${a.falsch}</div></div>
-<div><div class="klein">${esc(this.t('al_verpasst'))}</div><div class="wert ${a.verpasst ? 'gelb' : ''}" style="font-size:24px">${a.verpasst}</div></div>
-<div><div class="klein">${esc(this.t('al_genau'))}</div><div class="wert" style="font-size:24px">${quote == null ? '–' : this._pct(quote)}</div></div></div>`;
+    return `<div class="stat-raster klein-stat">
+${this._stat({ icon: 'mdi:check-circle-outline', titel: this.t('al_richtig'), wert: String(a.richtig), ton: 'gruen', n: 0 })}
+${this._stat({ icon: 'mdi:alert-circle-outline', titel: this.t('al_falsch'), wert: String(a.falsch), ton: a.falsch ? 'rot' : '', n: 1 })}
+${this._stat({ icon: 'mdi:ear-hearing-off', titel: this.t('al_verpasst'), wert: String(a.verpasst), ton: a.verpasst ? 'gelb' : '', n: 2 })}
+${this._stat({ icon: 'mdi:target', titel: this.t('al_genau'), wert: quote == null ? '–' : this._pct(quote), ring: quote, n: 3 })}</div>`;
   }
+
 
   // ---------- Prüfen ----------
   _personWahl(wert, id) {
@@ -1786,10 +1840,11 @@ ${l.seiten > 1 ? `<div class="zeile" style="justify-content:center;margin-top:12
     const s = this._daten.wort.statistik;
     return `<ha-card><h2>${esc(this.t('h_titel'))}</h2>
 <div class="zeile" style="margin-bottom:12px"><span class="klein">${esc(this.t('h_wer'))}</span>${this._personWahl(this._person, 'hoch')}</div>
-<div class="abwurf" data-a="datei"><ha-icon icon="mdi:folder-zip-outline"></ha-icon><p>${this.t('h_ziehen')}</p><p class="klein">${this.t('h_ordner')}</p></div>
+<div class="abwurf" data-a="datei"><span class="ab-ikon"><ha-icon icon="mdi:folder-zip-outline"></ha-icon><i></i><i></i></span><p>${this.t('h_ziehen')}</p><p class="klein">${this.t('h_ordner')}</p></div>
 <div id="hochergebnis" style="margin-top:12px">${this._hochErgebnis || ''}</div></ha-card>
 <ha-card><h2>${esc(this.t('h_woher'))}</h2><div class="klein" style="line-height:1.6">${this.t('h_woher_text')}</div></ha-card>
-<ha-card><h2>${esc(this.t('h_bisher'))}</h2><table><tr><th>${esc(this.t('h_person'))}</th><th class="z">${esc(this.t('pr_wort_k'))}</th><th class="z">${esc(this.t('h_gegen'))}</th></tr>${Object.entries(s.personen).map(([p, n]) => `<tr><td>${esc(p === 'Unbekannt' ? this.t('unbekannt') : p)}</td><td class="z">${n.wort}</td><td class="z">${n.kein_wort}</td></tr>`).join('') || `<tr><td colspan="3" class="klein">${esc(this.t('h_nichts'))}</td></tr>`}</table></ha-card>`;
+<ha-card><h2>${esc(this.t('h_bisher'))}</h2>${(() => { const l = Object.entries(s.personen), max = Math.max(1, ...l.map(([, n]) => n.wort + n.kein_wort));
+  return l.length ? this._personen(l.map(([p, n]) => [p === 'Unbekannt' ? this.t('unbekannt') : p, (n.wort + n.kein_wort) / max, this.t('hl_person_info', { a: n.wort, b: n.kein_wort })])) : `<div class="klein">${esc(this.t('h_nichts'))}</div>`; })()}</ha-card>`;
   }
 
   async _hochladen(dateien) {
@@ -2011,7 +2066,15 @@ ${this._raumSchalter(e)}
 </div>
 ${this._gruendlichInfo(w, e)}
 <p class="klein">${esc(this.t('t_besser_heisst'))}</p></ha-card>
-<ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${this._kurve(w)}${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}${l.geraet === 'gpu' || l.geraet_rueckfall ? `<div class="klein">${esc(this.t(l.geraet_rueckfall ? 'l_rueckfall' : 'l_gpu'))}</div>` : ''}${l.trainer_name && (this._daten.trainer.liste || []).length > 1 ? `<div class="klein">${esc(l.trainer_name)}</div>` : ''}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
+<ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${this._kurve(w)}${w.laeufe.length ? `<div class="laeufe">${w.laeufe.map((l, i) => {
+  const art = l.ergebnis === 'eingespielt' ? 'gut' : l.ergebnis === 'fehler' ? 'rot' : l.ergebnis === 'besser' ? 'gut2' : '';
+  const icon = { eingespielt: 'mdi:rocket-launch', besser: 'mdi:trending-up', fehler: 'mdi:alert-circle', gleich: 'mdi:approximately-equal' }[l.ergebnis] || 'mdi:minus-circle-outline';
+  const wert = (b) => b ? `<b>${this._pct(b.trefferquote)}</b> <span class="klein">· ${this._zahl(b.fehlausloeser_pro_stunde, 1)}/${esc(this.t('std'))}</span>` : '<span class="klein">–</span>';
+  const extra = [l.dauer_min != null ? this._dauer(l.dauer_min) : '', l.geraet === 'gpu' || l.geraet_rueckfall ? this.t(l.geraet_rueckfall ? 'l_rueckfall' : 'l_gpu') : '', l.trainer_name && (this._daten.trainer.liste || []).length > 1 ? l.trainer_name : ''].filter(Boolean);
+  return `<div class="lauf ${art}" style="--n:${Math.min(i, 8)}"><span class="l-punkt"><ha-icon icon="${icon}"></ha-icon></span><div class="l-inhalt"><div class="zeile weit"><span class="l-titel">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ` <span class="l-v">v${esc(String(l.version))}</span>` : ''}</span><span class="klein">${this._datum(l.ende)}</span></div>
+<div class="l-werte"><span>${esc(this.t('t_vorher'))} ${wert(l.alt)}</span><ha-icon icon="mdi:arrow-right"></ha-icon><span>${esc(this.t('t_nachher'))} ${wert(l.neu)}</span></div>
+${l.hinweis || extra.length ? `<div class="klein">${esc([l.hinweis, ...extra].filter(Boolean).join(' · '))}</div>` : ''}</div></div>`;
+}).join('')}</div>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
   }
 
   // ---------- Qualität ----------
@@ -2138,17 +2201,17 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
     const sjl = Object.values(w.schwellen || {}), sj = sjl.length ? sjl[0] : null;
     const herkunft = b.herkunft === 'vor der Integration eingespielt' ? this.t('q_herkunft') : b.herkunft;
     return `<ha-card><h2>${esc(this.t('q_aktiv'))} ${v ? 'v' + v.nr : ''}</h2>${v ? `
-<div class="raster" style="margin:0">
-${neu.trefferquote_alltag != null ? `<div title="${esc(this.t('q_alltag_t'))}"><div class="klein">${esc(this.t('q_alltag_k'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.trefferquote_alltag)}</div></div>` : ''}
-${neu.trefferquote_schwer != null ? `<div title="${esc(this.t('q_schwer_t'))}"><div class="klein">${esc(this.t('q_schwer_k'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.trefferquote_schwer)}</div></div>` : ''}
-<div><div class="klein">${esc(this.t('q_erkennt'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.trefferquote)}</div></div>
-${neu.bedingungen ? '' : `<div><div class="klein">${esc(this.t('q_musik'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.trefferquote_musik)}</div></div>`}
-<div><div class="klein">${esc(this.t('q_fehl'))}</div><div class="wert" style="font-size:26px">${this._zahl(neu.fehlausloeser_pro_stunde, 1)}</div></div>
-${neu.fehlausloeser_geraeusch_pro_stunde != null ? `<div><div class="klein">${esc(this.t('q_fehl_geraeusch'))}</div><div class="wert" style="font-size:26px">${this._zahl(neu.fehlausloeser_geraeusch_pro_stunde, 1)}</div></div>` : ''}
-<div><div class="klein">${esc(this.t('q_gegen'))}</div><div class="wert" style="font-size:26px">${this._pct(neu.gegenbeispiele)}</div></div></div>
+<div class="stat-raster klein-stat">
+${neu.trefferquote_alltag != null ? this._stat({ icon: 'mdi:home-sound-in-outline', titel: this.t('q_alltag_k'), wert: this._pct(neu.trefferquote_alltag), ring: neu.trefferquote_alltag, titelHilfe: this.t('q_alltag_t'), n: 0 }) : ''}
+${neu.trefferquote_schwer != null ? this._stat({ icon: 'mdi:weight-lifter', titel: this.t('q_schwer_k'), wert: this._pct(neu.trefferquote_schwer), ring: neu.trefferquote_schwer, titelHilfe: this.t('q_schwer_t'), n: 1 }) : ''}
+${this._stat({ icon: 'mdi:check-decagram-outline', titel: this.t('q_erkennt'), wert: this._pct(neu.trefferquote), ring: neu.trefferquote, n: 2 })}
+${neu.bedingungen ? '' : this._stat({ icon: 'mdi:music', titel: this.t('q_musik'), wert: this._pct(neu.trefferquote_musik), ring: neu.trefferquote_musik, n: 3 })}
+${this._stat({ icon: 'mdi:account-voice-off', titel: this.t('q_fehl'), wert: this._zahl(neu.fehlausloeser_pro_stunde, 1), ton: neu.fehlausloeser_pro_stunde > 0.5 ? 'gelb' : 'gruen', n: 4 })}
+${neu.fehlausloeser_geraeusch_pro_stunde != null ? this._stat({ icon: 'mdi:music-note-off-outline', titel: this.t('q_fehl_geraeusch'), wert: this._zahl(neu.fehlausloeser_geraeusch_pro_stunde, 1), ton: neu.fehlausloeser_geraeusch_pro_stunde > 0.5 ? 'gelb' : 'gruen', n: 5 }) : ''}
+${this._stat({ icon: 'mdi:shield-off-outline', titel: this.t('q_gegen'), wert: this._pct(neu.gegenbeispiele), ton: neu.gegenbeispiele > 0.05 ? 'gelb' : '', n: 6 })}</div>
 ${frisch ? `<div class="klein" style="margin-top:8px"><ha-icon icon="mdi:refresh" style="--mdc-icon-size:16px"></ha-icon> ${esc(this.t('q_frisch', { z: this._zeit(frisch.zeit), n: frisch.nr }))}</div>` : ''}
 ${this._aktivBlick(v, b, frisch ? neu : null)}
-${Object.keys(personen).length ? `<h3>${esc(this.t('q_je_person'))}</h3><table><tr><th>${esc(this.t('h_person'))}</th><th class="z">${esc(this.t('q_erkannt'))}</th><th class="z">${esc(this.t('q_aufnahmen'))}</th></tr>${Object.entries(personen).map(([p, x]) => `<tr><td>${esc(p)}</td><td class="z">${this._pct(x.trefferquote)}</td><td class="z">${x.anzahl}</td></tr>`).join('')}</table>` : ''}
+${Object.keys(personen).length ? `<h3>${esc(this.t('q_je_person'))}</h3>${this._personen(Object.entries(personen).map(([p, x]) => [p, x.trefferquote, this.t('q_person_info', { q: this._pct(x.trefferquote), n: x.anzahl })]))}` : ''}
 <div class="klein" style="margin-top:10px">${esc(this.t('ue_eingespielt', { z: this._zeit(v.eingespielt) }))}${b.cutoff ? ' · ' + esc(this.t('q_modell_schwelle', { w: this._zahl(b.cutoff) })) : ''}${herkunft ? ' · ' + esc(herkunft) : ''}</div>` : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>
 ${this._tabelle()}
 <ha-card><h2>${esc(this.t('q_alltag'))}</h2>${this._alltag()}</ha-card>
@@ -2156,6 +2219,11 @@ ${this._tabelle()}
 ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.schwelle_vorschlag != null ? `<div class="zeile weit" style="margin-top:10px"><span>${this.t('q_vorschlag', { w: this._zahl(s.schwelle_vorschlag) })} ${sj != null ? esc(this.t('q_jetzt', { w: this._zahl(sj) })) : ''}</span><button class="k haupt" data-a="schwelle" data-wert="${s.schwelle_vorschlag}" ${!this._admin || (sj != null && Math.abs(sj - s.schwelle_vorschlag) < 0.005) ? 'disabled' : ''}>${esc(this.t('q_uebernehmen'))}</button></div>` : `<div class="klein">${esc(this.t('q_vorschlag_spaeter'))}</div>`}
 <div class="klein" style="margin-top:8px">${esc(this.t('q_legende'))}${(w.einstellungen || {}).schwelle_automatisch ? '' : ' ' + esc(this.t('q_legende_hand'))}</div></ha-card>
 <ha-card><h2>${esc(this.t('q_versionen'))}</h2>${this._kurve(w)}${w.versionen.length ? this._versionen(w) : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>`;
+  }
+
+  // people as small cards: initial in a coloured circle, a bar and a line (shares 0..1)
+  _personen(liste) {
+    return `<div class="personen">${liste.map(([name, anteil, text], i) => `<div class="person" style="--pf:${FARBEN[(i + 2) % FARBEN.length]};--n:${i}"><span class="p-kreis">${esc((name || '?').slice(0, 1).toUpperCase())}</span><div class="p-mitte"><div class="zeile weit"><b>${esc(name)}</b><span class="klein">${esc(text)}</span></div><div class="p-spur"><i style="--w:${(Math.max(0, Math.min(1, anteil || 0)) * 100).toFixed(1)}%"></i></div></div></div>`).join('')}</div>`;
   }
 
   _schwelleAuto(s, sj) {
@@ -2209,7 +2277,7 @@ ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.s
       const plaetze = Object.keys(g.plaetze);
       const belegt = plaetze.map((p) => { const w = g.plaetze[p].wort; return w && w !== eigeneId ? ' – ' + this.t('w_belegt', { w: name(w) }) : ''; });
       const gewaehlt = jetzt && g.plaetze[jetzt] && g.plaetze[jetzt].auswahl;
-      return `<div class="platz"><div><div>${esc(g.name)}</div><div class="klein">${esc(g.knoten)}${gewaehlt ? ' · ' + esc(this.t('w_auswahl', { w: gewaehlt })) : ''}${g.fehler ? ' · <span class="rot">' + esc(this.t('ge_nicht_gefunden')) + '</span>' : ''}${g.clips ? '' : ' · ' + esc(this.t('ge_ohne_clips'))}</div></div>
+      return `<div class="platz ${jetzt ? 'an' : ''}" data-knoten="${esc(g.knoten)}"><span class="pl-ikon"><ha-icon icon="mdi:speaker-wireless"></ha-icon></span><div class="pl-text"><div class="pl-name">${esc(g.name)}</div><div class="klein">${esc(g.knoten)}${gewaehlt ? ' · ' + esc(this.t('w_auswahl', { w: gewaehlt })) : ''}${g.fehler ? ' · <span class="rot">' + esc(this.t('ge_nicht_gefunden')) + '</span>' : ''}${g.clips ? '' : ' · ' + esc(this.t('ge_ohne_clips'))}</div></div>
 <select data-platz="${esc(g.knoten)}"><option value="">${esc(this.t('w_platz_aus'))}</option>${plaetze.map((p, i) => `<option value="${p}" ${jetzt === p ? 'selected' : ''}>${esc(this.t('w_platz', { n: p }) + belegt[i])}</option>`).join('')}</select></div>`;
     }).join('');
   }
@@ -2222,17 +2290,24 @@ ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.s
   _neuVorschau(e) {
     const spr = SPRACHNAMEN[this._spr][e.sprache] || this._sprachname(e.sprache);
     return `<div class="neu-vorschau ${e.wort ? 'da' : ''}" style="--farbe:${esc(e.farbe || FARBEN[0])}"><div class="nv-funken" aria-hidden="true">${Array.from({ length: 10 }, (_, i) => `<i style="--i:${i}"></i>`).join('')}</div>
-<div class="klein nv-sprache">${esc(spr)}</div><div class="nv-wort">${esc(e.wort || this.t('nv_leer'))}</div><div class="klein nv-text">${esc(this.t(e.wort ? 'nv_da' : 'nv_hilfe'))}</div></div>`;
+<div class="klein nv-sprache">${esc(spr)}</div><div class="nv-wort">${esc(e.wort || this.t('nv_leer'))}</div><div class="klein nv-text">${esc(e.id ? this._nvGeraet(e) : this.t(e.wort ? 'nv_da' : 'nv_hilfe'))}</div></div>`;
+  }
+
+  // under the preview of an existing word: how the devices list it
+  _nvGeraet(e) {
+    const anzeige = String(e.anzeige || '').trim() || (String(e.wort || '').trim() + ' (custom)');
+    return this.t('nv_geraet', { a: anzeige, n: Object.values(e.geraete || {}).filter(Boolean).length });
   }
 
   _neuStand() {
-    const e = this._entwurf, sr = this.shadowRoot; if (!e || e.id) return;
+    const e = this._entwurf, sr = this.shadowRoot; if (!e) return;
     const v = sr.querySelector('.neu-vorschau'); if (!v) return;
     const war = v.classList.contains('da');
     v.classList.toggle('da', !!String(e.wort || '').trim());
-    v.style.setProperty('--farbe', e.farbe || FARBEN[0]);
+    v.style.setProperty('--farbe', e.farbe || (e.id ? this._farbe(this._wortKurz()) : FARBEN[0]));
     v.querySelector('.nv-wort').textContent = String(e.wort || '').trim() || this.t('nv_leer');
-    v.querySelector('.nv-text').textContent = this.t(String(e.wort || '').trim() ? 'nv_da' : 'nv_hilfe');
+    v.querySelector('.nv-text').textContent = e.id ? this._nvGeraet(e) : this.t(String(e.wort || '').trim() ? 'nv_da' : 'nv_hilfe');
+    sr.querySelectorAll('.platz[data-knoten]').forEach((k) => k.classList.toggle('an', !!(e.geraete || {})[k.dataset.knoten]));
     const spr = sr.querySelector('select[data-feld="sprache"]');
     if (spr) v.querySelector('.nv-sprache').textContent = spr.options[spr.selectedIndex] ? spr.options[spr.selectedIndex].text : '';
     if (!war && v.classList.contains('da')) { v.classList.remove('funkt'); void v.offsetWidth; v.classList.add('funkt'); }
@@ -2273,7 +2348,7 @@ ${modelle.length ? `<label class="feld">${esc(this.t('w_vorhanden'))}</label><se
     const d = this._daten, w = d.wort;
     if (!this._entwurf || this._entwurf.id !== w.id) this._entwurf = { ...w.einstellungen, id: w.id, geraete: { ...(w.einstellungen.geraete || {}) } };
     const e = this._entwurf;
-    return `<ha-card><h2>${esc(this.t('w_titel'))}</h2>
+    return `<ha-card><h2>${esc(this.t('w_titel'))}</h2>${this._neuVorschau({ ...e, farbe: e.farbe || this._farbe(this._wortKurz()) })}
 <label class="feld">${esc(this.t('w_text'))}</label><input type="text" data-feld="wort" value="${esc(e.wort)}">
 <label class="feld">${esc(this.t('w_anzeige'))}</label><input type="text" data-feld="anzeige" value="${esc(e.anzeige)}">
 <label class="feld">${esc(this.t('w_sprache'))}</label>${this._sprachWahl(e.sprache)}<div class="klein" style="margin-top:4px">${esc(this.t('w_sprache_hilfe'))}</div>
