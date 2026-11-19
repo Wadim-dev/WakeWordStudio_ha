@@ -57,6 +57,7 @@ from .const import (
     TRAINER_OHNE_ID,
     TRAINER_ONLINE_S,
     TRAINER_VERGESSEN_S,
+    TRAINER_VERSION,
 )
 from .dauer import schaetzen
 from .raum import Raeume
@@ -124,8 +125,15 @@ def _live_pruefen(live: dict[str, Any]) -> dict[str, Any]:
         for x in (live.get("balken") or [])[:8]
         if isinstance(x, dict) and isinstance(x.get("prozent"), int | float)
     ]
+    # live learning curves (trainer 1.0.36+): step name -> [[step, recall %, false wakes per hour]]
+    kurven = {
+        str(name)[:40]: [[p[0], p[1], p[2] if isinstance(p[2], int | float) else None] for p in punkte[-60:]
+                         if isinstance(p, list) and len(p) == 3 and all(isinstance(x, int | float) for x in p[:2])]
+        for name, punkte in list((live.get("kurven") or {}).items())[-4:]
+        if isinstance(punkte, list)
+    } if isinstance(live.get("kurven"), dict) else {}
     start = live.get("start")
-    return {"protokoll": zeilen, "schritte": schritte, "system": system, "balken": balken,
+    return {"protokoll": zeilen, "schritte": schritte, "system": system, "balken": balken, "kurven": kurven,
             "start": start if isinstance(start, int | float) else None, "zeit": jetzt()}
 
 
@@ -940,9 +948,9 @@ class Zentrale:
     def bild_tag(self, info: dict[str, Any] | None = None) -> str | None:
         """Image tag a Docker trainer would fetch on restart, None if it needs none (app, already current)."""
         info = self.trainer_info if info is None else info
-        if info.get("art") != "docker" or not info.get("version") or info["version"] == self.version:
+        if info.get("art") != "docker" or not info.get("version") or info["version"] == TRAINER_VERSION:
             return None
-        return self.version + ("-gpu" if (info.get("beschleuniger") or {}).get("bild") == "gpu" else "")
+        return TRAINER_VERSION + ("-gpu" if (info.get("beschleuniger") or {}).get("bild") == "gpu" else "")
 
     def bild_bereit(self, info: dict[str, Any] | None = None) -> bool | None:
         """True/False once known whether the trainer image of this version is on ghcr.io, None if unknown.
@@ -992,7 +1000,13 @@ class Zentrale:
             if any(alt.get(k) != status["info"].get(k) for k in ("version", "tempo", "name", "prozessor")):
                 self.speichern_spaeter()
         if status.get("neustart"):
-            self._neustart.pop(tid, None)  # back after a restart from the studio
+            # Back after a restart from the studio. A Docker trainer often comes back first with its old container
+            # (Docker starts it right away) and is replaced by the new image a moment later: keep waiting for that
+            # while the new image is published, so the studio does not show the old version as the result.
+            info = t["info"] if isinstance(t.get("info"), dict) else {}
+            z = self.neustart_zustand(tid)
+            if not (z and not z["zu_lange"] and self.bild_tag(info) and self.bild_bereit(info)):
+                self._neustart.pop(tid, None)
             # Trainer ist neu gestartet (Absturz, Speicher voll, Update): seine Laeufe, die noch als aktiv gelten,
             # sind verloren (die eines anderen Trainers laufen weiter)
             for anderes in self.laeuft_bei(tid):

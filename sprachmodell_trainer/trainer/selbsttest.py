@@ -119,6 +119,9 @@ def main() -> None:
         print(f"SELBSTTEST evaluation data ok ({time.time() - t0:.0f} s)", flush=True)
         tflite = lauf._training(merkmale, neg)
         assert tflite.exists() and tflite.stat().st_size > 1000, "no model"
+        # the live learning curve for the studio: one point per evaluation of microWakeWord
+        kurve = next(iter(lauf.live()["kurven"].values()), [])
+        assert kurve and all(len(p) == 3 and 0 <= p[1] <= 100 for p in kurve), f"no learning curve: {lauf.kurven}"
         print(f"SELBSTTEST training ok ({time.time() - t0:.0f} s, model {tflite.stat().st_size} bytes)", flush=True)
 
         ergebnis = lauf._werkzeug_sicher("pruefen", {

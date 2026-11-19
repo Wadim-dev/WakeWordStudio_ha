@@ -45,7 +45,7 @@ from homeassistant.helpers.http import KEY_AUTHENTICATED, KEY_HASS, HomeAssistan
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from . import zentrale_holen
-from .const import DOMAIN, KEIN_WORT, SPRACHEN, STANDARD_WORT, STANDARD_ZENTRALE, TRAINER_OHNE_ID, VORPRUEFEN_JE_MAL, WORT
+from .const import DOMAIN, KEIN_WORT, SPRACHEN, STANDARD_WORT, STANDARD_ZENTRALE, TRAINER_OHNE_ID, TRAINER_VERSION, VORPRUEFEN_JE_MAL, WORT
 from .speicher import sichere_id
 from .zentrale import Wort, Zentrale, trainer_name
 
@@ -148,6 +148,7 @@ def _zentrale_daten(z: Zentrale, admin: bool) -> dict[str, Any]:
     return {
         "admin": admin,
         "version_integration": z.version,
+        "version_trainer": TRAINER_VERSION,
         "woerter": [w.kurz() for w in z.woerter.values()],
         "geraete": z.geraete_zustand(),
         "offen": z.offen_gesamt(),

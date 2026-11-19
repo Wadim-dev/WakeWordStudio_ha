@@ -104,6 +104,8 @@ def balken_lesen(zeile: str) -> dict[str, Any] | None:
             "gesamt": m.group("g"), "lief": (m.group("lief") or "").strip()[:12],
             "rest": (m.group("rest") or "").strip()[:12], "tempo": (m.group("tempo") or "").strip()[:20]}
 
+KURVE_MAX = 60  # points of a live learning curve sent to HA
+
 # Anteil am Gesamtfortschritt je Abschnitt
 ANTEILE = {"vorbereiten": (0, 8), "daten": (8, 12), "stimmen": (12, 35), "merkmale": (35, 50),
            "training": (50, 92), "test": (92, 100)}
@@ -288,6 +290,8 @@ class Lauf:
         # every progress bar running right now (tqdm in the tools, our own steps), each with its own line in HA
         self.balken: dict[str, dict[str, Any]] = {}
         self._schritt_name = ""
+        # learning curve per training step (candidate): [step, recall %, false wakes per hour] from each evaluation
+        self.kurven: dict[str, list[list[float]]] = {}
         self.raum_n = 0  # claps of the user's own rooms mixed into this run
         self.raum_sig = ""  # which claps: cached features are rebuilt once they change
 
@@ -353,7 +357,21 @@ class Lauf:
         for k in [k for k, b in self.balken.items() if jetzt - b["zeit"] > BALKEN_ALT_S]:
             del self.balken[k]
         return {"protokoll": list(self.protokoll), "schritte": self.schritte, "system": auslastung(self.daten),
-                "start": round(self.start), "geraet": self.geraet, "balken": sorted(self.balken.values(), key=lambda b: b["name"] != self._schritt_name)[:BALKEN_MAX]}
+                "start": round(self.start), "geraet": self.geraet, "balken": sorted(self.balken.values(), key=lambda b: b["name"] != self._schritt_name)[:BALKEN_MAX],
+                "kurven": self.kurven}
+
+    def _kurve(self, schritt: str, nr: int, zeile: str) -> None:
+        """One evaluation of microWakeWord (recall and false wakes per hour) as a point of the live learning curve."""
+        treffer = re.search(r"\brecall = ([\d.]+)%", zeile)
+        fehl = re.search(r"estimated false positives per hour = ([\d.]+)", zeile)
+        if not treffer:
+            return
+        punkte = self.kurven.setdefault(schritt[:40], [])
+        punkte.append([nr, round(float(treffer.group(1)), 2), round(float(fehl.group(1)), 3) if fehl else None])
+        if len(punkte) > KURVE_MAX:
+            del punkte[1:len(punkte) - KURVE_MAX + 1]  # keep the first and the newest points
+        if len(self.kurven) > 4:
+            del self.kurven[next(iter(self.kurven))]
 
     def balken_setzen(self, name: str, prozent: float, **mehr: Any) -> None:
         """Show (or update) a progress bar in HA; the same name updates the same bar."""
@@ -436,6 +454,7 @@ class Lauf:
                 self.balken_setzen(schritt, 100 * anteil, n=m.group(1), gesamt=str(schritte_gesamt),
                                    **self._rest(verlauf, anteil))
                 if "Validation" in zeile:
+                    self._kurve(schritt, int(m.group(1)), zeile)
                     self.notiz(zeile)
                 else:
                     self.notiz(zeile, "schritt", ersetzen=True)
