@@ -621,6 +621,8 @@ def mitteln(a: dict) -> dict:
     from microwakeword import data as input_data
     from microwakeword.layers import modes
 
+    from .bausteine import fehlende_bausteine
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--training_config")
     mixednet.model_parameters(parser)
@@ -637,13 +639,16 @@ def mitteln(a: dict) -> dict:
         # quantized with another scale, and the device would read it twice as high)
         kopf = [lay for lay in m.layers if isinstance(lay, tf.keras.layers.Dense)][-1]
         kopf.activation = tf.keras.activations.linear
+        # the 1/n of the mean goes into this layer's weights, so the parts are only added afterwards: a division
+        # or multiplication would become a MUL, which the TECHO5 firmware cannot run (the model never wakes there)
+        kopf.set_weights([w / len(a["gewichte"]) for w in kopf.get_weights()])
         s = utils.to_streaming_inference(m, config, modes.Modes.STREAM_INTERNAL_STATE_INFERENCE)
         teile.append(s)
         _fortschritt(i + 1, len(a["gewichte"]) + 2)
     eingang = tf.keras.layers.Input(shape=teile[0].input.shape[1:], batch_size=1, dtype=tf.float32,
                                     name="input_audio")
     ausgang = tf.keras.layers.Activation("sigmoid", name="wahrscheinlichkeit")(
-        tf.keras.layers.Average(name="mittel")([t(eingang) for t in teile]))
+        tf.keras.layers.Add(name="mittel")([t(eingang) for t in teile]))
     gesamt = tf.keras.Model(eingang, ausgang, name="gemittelt")
     pfad = os.path.join(a["ziel"], "stream_state_internal")
     archiv = tf.keras.export.ExportArchive()
@@ -656,6 +661,10 @@ def mitteln(a: dict) -> dict:
                                         os.path.join(a["ziel"], "tflite_stream_state_internal_quant"),
                                         "stream_state_internal_quant.tflite", quantize=True)
     datei = os.path.join(a["ziel"], "tflite_stream_state_internal_quant", "stream_state_internal_quant.tflite")
+    with open(datei, "rb") as f:
+        fehlt = fehlende_bausteine(f.read())
+    if fehlt:
+        raise RuntimeError("averaged model uses operations the devices cannot run: " + ", ".join(fehlt))
     return {"datei": datei, "groesse": os.path.getsize(datei), "teile": len(teile)}
 
 

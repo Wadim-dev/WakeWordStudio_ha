@@ -453,3 +453,29 @@ async def test_trainer_bild_bereit(hass: HomeAssistant, geladen, aioclient_mock,
     assert z.bild_bereit() is None
     await hass.async_block_till_done()
     assert z.bild_bereit() is None
+
+
+MODELLE = os.path.join(os.path.dirname(__file__), "modelle")
+
+
+def _modell(name: str) -> bytes:
+    with open(os.path.join(MODELLE, name + ".tflite"), "rb") as datei:
+        return datei.read()
+
+
+async def test_modell_das_am_geraet_nicht_laeuft(hass: HomeAssistant, geladen) -> None:
+    """A model with an operation the devices lack (MUL, like the old averaged ones) never counts as better and
+    cannot be rolled out; a model with only supported operations goes through as before."""
+    z = geladen.runtime_data
+    w = await z.wort_neu({"wort": "Hey Lumi", "automatisch_einspielen": True})
+    e = await z.ergebnis(w, _modell("mul"), {"besser": True, "cutoff": 0.96})
+    assert e["status"] == "verworfen" and e["bericht"]["laeuft_nicht"] == ["MUL"]
+    assert w.speicher.daten["laeufe"][-1]["ergebnis"] == "laeuft_nicht"
+    assert not w.speicher.daten["aktiv"] and z.daten.get("nach_neustart", []) == []
+    assert not os.path.exists(hass.config.path("custom_wake_words", "hey_lumi.tflite"))
+    with pytest.raises(ValueError, match="modell_laeuft_nicht"):
+        await z.einspielen(w, e["nr"])
+    gut = await z.ergebnis(w, _modell("laeuft"), {"besser": True, "cutoff": 0.96})
+    assert gut["status"] == "aktiv" and w.speicher.daten["aktiv"] == gut["nr"]
+    assert "laeuft_nicht" not in gut["bericht"]
+    assert w.speicher.daten["laeufe"][-1]["ergebnis"] == "eingespielt"

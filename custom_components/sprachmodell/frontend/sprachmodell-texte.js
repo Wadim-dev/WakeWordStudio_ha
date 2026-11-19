@@ -108,7 +108,7 @@ export const TEXTE = {
     t_laeufe: 'Bisherige Läufe', t_wann: 'Wann', t_ergebnis: 'Ergebnis', t_vorher: 'Vorher', t_nachher: 'Nachher', t_dauer: 'Dauer',
     t_kein_lauf: 'Noch kein Lauf.', t_abbrechen_frage: 'Training abbrechen?', t_kein_trainer: 'Noch kein Trainer verbunden',
     t_kein_trainer_text: 'Trainiert wird in einer eigenen App (in Home Assistant, als Docker oder auf Proxmox). Wie das geht, steht unter <b>Einstellungen → Trainer</b>.',
-    e_eingespielt: 'eingespielt', e_besser: 'besser', e_nicht_besser: 'nicht besser', e_gleich: 'gleich gut', e_fehler: 'Fehler',
+    e_eingespielt: 'eingespielt', e_besser: 'besser', e_nicht_besser: 'nicht besser', e_gleich: 'gleich gut', e_laeuft_nicht: 'läuft nicht auf den Geräten', e_fehler: 'Fehler',
     // Qualität
     q_aktiv: 'Aktive Version', q_erkennt: 'Erkennt das Wort (Test)', q_musik: 'Mit Musik im Hintergrund', q_fehl: 'Fehlauslöser pro Stunde Gerede',
     q_gegen: 'Gegenbeispiele ausgelöst', q_je_person: 'Je Person (Test)', q_erkannt: 'erkannt', q_aufnahmen: 'Aufnahmen',
@@ -216,7 +216,7 @@ export const TEXTE = {
     pr_zu_wort: 'Zu „{w}“', pr_zu_wort_ok: 'Bei „{w}“ als Treffer gespeichert, hier als „nicht gesagt“.', pr_zu_wort_marke: 'zählt bei „{w}“ als Treffer',
     pr_von_wort: 'von „{w}“ übernommen', pr_rueckgaengig: 'Rückgängig', pr_zurueck_ok: 'Zurückgeholt.',
     f_keine_zip: 'Das ist keine Zip-Datei.', f_keine_datei: 'Keine Datei gewählt.', f_wav_format: 'Unbekanntes WAV-Format.', f_zu_kurz: 'Zu kurz.',
-    f_urteil_unbekannt: 'Unbekannte Bewertung.', f_version_fehlt: 'Diese Version gibt es nicht.', f_unbekannte_aktion: 'Unbekannte Aktion.',
+    f_urteil_unbekannt: 'Unbekannte Bewertung.', f_version_fehlt: 'Diese Version gibt es nicht.', f_modell_laeuft_nicht: 'Diese Version läuft auf den Geräten nicht und wird nicht eingespielt.', f_unbekannte_aktion: 'Unbekannte Aktion.',
     f_ungueltig: 'Ungültige Eingabe.', f_json_erwartet: 'Ungültige Anfrage.', f_nicht_eingerichtet: 'Wake Word Studio ist nicht eingerichtet oder startet gerade.',
   },
   en: {
@@ -316,7 +316,7 @@ export const TEXTE = {
     t_laeufe: 'Previous runs', t_wann: 'When', t_ergebnis: 'Result', t_vorher: 'Before', t_nachher: 'After', t_dauer: 'Duration',
     t_kein_lauf: 'No run yet.', t_abbrechen_frage: 'Cancel training?', t_kein_trainer: 'No trainer connected yet',
     t_kein_trainer_text: 'Training runs in a separate app (in Home Assistant, as Docker or on Proxmox). See <b>Settings → Trainer</b>.',
-    e_eingespielt: 'rolled out', e_besser: 'better', e_nicht_besser: 'not better', e_gleich: 'as good', e_fehler: 'error',
+    e_eingespielt: 'rolled out', e_besser: 'better', e_nicht_besser: 'not better', e_gleich: 'as good', e_laeuft_nicht: 'does not run on the devices', e_fehler: 'error',
     q_aktiv: 'Active version', q_erkennt: 'Detects the word (test)', q_musik: 'With background music', q_fehl: 'False wakes per hour of speech',
     q_gegen: 'Negative examples triggered', q_je_person: 'Per person (test)', q_erkannt: 'detected', q_aufnahmen: 'Recordings',
     q_alltag_k: 'Everyday', q_alltag_t: 'Average of six conditions: quiet, soft or far away, another room, music and noise, TV in the background, all at once',
@@ -420,7 +420,7 @@ export const TEXTE = {
     pr_zu_wort: 'To “{w}”', pr_zu_wort_ok: 'Saved as a hit for “{w}”, here as “not said”.', pr_zu_wort_marke: 'counts as a hit for “{w}”',
     pr_von_wort: 'taken over from “{w}”', pr_rueckgaengig: 'Undo', pr_zurueck_ok: 'Taken back.',
     f_keine_zip: 'This is not a zip file.', f_keine_datei: 'No file chosen.', f_wav_format: 'Unknown WAV format.', f_zu_kurz: 'Too short.',
-    f_urteil_unbekannt: 'Unknown verdict.', f_version_fehlt: 'This version does not exist.', f_unbekannte_aktion: 'Unknown action.',
+    f_urteil_unbekannt: 'Unknown verdict.', f_version_fehlt: 'This version does not exist.', f_modell_laeuft_nicht: 'This version does not run on the devices and is not rolled out.', f_unbekannte_aktion: 'Unknown action.',
     f_ungueltig: 'Invalid input.', f_json_erwartet: 'Invalid request.', f_nicht_eingerichtet: 'Wake Word Studio is not set up or is just starting.',
   },
 };

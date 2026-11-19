@@ -24,6 +24,7 @@ from typing import Any
 
 import yaml
 
+from .bausteine import fehlende_bausteine
 from .grenzen import beschleuniger, kerne
 from .grunddaten import Grunddaten, platz_frei
 from .ha import HA
@@ -595,6 +596,10 @@ class Lauf:
         else:
             tflite, wahl = self._training(merkmale, schlank), None
         training_min = round((time.time() - t_training) / 60, 1)
+        # never hand on a model the devices cannot run (it would load there, but never wake)
+        fehlt = fehlende_bausteine(tflite.read_bytes())
+        if fehlt:
+            raise RuntimeError("model uses operations the devices cannot run: " + ", ".join(fehlt))
         bericht = self._test(tflite, echt_test, tts, bg, gerede, rir, getrennt=wahl is not None)
         bericht["training_min"] = training_min
         teile = (wahl or {}).get("teile") or 1
