@@ -992,7 +992,13 @@ class Zentrale:
             if any(alt.get(k) != status["info"].get(k) for k in ("version", "tempo", "name", "prozessor")):
                 self.speichern_spaeter()
         if status.get("neustart"):
-            self._neustart.pop(tid, None)  # back after a restart from the studio
+            # Back after a restart from the studio. A Docker trainer often comes back first with its old container
+            # (Docker starts it right away) and is replaced by the new image a moment later: keep waiting for that
+            # while the new image is published, so the studio does not show the old version as the result.
+            info = t["info"] if isinstance(t.get("info"), dict) else {}
+            z = self.neustart_zustand(tid)
+            if not (z and not z["zu_lange"] and self.bild_tag(info) and self.bild_bereit(info)):
+                self._neustart.pop(tid, None)
             # Trainer ist neu gestartet (Absturz, Speicher voll, Update): seine Laeufe, die noch als aktiv gelten,
             # sind verloren (die eines anderen Trainers laufen weiter)
             for anderes in self.laeuft_bei(tid):
