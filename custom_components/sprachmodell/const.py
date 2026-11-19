@@ -123,3 +123,7 @@ SCHWELLE_MAX = 0.99
 
 # Pre-review: at most this many recordings per word and request to the trainer
 VORPRUEFEN_JE_MAL = 40
+
+# Version of the trainer this studio works with (sprachmodell_trainer/: config.yaml and trainer/__init__.py). It only
+# moves when the trainer itself changes, so a release that only changes the studio does not ask for a trainer restart.
+TRAINER_VERSION = "1.0.36"

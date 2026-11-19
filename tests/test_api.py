@@ -464,15 +464,15 @@ async def test_trainer_neustart_je_trainer(hass: HomeAssistant, hass_client_no_a
     api._neustart.pop("proxmox", None)
     await api.trainer_neustarten("proxmox")
     alt = {"art": "docker", "ort": "proxmox", "version": "0.0.1"}
-    api._bild[api.version] = (True, zm.time.monotonic())
+    api._bild[zm.TRAINER_VERSION] = (True, zm.time.monotonic())
     await client.post("/api/sprachmodell/trainer/status", headers=proxmox, json={"neustart": True, "info": alt})
     assert api.neustart_zustand("proxmox")
     await client.post("/api/sprachmodell/trainer/status", headers=proxmox,
-                      json={"neustart": True, "info": {**alt, "version": api.version}})
+                      json={"neustart": True, "info": {**alt, "version": zm.TRAINER_VERSION}})
     assert api.neustart_zustand("proxmox") is None
     # image not published yet: the old version is the result, nothing to wait for
     await api.trainer_neustarten("proxmox")
-    api._bild[api.version] = (False, zm.time.monotonic())
+    api._bild[zm.TRAINER_VERSION] = (False, zm.time.monotonic())
     await client.post("/api/sprachmodell/trainer/status", headers=proxmox, json={"neustart": True, "info": alt})
     assert api.neustart_zustand("proxmox") is None
 
