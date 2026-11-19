@@ -169,6 +169,9 @@ def main() -> None:
         einzel = lauf.ordner / "train" / "tflite_stream_state_internal_quant" / "stream_state_internal_quant.tflite"
         assert gemittelt.exists() and einzel.exists(), "averaged or single model missing"
         assert gemittelt.stat().st_size > 1.5 * einzel.stat().st_size, (gemittelt.stat().st_size, einzel.stat().st_size)
+        from .bausteine import fehlende_bausteine
+        for f in (gemittelt, einzel):
+            assert not fehlende_bausteine(f.read_bytes()), f"{f.name}: {fehlende_bausteine(f.read_bytes())}"
         assert bester.exists() and (wahl["teile"] == 2) == (bester == gemittelt), wahl
         print(f"SELBSTTEST thorough+averaged ok ({time.time() - t0:.0f} s, kept {wahl['gewaehlt']}, "
               f"averaged {gemittelt.stat().st_size} bytes)", flush=True)

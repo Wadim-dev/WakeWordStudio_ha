@@ -26,6 +26,7 @@ from typing import Any
 import wave
 import zipfile
 
+from .bausteine import KeinModell, fehlende_bausteine
 from .const import KEIN_WORT, NAME, REPO, URTEILE, VERWORFEN, WORT
 
 DATEI = "daten.json"
@@ -676,6 +677,14 @@ class Speicher:
             return max(30000, int(((self.version(nr) or {}).get("bericht") or {}).get("tensor_arena") or 30000))
         except (TypeError, ValueError):
             return 30000
+
+    def laeuft_nicht(self, nr: int) -> list[str]:
+        """Operations of version nr the devices cannot run (empty when it runs everywhere)."""
+        try:
+            with open(self.modell_datei(nr), "rb") as datei:
+                return fehlende_bausteine(datei.read())
+        except (KeinModell, OSError):
+            return []
 
     def modell_datei(self, nr: int) -> str:
         return self.pfad("modelle", f"v{nr}", "modell.tflite")

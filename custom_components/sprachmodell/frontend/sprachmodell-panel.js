@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.34';
+const VERSION = '1.0.35';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -1700,7 +1700,7 @@ ${l.seiten > 1 ? `<div class="zeile" style="justify-content:center;margin-top:12
   }
 
   // ---------- Training ----------
-  _ergebnisText(e) { return this.t({ eingespielt: 'e_eingespielt', besser: 'e_besser', nicht_besser: 'e_nicht_besser', 'nicht besser': 'e_nicht_besser', gleich: 'e_gleich', fehler: 'e_fehler' }[e] || e); }
+  _ergebnisText(e) { return this.t({ eingespielt: 'e_eingespielt', besser: 'e_besser', nicht_besser: 'e_nicht_besser', 'nicht besser': 'e_nicht_besser', gleich: 'e_gleich', laeuft_nicht: 'e_laeuft_nicht', fehler: 'e_fehler' }[e] || e); }
 
   _uhr(sek) { return new Date(sek * 1000).toLocaleTimeString(this._loc, { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }
   _spanne(sek) { sek = Math.max(0, Math.round(sek)); const h = Math.floor(sek / 3600), m = Math.floor(sek / 60) % 60, s = sek % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`; }

@@ -33,6 +33,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event, async_track_time_change, async_track_time_interval
 from homeassistant.util import slugify
 
+from .bausteine import KeinModell, fehlende_bausteine
 from .const import (
     BILD_MANIFEST,
     BILD_PRUEFEN_S,
@@ -1037,6 +1038,14 @@ class Zentrale:
         sp = wort.speicher
         if bericht.get("alt") and sp.daten.get("aktiv"):
             bericht["alt_nr"] = sp.daten["aktiv"]  # the trainer compared with the version on the devices
+        try:
+            fehlt = fehlende_bausteine(tflite)
+        except KeinModell:
+            fehlt = []  # not readable here; the trainer API already checked the TFLite header
+        if fehlt:
+            # a model the devices cannot run is kept for the record, but never counts as better (an older
+            # trainer built averaged models with a MUL the TECHO5 firmware does not have)
+            bericht = {**bericht, "besser": False, "laeuft_nicht": fehlt}
         eintrag = await self.hass.async_add_executor_job(sp.version_neu, tflite, bericht)
         besser = bool(bericht.get("besser"))
         gleich = not besser and (bericht.get("vergleich") or {}).get("urteil") == "gleich"
@@ -1044,7 +1053,7 @@ class Zentrale:
             "start": sp.daten["training"].get("start") or bericht.get("start"),
             "ende": jetzt(),
             "version": eintrag["nr"],
-            "ergebnis": "besser" if besser else "gleich" if gleich else "nicht_besser",
+            "ergebnis": "laeuft_nicht" if fehlt else "besser" if besser else "gleich" if gleich else "nicht_besser",
             "bewertet": bericht.get("bewertet_genutzt", sp.statistik()["bewertet"]),
             "neu": bericht.get("neu"),
             "alt": bericht.get("alt"),
@@ -1079,6 +1088,8 @@ class Zentrale:
         version = wort.speicher.version(nr)
         if version is None:
             raise ValueError("version_fehlt")
+        if await self.hass.async_add_executor_job(wort.speicher.laeuft_nicht, nr):
+            raise ValueError("modell_laeuft_nicht")
         if cutoff is None:
             cutoff = float((version.get("bericht") or {}).get("cutoff") or 0.97)
         ziel = self.hass.config.path("custom_wake_words")
