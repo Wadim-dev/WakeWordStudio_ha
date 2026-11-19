@@ -96,3 +96,20 @@ def test_beide_hoeren_alles_der_haertetest_entscheidet() -> None:
     # reports from before the hard test have no such row
     assert all(z["kennzahl"] != "schwer_bei_fa" for z in vergleich.vergleichen(
         _ergebnis(alles, FA_ALT), _ergebnis(alles, FA_ALT), 0.99, 0.99)["zeilen"])
+
+
+def test_kandidat_wahl() -> None:
+    w = [{"alltag": 0.9, "schwer": 0.5, "aehnlich": 0.1, "fehlausloeser_min": 1, "rezept": "standard"},
+         {"alltag": 0.95, "schwer": 0.4, "aehnlich": 0.2, "fehlausloeser_min": 2, "rezept": "abgebrochen"},
+         {"alltag": None, "schwer": None, "aehnlich": None, "fehlausloeser_min": 0, "rezept": "standard"}]
+    assert vergleich.kandidat_wahl(w) == 1  # everyday hit rate first
+    w[0]["alltag"] = 0.95
+    assert vergleich.kandidat_wahl(w) == 0  # a tie goes to the hard test
+    w[1]["schwer"] = 0.5
+    assert vergleich.kandidat_wahl(w) == 0  # then to fewer similar words that wake it
+    # the averaged model needs more memory: on a full tie the single candidate stays, ahead it wins
+    w.append({**w[0], "rezept": "gemittelt"})
+    assert vergleich.kandidat_wahl(w) == 0
+    w[3]["schwer"] = 0.6
+    assert vergleich.kandidat_wahl(w) == 3
+

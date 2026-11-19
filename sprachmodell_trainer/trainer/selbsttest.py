@@ -17,7 +17,7 @@ import numpy as np
 import soundfile as sf
 
 from .grenzen import beschleuniger
-from .lauf import Lauf
+from .lauf import MIXEDNET, Lauf
 
 RATE = 16000
 
@@ -107,8 +107,56 @@ def main() -> None:
         tts = {"test_pos": o / "pos", "test_neg": o / "neg"}
         bester, wahl = lauf._kandidaten(2, merkmale, neg, tts, [o / "bg"], {"dev": o / "lang"}, Path(rir))
         assert bester.exists() and wahl["gewaehlt"] in (1, 2) and len(wahl["werte"]) == 2, wahl
+        assert wahl["grundlage"] == "kuenstlich" and wahl["teile"] == 1, wahl
         assert not (lauf.ordner / "train_1").exists() and not (lauf.ordner / "train_2").exists()
         print(f"SELBSTTEST candidates ok ({time.time() - t0:.0f} s, kept {wahl['gewaehlt']})", flush=True)
+
+        # thorough with the new parts: cut-off words for the second candidate, the choice on half of the real
+        # test recordings, and the averaged model (built, loadable, tested like the others)
+        ab = m / "abgebrochen"
+        for teil, auswahl in (("training", pos[:16]), ("validation", pos[16:20])):
+            ergebnis = lauf._merkmale_werkzeug({
+                "ziel": str(ab / teil / "abgebrochen_mmap"), "dateien": auswahl, "wiederholungen": 2, "frames": 150,
+                "trim": True, "bg": bg, "rir": rir, "snr_min": 5, "prozesse": 2, "abschneiden": True,
+            }, 0, 1, "merkmale")
+            assert ergebnis.get("merkmale", 0) > 0, f"no cut-off features: {ergebnis}"
+        merkmale["abgebrochen"] = {"dir": str(ab), "wort": False, "gewicht": 1.0, "strafe": 1.0}
+        echt = {"wort_test": [{"datei": f, "person": "AB"[i % 2]} for i, f in enumerate(pos[16:])],
+                "kein_test": [{"datei": f, "person": ""} for f in neg_wavs[16:]], "wort_train": [], "kein_train": []}
+        wahl_echt, bericht_echt = lauf._haelften(echt)
+        assert len(wahl_echt["positiv"]) == 4 and len(bericht_echt["wort_test"]) == 4, (wahl_echt, bericht_echt)
+        assert not {a["datei"] for a in wahl_echt["positiv"]} & {a["datei"] for a in bericht_echt["wort_test"]}
+        assert {a["person"] for a in wahl_echt["positiv"]} == {"A", "B"}, wahl_echt
+        bester, wahl = lauf._kandidaten(2, merkmale, neg, tts, [o / "bg"], {"dev": o / "lang"}, Path(rir),
+                                        wahl_echt, mitteln=True)
+        rezepte = [w["rezept"] for w in wahl["werte"]]
+        assert rezepte == ["standard", "abgebrochen", "gemittelt"], wahl
+        assert wahl["grundlage"] == "echt" and wahl["wahl_aufnahmen"] == 4, wahl
+        gemittelt = lauf.ordner / "gemittelt" / "tflite_stream_state_internal_quant" / "stream_state_internal_quant.tflite"
+        einzel = lauf.ordner / "train" / "tflite_stream_state_internal_quant" / "stream_state_internal_quant.tflite"
+        assert gemittelt.exists() and einzel.exists(), "averaged or single model missing"
+        assert gemittelt.stat().st_size > 1.5 * einzel.stat().st_size, (gemittelt.stat().st_size, einzel.stat().st_size)
+        assert bester.exists() and (wahl["teile"] == 2) == (bester == gemittelt), wahl
+        print(f"SELBSTTEST thorough+averaged ok ({time.time() - t0:.0f} s, kept {wahl['gewaehlt']}, "
+              f"averaged {gemittelt.stat().st_size} bytes)", flush=True)
+
+        # the averaged model must read like a single one on the device: one candidate averaged with itself gives
+        # the same probabilities, and the output keeps the 1/256 steps the device expects
+        from ai_edge_litert.interpreter import Interpreter
+        from microwakeword.inference import Model
+
+        gewicht = str(lauf.ordner / "train" / "best_weights.weights.h5")
+        e = lauf._werkzeug("mitteln", {"config": str(lauf.ordner / "training.yaml"), "gewichte": [gewicht, gewicht],
+                                       "modell_args": MIXEDNET[1:], "ziel": str(o / "doppelt")}, "training", 0, 1, "mitteln")
+        i = Interpreter(e["datei"])
+        i.allocate_tensors()
+        skala = i.get_output_details()[0]["quantization"]
+        assert abs(skala[0] - 1 / 256) < 1e-9 and skala[1] == 0, f"averaged model output scale {skala}"
+        x = np.concatenate([np.zeros(RATE, np.int16), (sf.read(pos[20], dtype="int16")[0])])
+        p1 = np.array(Model(str(einzel), stride=3).predict_clip(x, step_ms=10))
+        p2 = np.array(Model(e["datei"], stride=3).predict_clip(x, step_ms=10))
+        assert len(p1) == len(p2) and float(np.abs(p1 - p2).max()) <= 0.02, (p1[:10], p2[:10])
+        print("SELBSTTEST averaged model reads like a single one", flush=True)
     print("SELBSTTEST OK", flush=True)
 
 

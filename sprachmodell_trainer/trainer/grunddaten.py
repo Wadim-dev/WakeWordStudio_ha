@@ -31,6 +31,11 @@ NEG = ("speech", "dinner_party", "no_speech", "dinner_party_eval")
 FLEURS = {
     "de": "de_de", "en": "en_us", "ru": "ru_ru", "fr": "fr_fr", "es": "es_419", "it": "it_it", "nl": "nl_nl",
     "pl": "pl_pl", "uk": "uk_ua", "tr": "tr_tr", "pt": "pt_br", "cs": "cs_cz", "sv": "sv_se",
+    # more languages: every one with Piper voices that espeak speaks and FLEURS speech for the honest test
+    "ar": "ar_eg", "bg": "bg_bg", "ca": "ca_es", "cy": "cy_gb", "da": "da_dk", "el": "el_gr", "et": "et_ee",
+    "fa": "fa_ir", "fi": "fi_fi", "hi": "hi_in", "hu": "hu_hu", "id": "id_id", "is": "is_is", "ka": "ka_ge",
+    "kk": "kk_kz", "ko": "ko_kr", "lb": "lb_lu", "lv": "lv_lv", "no": "nb_no", "ro": "ro_ro", "sk": "sk_sk",
+    "sl": "sl_si", "sr": "sr_rs", "sw": "sw_ke", "vi": "vi_vn",
 }
 # Fremde Akzente: das Wort auch von Stimmen anderer Sprachen sprechen lassen
 FREMD = ("en", "de", "ru", "es", "fr")

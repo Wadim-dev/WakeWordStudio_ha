@@ -27,7 +27,7 @@ import yaml
 from .grenzen import beschleuniger, kerne
 from .grunddaten import Grunddaten, platz_frei
 from .ha import HA
-from .vergleich import alltag_bei, vergleichen
+from .vergleich import alltag_bei, kandidat_wahl, vergleichen
 
 _LOG = logging.getLogger("trainer.lauf")
 
@@ -55,13 +55,19 @@ TEST_STUNDEN_GERAEUSCH = 1
 # "Thorough": several candidates per run, the best one is kept. Runs of the same recipe differ a lot, so the
 # best of three is usually clearly better than a single one. Chosen on its own check data, never on the test.
 KANDIDATEN_MAX = 3
+# thorough runs choose among the candidates on half of the real test recordings once there are this many
+# (the other half stays for the report); with fewer, they choose on held-out synthetic voices as before
+WAHL_ECHT_MIN = 20
+ABGEBROCHEN = int(3000 * _M)  # cut-off copies of the word, as negatives for one candidate of a thorough run
+ARENA_JE_MODELL = 30000  # device memory (tensor arena) of one model of this architecture
 WAHL_STUNDEN_REDE = 1
 WAHL_STUNDEN_GERAEUSCH = 0.25
 PLATZ_GB = float(os.environ.get("PLATZ_GB", "8"))  # erster Lauf (Grunddaten), danach reichen 3 GB
 
 VOKALE_LATEIN = "aeiouyäöü"
 VOKALE_KYRILL = "аеиоуыэюя"
-VOKALE = VOKALE_LATEIN + VOKALE_KYRILL + "áéíóúàèìòùâêîôûёїє"
+VOKALE_GRIECH = "αεηιουω"
+VOKALE = VOKALE_LATEIN + VOKALE_KYRILL + VOKALE_GRIECH + "áéíóúàèìòùâêîôûёїєåæøőűõāēīū"
 
 MIXEDNET = [
     "mixednet", "--pointwise_filters", "64,64,64,64", "--repeat_in_block", "1, 1, 1, 1",
@@ -167,7 +173,8 @@ def aehnliche_woerter(wort: str) -> list[str]:
     rnd = random.Random(klein)
     for i, c in enumerate(klein):
         if c in VOKALE:
-            vokale = VOKALE_KYRILL if "\u0400" <= c <= "\u04ff" else VOKALE_LATEIN
+            vokale = (VOKALE_KYRILL if "\u0400" <= c <= "\u04ff" else VOKALE_GRIECH if "\u0370" <= c <= "\u03ff"
+                      else VOKALE_LATEIN)
             for v in rnd.sample(vokale, 4):
                 if v != c:
                     aus.add(klein[:i] + v + klein[i + 1:])
@@ -573,17 +580,24 @@ class Lauf:
 
         echt = self._echte_aufnahmen()
         tts = self._stimmen(stimmen, gerede)
-        merkmale = self._merkmale(echt, tts, bg, rir, gerede, g)
+        anzahl = max(1, min(KANDIDATEN_MAX, int(self.auftrag.get("kandidaten") or 1)))
+        merkmale = self._merkmale(echt, tts, bg, rir, gerede, g, varianten=anzahl > 1)
         schlank = self._schlanke_negative(neg)
         t_training = time.time()
-        anzahl = max(1, min(KANDIDATEN_MAX, int(self.auftrag.get("kandidaten") or 1)))
+        echt_test, wahl_echt = echt, None
+        if anzahl > 1 and len(echt["wort_test"]) >= WAHL_ECHT_MIN:
+            wahl_echt, echt_test = self._haelften(echt)
         if anzahl > 1:
-            tflite, wahl = self._kandidaten(anzahl, merkmale, schlank, tts, bg, gerede, rir)
+            tflite, wahl = self._kandidaten(anzahl, merkmale, schlank, tts, bg, gerede, rir, wahl_echt,
+                                            bool(self.auftrag.get("mitteln")))
         else:
             tflite, wahl = self._training(merkmale, schlank), None
         training_min = round((time.time() - t_training) / 60, 1)
-        bericht = self._test(tflite, echt, tts, bg, gerede, rir, getrennt=wahl is not None)
+        bericht = self._test(tflite, echt_test, tts, bg, gerede, rir, getrennt=wahl is not None)
         bericht["training_min"] = training_min
+        teile = (wahl or {}).get("teile") or 1
+        bericht["modell_teile"] = teile
+        bericht["tensor_arena"] = ARENA_JE_MODELL * teile
         bericht["geraet"] = self.geraet
         if self.geraet_rueckfall:
             bericht["geraet_rueckfall"] = True
@@ -648,6 +662,21 @@ class Lauf:
                     f.unlink()
         self.bewertet = len(liste)
         return aus
+
+    @staticmethod
+    def _haelften(echt: dict[str, list[dict]]) -> tuple[dict[str, list], dict[str, list[dict]]]:
+        """Split the real test recordings in two: one half chooses among the candidates, the other half is the
+        report, so the numbers are not flattered by the choice. Sorted by person first, so everybody is in both."""
+        def teilen(liste: list[dict]) -> tuple[list[dict], list[dict]]:
+            reihe = sorted(liste, key=lambda a: (a.get("person") or "", a["datei"]))
+            return reihe[0::2], reihe[1::2]
+
+        pos_wahl, pos_bericht = teilen(echt["wort_test"])
+        neg_wahl, neg_bericht = teilen([{"datei": a["datei"], "person": ""} for a in echt["kein_test"]])
+        wahl = {"positiv": pos_wahl, "negativ": [a["datei"] for a in neg_wahl]}
+        bericht = {**echt, "wort_test": pos_bericht,
+                   "kein_test": [a for a in echt["kein_test"] if a["datei"] in {b["datei"] for b in neg_bericht}]}
+        return wahl, bericht
 
     # --- kuenstliche Stimmen ------------------------------------------------
 
@@ -787,7 +816,7 @@ class Lauf:
     # --- Merkmale -----------------------------------------------------------
 
     def _merkmale(self, echt: dict, tts: dict, bg: list[Path], rir: Path, gerede: dict[str, Path],
-                  g: Grunddaten) -> dict[str, dict]:
+                  g: Grunddaten, varianten: bool = False) -> dict[str, dict]:
         basis = self.ordner / "merkmale"
         bgs = [str(p) for p in bg] + [str(gerede["train"])]
         wdh_echt = lambda n: max(3, min(40, 3000 // max(1, n)))  # noqa: E731
@@ -805,7 +834,12 @@ class Lauf:
             ("omni_neg", self._wavs(tts["omni_neg"]), 1, False, False, 3.0, 2.0),
         ]
         sets = [s for s in sets if s[1]]
-        if echt["wort_train"]:
+        if varianten:
+            # thorough runs: cut-off copies of the word ("Ali..." of "Alisa") as negatives, for the second candidate.
+            # It learns to wait for the whole word; the real recordings decide whether that recipe is better.
+            quelle = self._wavs(tts["pos_eigen"]) + self._wavs(tts["omni_pos"])
+            quelle = self._auswahl(quelle, ABGEBROCHEN) + [a["datei"] for a in echt["wort_train"]]
+            sets.append(("abgebrochen", quelle, 1, False, False, 1.0, 1.0))
             d = [a["datei"] for a in echt["wort_train"]]
             sets.append(("echt_wort", d, wdh_echt(len(d)), True, True, 3.0, 1.0))
         if echt["kein_train"]:
@@ -817,6 +851,7 @@ class Lauf:
         for name, dateien, wdh, ist_wort, neu, gewicht, strafe in sets:
             ziel = basis / name
             menge = len(dateien) * wdh
+            abschneiden = name == "abgebrochen"
             # rebuilt when the set changed (more clips than last time) - the marker holds the number of files
             stand = (ziel / "fertig").read_text().strip() if (ziel / "fertig").exists() else None
             if neu or stand != str(len(dateien)):
@@ -832,7 +867,7 @@ class Lauf:
                     self._merkmale_werkzeug({
                         "ziel": str(ziel / teil / f"{name}_mmap"), "dateien": auswahl, "wiederholungen": wdh,
                         "frames": FRAMES, "trim": True, "bg": bgs, "rir": str(rir), "snr_min": -5,
-                        "prozesse": self.o.get("threads") or None,
+                        "prozesse": self.o.get("threads") or None, "abschneiden": abschneiden,
                     }, erledigt / gesamt, erledigt / gesamt + anteil, "merkmale")
                     erledigt += len(auswahl) * wdh
                 if (ziel / "validation").exists():
@@ -972,54 +1007,101 @@ class Lauf:
         return modell
 
     def _kandidaten(self, anzahl: int, merkmale: dict[str, dict], neg: dict[str, Path], tts: dict,
-                    bg: list[Path], gerede: dict[str, Path], rir: Path | None) -> tuple[Path, dict]:
+                    bg: list[Path], gerede: dict[str, Path], rir: Path | None, wahl_echt: dict | None = None,
+                    mitteln: bool = False) -> tuple[Path, dict]:
         """Train several candidates and keep the one that hears best in everyday conditions at about one false
-        wake per hour. They are compared on check data of their own (held-out synthetic voice, FLEURS dev speech,
-        other music/noise files), so the honest test afterwards stays untouched and does not flatter the choice."""
+        wake per hour. Runs of the same recipe differ a lot, and the second candidate also learns cut-off copies of
+        the word as negatives, so the check decides which recipe suits this word. With mitteln, one more model
+        averages all candidates (fewer false wakes, but as many times the device memory); it is kept only if it does
+        better. The check uses half of the real test recordings (wahl_echt) when there are enough - the report uses
+        the other half - otherwise check data of its own (held-out synthetic voice); always FLEURS dev speech and
+        other music/noise files, so the honest test afterwards does not flatter the choice."""
         basis = self.ordner / "train"
-        ordner = []
+        ordner, rezepte = [], []
         for k in range(anzahl):
             ziel = self.ordner / f"train_{k + 1}"
             shutil.rmtree(ziel, ignore_errors=True)
             if (basis / "restore").exists():
                 shutil.copytree(basis, ziel)  # every candidate continues from the version before
             self._pruefen()
-            self.notiz(f"Candidate {k + 1} of {anzahl}")
-            self._training(merkmale, neg, ziel, 0.97 * k / anzahl, 0.97 * (k + 1) / anzahl, f"{k + 1}/{anzahl}")
+            rezept = "abgebrochen" if k == 1 and "abgebrochen" in merkmale else "standard"
+            self.notiz(f"Candidate {k + 1} of {anzahl}" + (" (also learns cut-off words)" if rezept != "standard" else ""))
+            m = merkmale if rezept == "abgebrochen" else {n: v for n, v in merkmale.items() if n != "abgebrochen"}
+            self._training(m, neg, ziel, 0.94 * k / anzahl, 0.94 * (k + 1) / anzahl, f"{k + 1}/{anzahl}")
             ordner.append(ziel)
-        pos = self._wavs(tts["test_pos"])[1::2]
+            rezepte.append(rezept)
+        modelle = [o / MODELL_DATEI for o in ordner]
+        gemittelt = None
+        if mitteln and anzahl > 1:
+            gemittelt = self._mitteln(ordner)
+            if gemittelt:
+                modelle.append(gemittelt)
+                rezepte.append("gemittelt")
         negativ = self._wavs(tts["test_neg"])[1::2]
+        if wahl_echt:
+            pos = list(wahl_echt["positiv"])
+            negativ = list(wahl_echt["negativ"]) + negativ
+        else:
+            pos = [{"datei": f, "person": ""} for f in self._wavs(tts["test_pos"])[1::2]]
         rede = self._wavs(gerede["dev"])
         geraeusche: list[str] = []
         for o in bg[:2]:
             dateien = sorted(str(p) for p in Path(o).glob("*.wav"))
             random.Random(4).shuffle(dateien)
             geraeusche += dateien[300:400]  # the test uses the first 300 of each
-        auftrag = {"positiv": [{"datei": f, "person": ""} for f in pos], "negativ": negativ, "gerede": rede,
+        auftrag = {"positiv": pos, "negativ": negativ, "gerede": rede,
                    "bg": geraeusche, "rir": str(rir) if rir else None, "max_stunden": WAHL_STUNDEN_REDE,
                    "max_stunden_bg": WAHL_STUNDEN_GERAEUSCH}
         werte = []
-        for k, o in enumerate(ordner):
-            e = self._werkzeug_sicher("pruefen", {**auftrag, "modell": str(o / MODELL_DATEI)}, "training",
-                                      0.97 + 0.03 * k / anzahl, 0.97 + 0.03 * (k + 1) / anzahl, "kandidat_pruefen")
+        for k, modell in enumerate(modelle):
+            e = self._werkzeug_sicher("pruefen", {**auftrag, "modell": str(modell)}, "training",
+                                      0.94 + 0.06 * k / len(modelle), 0.94 + 0.06 * (k + 1) / len(modelle),
+                                      "kandidat_pruefen")
             je = e["je_schwelle"]
             fa = min((v.get("fehlausloeser_anzahl") or 0 for v in je.values()), default=0)
-            werte.append({"nr": k + 1, "alltag": alltag_bei(je, 1.0, e.get("stunden")),
+            _, punkt = self._schwelle(e, 1.0)
+            werte.append({"nr": k + 1, "rezept": rezepte[k], "alltag": alltag_bei(je, 1.0, e.get("stunden")),
                           "schwer": alltag_bei(je, 1.0, e.get("stunden"), "trefferquote_schwer"),
-                          "fehlausloeser_min": fa})
-        # best everyday hit rate at about one false wake per hour; a tie goes to the hard test, then to fewer false wakes
-        beste = max(range(anzahl), key=lambda i: ((werte[i]["alltag"] or 0.0), (werte[i]["schwer"] or 0.0),
-                                                  -werte[i]["fehlausloeser_min"]))
+                          "aehnlich": punkt.get("gegenbeispiele"), "fehlausloeser_min": fa})
+        beste = kandidat_wahl(werte)
         self.notiz("Candidates: " + ", ".join(
-            f"{w['nr']}: {'-' if w['alltag'] is None else round(100 * w['alltag'])} %" for w in werte)
-            + f" - kept {beste + 1}")
-        # the winner becomes the base of the next run
+            f"{'averaged' if w['rezept'] == 'gemittelt' else w['nr']}: "
+            f"{'-' if w['alltag'] is None else round(100 * w['alltag'])} %" for w in werte)
+            + (" (checked on half of your test recordings)" if wahl_echt else "")
+            + f" - kept {'the averaged model' if rezepte[beste] == 'gemittelt' else beste + 1}")
+        # the best single candidate becomes the base of the next run (an averaged model cannot be trained further)
+        einzel = beste if rezepte[beste] != "gemittelt" else kandidat_wahl(werte[:anzahl])
         shutil.rmtree(basis, ignore_errors=True)
-        shutil.move(str(ordner[beste]), str(basis))
+        shutil.move(str(ordner[einzel]), str(basis))
         for i, o in enumerate(ordner):
-            if i != beste:
+            if i != einzel:
                 shutil.rmtree(o, ignore_errors=True)
-        return basis / MODELL_DATEI, {"anzahl": anzahl, "gewaehlt": beste + 1, "werte": werte}
+        tflite = basis / MODELL_DATEI
+        teile = 1
+        if rezepte[beste] == "gemittelt" and gemittelt:
+            tflite, teile = gemittelt, anzahl
+        return tflite, {"anzahl": anzahl, "gewaehlt": beste + 1, "werte": werte, "teile": teile,
+                        "grundlage": "echt" if wahl_echt else "kuenstlich",
+                        "wahl_aufnahmen": len(wahl_echt["positiv"]) if wahl_echt else 0}
+
+    def _mitteln(self, ordner: list[Path]) -> Path | None:
+        """One model that averages the candidates (werkzeug mitteln). If that fails the run goes on without it."""
+        ziel = self.ordner / "gemittelt"
+        shutil.rmtree(ziel, ignore_errors=True)
+        gewichte = [str(o / "best_weights.weights.h5") for o in ordner if (o / "best_weights.weights.h5").exists()]
+        if len(gewichte) < 2:
+            return None
+        try:
+            e = self._werkzeug("mitteln", {"config": str(self.ordner / "training.yaml"), "gewichte": gewichte,
+                                           "modell_args": MIXEDNET[1:], "ziel": str(ziel)},
+                               "training", 0.94, 0.94, "mitteln")
+        except Abgebrochen:
+            raise
+        except RuntimeError as err:
+            self.notiz(f"Averaged model not built this time: {str(err)[-200:]}", "warnung")
+            return None
+        datei = Path(e.get("datei") or "")
+        return datei if datei.exists() else None
 
     # --- ehrlicher Test -----------------------------------------------------
 

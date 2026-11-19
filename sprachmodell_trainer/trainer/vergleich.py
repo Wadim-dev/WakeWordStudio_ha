@@ -138,3 +138,18 @@ def _schwaechste(je_person: dict[str, Any]) -> tuple[str, float, int] | None:
     kandidaten = [(name, float(v["trefferquote"]), int(v["anzahl"])) for name, v in je_person.items()
                   if isinstance(v, dict) and int(v.get("anzahl") or 0) >= 3 and v.get("trefferquote") is not None]
     return min(kandidaten, key=lambda k: k[1]) if kandidaten else None
+
+
+def kandidat_wahl(werte: list[dict[str, Any]]) -> int:
+    """Index of the candidate a thorough run keeps. werte: per candidate alltag and schwer (hit rates at about one
+    false wake per hour), aehnlich (share of similar words that wake it), fehlausloeser_min, rezept.
+
+    Best everyday hit rate first; a tie goes to the hard test, then to fewer similar words that wake it, then to
+    fewer false wakes. The averaged model needs several times the device memory, so it only wins when it is
+    really ahead; on a full tie a single candidate stays."""
+    def schluessel(i: int) -> tuple[float, float, float, float, int]:
+        w = werte[i]
+        return (w.get("alltag") or 0.0, w.get("schwer") or 0.0, -(w.get("aehnlich") or 0.0),
+                -float(w.get("fehlausloeser_min") or 0), 0 if w.get("rezept") == "gemittelt" else 1)
+
+    return max(range(len(werte)), key=schluessel)

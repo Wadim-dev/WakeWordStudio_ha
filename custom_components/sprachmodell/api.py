@@ -476,6 +476,7 @@ class TrainerAuftrag(_TrainerAnsicht):
                 "anzeige": wort.anzeige,
                 "aktiv": wort.speicher.daten["aktiv"],
                 "kandidaten": 3 if wort.cfg.get("gruendlich") else 1,
+                "mitteln": bool(wort.cfg.get("gruendlich") and wort.cfg.get("mitteln")),
                 "geraet": z.opt("geraet"),
             }
         vorpruefen = []
