@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.33';
+const VERSION = '1.0.34';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -389,6 +389,88 @@ table.tb th,table.tb td{border:0;padding:0;vertical-align:middle}
 .rd-fertig.rd-nein ha-icon{color:var(--warning-color,#ff9800)}
 @media (max-width:420px){.rd-ergebnis{grid-template-columns:1fr}.rd{border-radius:20px}}
 @media (prefers-reduced-motion:reduce){.raum-ikon i,.rd *,.rd,.rd-hinter{animation:none!important}.rd-kurven polyline{stroke-dashoffset:0}}
+.schalter-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:4px 0 14px}
+.kschalter{border-radius:16px;padding:12px 14px;background:rgba(var(--rgb-primary-text-color,0,0,0),.04);border:1px solid transparent;transition:background .35s,border-color .35s,box-shadow .35s}
+.kschalter.an{background:linear-gradient(135deg,rgba(var(--rgb-primary-color,3,169,244),.14),rgba(var(--rgb-primary-color,3,169,244),.04));border-color:rgba(var(--rgb-primary-color,3,169,244),.25)}
+.kschalter-kopf{display:flex;gap:12px;align-items:center;cursor:pointer}
+.kschalter-ikon{width:40px;height:40px;flex:none;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgba(var(--rgb-primary-text-color,0,0,0),.07);color:var(--secondary-text-color);transition:background .35s,color .35s,box-shadow .35s,transform .35s}
+.kschalter.an .kschalter-ikon{background:var(--primary-color);color:var(--text-primary-color,#fff);box-shadow:0 4px 14px rgba(var(--rgb-primary-color,3,169,244),.45)}
+.kschalter.an.neu .kschalter-ikon{animation:k-funke .6s cubic-bezier(.2,.9,.3,1.4)}@keyframes k-funke{0%{transform:scale(.7) rotate(-12deg)}60%{transform:scale(1.15) rotate(4deg)}100%{transform:none}}
+.kschalter-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.kschalter-text b{font-weight:500}.kschalter-text .klein{line-height:1.4}
+input.schieber{appearance:none;-webkit-appearance:none;flex:none;width:42px;height:24px;border-radius:12px;background:rgba(var(--rgb-primary-text-color,0,0,0),.22);position:relative;cursor:pointer;margin:0;transition:background .25s}
+input.schieber::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .25s cubic-bezier(.3,.9,.4,1.3)}
+input.schieber:checked{background:var(--primary-color)}input.schieber:checked::after{transform:translateX(18px)}
+input.schieber:disabled{opacity:.45;cursor:default}
+.unter-schalter{display:flex;gap:10px;align-items:center;margin:10px 0 0 52px;padding-top:10px;border-top:1px solid rgba(var(--rgb-primary-text-color,0,0,0),.08);cursor:pointer;transition:opacity .3s}
+.unter-schalter>span{display:flex;flex-direction:column;gap:2px;flex:1}.unter-schalter b{font-weight:500;font-size:14px}.unter-schalter.aus{opacity:.45}
+.kachel-info{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 0 52px}.kachel-info ha-icon{--mdc-icon-size:16px;color:var(--success-color,#4caf50)}
+@media (max-width:500px){.schalter-raster{grid-template-columns:1fr}.unter-schalter,.kachel-info{margin-left:0}}
+@media (prefers-reduced-motion:reduce){.kschalter-ikon{animation:none!important}}
+main:not(.still) .ring .vorn{animation:ring-fuellen 1.1s cubic-bezier(.3,.8,.3,1) both}@keyframes ring-fuellen{from{stroke-dashoffset:var(--voll)}}
+.weg{display:flex;align-items:flex-start;gap:0;margin:6px 0 4px}
+.weg-station{flex:0 0 auto;width:120px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;cursor:pointer;color:inherit;text-decoration:none;border-radius:14px;padding:6px 4px}
+.weg-station:hover{background:rgba(var(--rgb-primary-text-color,0,0,0),.04)}
+.weg-station b{font-weight:500;font-size:14px}.weg-station .klein{line-height:1.35}
+.weg-punkt{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(var(--rgb-primary-text-color,0,0,0),.07);color:var(--secondary-text-color);position:relative;transition:background .4s,color .4s}
+main:not(.still) .weg-punkt{animation:rd-pop .55s cubic-bezier(.2,.9,.3,1.5) both;animation-delay:calc(var(--n) * .15s)}
+.weg-station.erledigt .weg-punkt{background:rgba(var(--rgb-success-color,76,175,80),.2);color:var(--success-color,#4caf50)}
+.weg-station.jetzt .weg-punkt{background:var(--primary-color);color:var(--text-primary-color,#fff);box-shadow:0 4px 16px rgba(var(--rgb-primary-color,3,169,244),.5)}
+.weg-station.jetzt .weg-punkt::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--primary-color);animation:weg-puls 2s ease-out infinite}
+@keyframes weg-puls{0%{transform:scale(.9);opacity:.8}100%{transform:scale(1.45);opacity:0}}
+.weg-linie{flex:1 1 20px;min-width:16px;height:4px;margin-top:28px;border-radius:2px;background:rgba(var(--rgb-primary-text-color,0,0,0),.08);overflow:hidden;position:relative}
+.weg-linie i{position:absolute;inset:0;width:0;background:var(--success-color,#4caf50);border-radius:2px}
+.weg-linie.durch i{width:100%}main:not(.still) .weg-linie.durch i{animation:balken-wachsen .5s ease-out both;animation-delay:calc(.15s + var(--n,0) * .15s)}
+.weg-linie:not(.durch)::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(var(--rgb-primary-color,3,169,244),.5) 0 6px,transparent 6px 14px);background-size:28px 100%;opacity:.0}
+.weg-linie.durch+.weg-station.jetzt{}
+.weg .weg-linie.durch:has(+.weg-station.jetzt) i{background:linear-gradient(90deg,var(--success-color,#4caf50),var(--primary-color))}
+.weg-mehr{margin-top:10px}.weg-mehr summary{cursor:pointer}.weg-mehr ol{margin:8px 0 0;padding-left:20px;line-height:1.6}
+@media (max-width:560px){.weg{flex-direction:column;align-items:stretch}.weg-station{width:auto;flex-direction:row;text-align:left;gap:12px}.weg-station b{min-width:84px}.weg-linie{width:4px;min-width:0;height:18px;flex:0 0 18px;margin:0 0 0 26px}.weg-linie i{height:100%}}
+@media (prefers-reduced-motion:reduce){.weg *,main .ring .vorn{animation:none!important}}
+.rec-welle{width:100%;max-width:520px;border-radius:14px;overflow:hidden;background:radial-gradient(ellipse at center,rgba(var(--rgb-primary-color,3,169,244),.1),transparent 70%);transition:background .4s}
+.rec-welle canvas{display:block;width:100%;height:72px}
+.rec-welle:not(.an){opacity:.5}
+.take.neu{animation:rd-pop .5s cubic-bezier(.2,.9,.3,1.5)}
+.mini-form{width:48px;height:16px;margin-right:6px;fill:var(--primary-color)}.take.gegen .mini-form{fill:var(--error-color,#f44336)}
+.rec-ziel{display:flex;align-items:center;gap:12px;margin-top:14px}
+.ziel-ring{position:relative;width:44px;height:44px;flex:none}.ziel-ring svg{width:44px;height:44px;transform:rotate(-90deg)}
+.ziel-ring circle{fill:none;stroke-width:4;stroke-linecap:round}.ziel-ring .hinten{stroke:rgba(var(--rgb-primary-text-color,0,0,0),.08)}.ziel-ring .vorn{stroke:var(--primary-color);transition:stroke-dashoffset .8s}
+.ziel-ring.voll .vorn{stroke:var(--success-color,#4caf50)}
+main:not(.still) .ziel-ring .vorn{animation:ring-fuellen 1.1s cubic-bezier(.3,.8,.3,1) both}
+.ziel-ring span,.ziel-ring ha-icon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500}.ziel-ring ha-icon{--mdc-icon-size:20px;color:var(--success-color,#4caf50)}
+ha-card.abschnitt{padding:0}
+.abschnitt summary{display:flex;align-items:center;gap:14px;padding:16px;cursor:pointer;list-style:none;border-radius:var(--ha-card-border-radius,12px)}
+.abschnitt summary::-webkit-details-marker{display:none}
+.abschnitt summary:hover{background:rgba(var(--rgb-primary-text-color,0,0,0),.03)}
+.ab-ikon{width:40px;height:40px;flex:none;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgba(var(--rgb-primary-color,3,169,244),.14);color:var(--primary-color);transition:transform .35s}
+.abschnitt details[open] .ab-ikon{transform:rotate(-8deg) scale(1.05)}
+.ab-titel{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.ab-titel h2{margin:0}
+.ab-pfeil{color:var(--secondary-text-color);transition:transform .3s cubic-bezier(.3,.8,.3,1)}
+.abschnitt details[open] .ab-pfeil{transform:rotate(180deg)}
+.ab-inhalt{padding:0 16px 16px}
+.abschnitt details[open] .ab-inhalt{animation:aufklappen .35s ease-out}
+.neu-vorschau{position:relative;overflow:hidden;margin:0 0 16px;padding:22px 20px;border-radius:var(--ha-card-border-radius,12px);text-align:center;background:linear-gradient(135deg,color-mix(in srgb,var(--farbe) 22%,transparent),color-mix(in srgb,var(--farbe) 6%,transparent));border:1px solid color-mix(in srgb,var(--farbe) 35%,transparent);transition:background .5s,border-color .5s}
+.nv-wort{font-size:34px;font-weight:300;letter-spacing:.5px;margin:4px 0;color:var(--secondary-text-color);transition:color .4s,text-shadow .4s;word-break:break-word}
+.neu-vorschau.da .nv-wort{color:var(--primary-text-color);text-shadow:0 0 22px color-mix(in srgb,var(--farbe) 70%,transparent)}
+.nv-funken i{position:absolute;left:calc(8% + var(--i) * 9%);top:50%;width:6px;height:6px;border-radius:50%;background:var(--farbe);opacity:0}
+.neu-vorschau.da .nv-funken i{animation:nv-funke 3.4s ease-in-out infinite;animation-delay:calc(var(--i) * .33s)}
+@keyframes nv-funke{0%{opacity:0;transform:translateY(18px) scale(.4)}30%{opacity:.85}100%{opacity:0;transform:translateY(-46px) scale(1)}}
+.neu-vorschau.funkt{animation:gefeiert 1.1s ease-out}.neu-vorschau.funkt .nv-wort{animation:rd-pop .55s cubic-bezier(.2,.9,.3,1.5)}
+.neu-schritt{display:grid;grid-template-columns:30px 1fr;gap:0 12px;align-items:start;margin-top:6px}
+.neu-nr{width:26px;height:26px;margin-top:12px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;background:rgba(var(--rgb-primary-text-color,0,0,0),.08);color:var(--secondary-text-color);transition:background .35s,color .35s}
+.neu-schritt.fertig .neu-nr{background:var(--primary-color);color:var(--text-primary-color,#fff);animation:rd-pop .45s cubic-bezier(.2,.9,.3,1.5)}
+.neu-schritt h3{margin-top:14px}
+button.k.gross-k{padding:11px 20px;font-size:15px;box-shadow:0 4px 16px rgba(var(--rgb-primary-color,3,169,244),.35)}
+.rd.erschaffen{padding:22px 20px 26px;text-align:center}.rd.erschaffen .magie{color:var(--farbe)}
+.er-wort{font-size:30px;font-weight:300;margin:6px 0;text-shadow:0 0 24px color-mix(in srgb,var(--farbe) 75%,transparent);animation:rd-pop .7s .3s cubic-bezier(.2,.9,.3,1.5) both}
+@media (prefers-reduced-motion:reduce){.nv-funken,.neu-vorschau *{animation:none!important}}
+.kurve{display:block;width:100%;height:auto;max-height:150px;margin:2px 0 10px;overflow:visible;color:var(--farbe)}
+.ku-linie{fill:none;stroke:var(--farbe);stroke-width:3;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:2000;stroke-dashoffset:0}
+main:not(.still) .ku-linie{animation:ku-zeichnen 1.6s cubic-bezier(.3,.7,.3,1) both}@keyframes ku-zeichnen{from{stroke-dashoffset:2000}}
+.ku-flaeche{fill:var(--farbe);opacity:.1}main:not(.still) .ku-flaeche{animation:ku-flaeche 1.2s .5s ease-out both}@keyframes ku-flaeche{from{opacity:0}}
+.ku-punkt circle{fill:var(--card-background-color,#1c1c1c);stroke:var(--farbe);stroke-width:3}.ku-punkt circle.aktiv{fill:var(--farbe);filter:drop-shadow(0 0 6px var(--farbe))}
+main:not(.still) .ku-punkt{animation:auftauchen .4s both;animation-delay:calc(.25s + var(--n) * .2s)}
+.kurve text{font-size:13px;fill:var(--primary-text-color);text-anchor:middle}.kurve text.ku-v{fill:var(--secondary-text-color);font-size:12px}
+@media (prefers-reduced-motion:reduce){.kurve *{animation:none!important}}
 `;
 
 class SprachmodellPanel extends HTMLElement {
@@ -497,7 +579,9 @@ class SprachmodellPanel extends HTMLElement {
     this.shadowRoot.addEventListener('input', (e) => this._eingabe(e));
     // which trainer entries are open survives a redraw ("toggle" does not bubble, so listen while capturing)
     this.shadowRoot.addEventListener('toggle', (e) => {
-      const d = e.target; if (!d.classList || !d.classList.contains('tr-eintrag')) return;
+      const d = e.target;
+      if (d.dataset && d.dataset.abschnitt) { this._merk('abschnitt.' + d.dataset.abschnitt, d.open ? '1' : '0'); return; }
+      if (!d.classList || !d.classList.contains('tr-eintrag')) return;
       this._trOffen = this._trOffen || new Set([...this.shadowRoot.querySelectorAll('details.tr-eintrag[open]')].map((x) => x.dataset.tid));
       if (d.open) this._trOffen.add(d.dataset.tid); else this._trOffen.delete(d.dataset.tid);
     }, true);
@@ -577,9 +661,28 @@ class SprachmodellPanel extends HTMLElement {
     if (this._reiter === 'pruefen') this._markieren(false);
     if (main.querySelector('[data-welle]')) this._wellen(main);
     if (this._reiter === 'aufnehmen') this._recZeichnen();
+    if (!main.classList.contains('still')) this._hochzaehlen(main);
     positionen.forEach(([el, y]) => { if (el.scrollTop !== y) el.scrollTop = y; });
     // cards fill in their content a moment later: let go of the height only once they have
     requestAnimationFrame(() => { main.style.minHeight = ''; });
+  }
+
+  // big numbers count up when a page opens (not when its data refreshes)
+  _hochzaehlen(wurzel) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    wurzel.querySelectorAll('.wert, .ring span, .rd-wert b').forEach((el) => {
+      if (el.children.length) return;
+      const m = /^(\D{0,2}?)(\d+(?:[.,]\d+)?)(.*)$/.exec(el.textContent.trim()); if (!m) return;
+      const ziel = parseFloat(m[2].replace(',', '.')), stellen = (m[2].split(/[.,]/)[1] || '').length, komma = m[2].includes(',') ? ',' : '.';
+      if (!(ziel > 0) || (m[1] && m[1] !== 'v')) return;
+      const start = performance.now(), dauer = 900;
+      const schritt = (jetzt) => {
+        const f = Math.min(1, (jetzt - start) / dauer), x = ziel * (1 - Math.pow(1 - f, 3));
+        el.textContent = m[1] + (stellen ? x.toFixed(stellen).replace('.', komma) : String(Math.round(x))) + m[3];
+        if (f < 1 && el.isConnected) requestAnimationFrame(schritt);
+      };
+      requestAnimationFrame(schritt);
+    });
   }
 
   _scrollPositionen() {
@@ -601,7 +704,7 @@ class SprachmodellPanel extends HTMLElement {
 
   _quoteRing(q, farbe) {
     const r = 25, u = 2 * Math.PI * r, a = q == null ? 0 : Math.max(0, Math.min(1, q));
-    return `<div class="ring"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="${r}" class="hinten"></circle>${q == null ? '' : `<circle cx="32" cy="32" r="${r}" class="vorn" style="stroke:${farbe};stroke-dasharray:${u.toFixed(1)};stroke-dashoffset:${(u * (1 - a)).toFixed(1)}"></circle>`}</svg><span>${q == null ? '–' : Math.round(a * 100) + '%'}</span><small>${esc(this.t('h_erkennt'))}</small></div>`;
+    return `<div class="ring"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="${r}" class="hinten"></circle>${q == null ? '' : `<circle cx="32" cy="32" r="${r}" class="vorn" style="stroke:${farbe};stroke-dasharray:${u.toFixed(1)};stroke-dashoffset:${(u * (1 - a)).toFixed(1)};--voll:${u.toFixed(1)}"></circle>`}</svg><span>${q == null ? '–' : Math.round(a * 100) + '%'}</span><small>${esc(this.t('h_erkennt'))}</small></div>`;
   }
 
   _tage(tage, farbe) {
@@ -931,10 +1034,39 @@ ${this._neustartKnopf(t)}</div>
   <ha-card class="kachel" data-reiter="${this._admin ? 'wort' : 'geraete'}"><div class="klein"><ha-icon icon="mdi:speaker-wireless"></ha-icon> ${esc(this.t('ue_geraete'))}</div><div class="wert">${geraete.length}</div><div class="klein">${geraete.map(esc).join(', ') || esc(this.t('z_kein_geraet'))}</div></ha-card>
 </div>
 <ha-card><h2>${esc(this.t('ue_alltag'))}</h2>${this._alltag()}</ha-card>
-<ha-card><h2>${esc(this.t('ue_so'))}</h2><div class="klein" style="line-height:1.6">
-1. ${this.t('ue_so_1')}<br>2. ${esc(this.t('ue_so_2', { w: e.wort }))}<br>3. ${this.t('ue_so_3')}<br>
-4. ${esc(e.nachts ? this.t('ue_so_4n', { u: String(d.einstellungen.uhrzeit).slice(0, 5) }) : this.t('ue_so_4h'))} ${esc(this.t('ue_so_4b'))} ${esc(e.automatisch_einspielen ? this.t('ue_so_5a') : this.t('ue_so_5h'))}
-</div></ha-card>`;
+${this._weg(w, v)}`;
+  }
+
+  // the way of a wake word as four stations; the one that needs you now glows, the ones behind are done
+  _weg(w, v) {
+    const d = this._daten, s = w.statistik, t = w.training, e = w.einstellungen, laeuft = LAEUFT.includes(t.phase);
+    const n = Object.keys(e.geraete || {}).length;
+    const jetzt = s.offen ? 1 : (laeuft || t.phase === 'wartet') ? 2 : !v ? 2 : 3;
+    const stationen = [
+      ['pruefen', 'mdi:microphone-message', 'ws_sammeln', this.t('ws_sammeln_wert', { n: s.aufnahmen })],
+      ['pruefen', 'mdi:playlist-check', 'ws_pruefen', s.offen ? this.t('ws_pruefen_offen', { n: s.offen }) : this.t('ws_pruefen_fertig')],
+      ['training', 'mdi:auto-fix', 'ws_training', laeuft ? this.t('p_' + t.phase) + (t.prozent != null ? ` · ${Math.round(t.prozent)} %` : '')
+        : e.nachts ? this.t('ws_training_nachts', { u: String(d.einstellungen.uhrzeit).slice(0, 5) }) : this.t('ws_training_hand')],
+      ['qualitaet', 'mdi:speaker-wireless', 'ws_geraet', v ? this.t('ws_geraet_wert', { v: v.nr, n }) : this.t('ws_geraet_noch')],
+    ];
+    const erklaerung = [this.t('ue_so_1'), esc(this.t('ue_so_2', { w: e.wort })), this.t('ue_so_3'),
+      esc(e.nachts ? this.t('ue_so_4n', { u: String(d.einstellungen.uhrzeit).slice(0, 5) }) : this.t('ue_so_4h')) + ' ' + esc(this.t('ue_so_4b')) + ' ' + esc(e.automatisch_einspielen ? this.t('ue_so_5a') : this.t('ue_so_5h'))];
+    return `<ha-card><h2>${esc(this.t('ue_so'))}</h2><div class="weg ${laeuft ? 'laeuft' : ''}">${stationen.map(([reiter, icon, titel, wert], i) => `${i ? `<div class="weg-linie ${i <= jetzt ? 'durch' : ''}"><i></i></div>` : ''}<a class="weg-station ${i < jetzt ? 'erledigt' : i === jetzt ? 'jetzt' : ''}" data-reiter="${reiter}" style="--n:${i}">
+<span class="weg-punkt"><ha-icon icon="${i < jetzt ? 'mdi:check' : icon}"></ha-icon></span><b>${esc(this.t(titel))}</b><span class="klein">${esc(wert)}</span></a>`).join('')}</div>
+<details class="weg-mehr"><summary class="klein">${esc(this.t('ws_mehr'))}</summary><ol class="klein">${erklaerung.map((x) => `<li>${x}</li>`).join('')}</ol></details></ha-card>`;
+  }
+
+  // how the word got better: hit rate of every version that was used, drawn in as a line
+  _kurve(w) {
+    const vs = [...w.versionen].filter((v) => v.bericht && v.bericht.neu && v.bericht.neu.trefferquote != null && v.status !== 'verworfen').sort((a, b) => a.nr - b.nr);
+    if (vs.length < 2) return '';
+    const q = vs.map((v) => v.bericht.neu.trefferquote), lo = Math.max(0, Math.min(...q) - 0.05), hi = Math.min(1, Math.max(...q) + 0.02);
+    const B = 600, H = 120, x = (i) => 30 + (i / (vs.length - 1)) * (B - 60), y = (v) => 14 + (1 - (v - lo) / ((hi - lo) || 1)) * (H - 44);
+    const pkt = q.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    const farbe = this._farbe(this._wortKurz() || {});
+    return `<svg class="kurve" viewBox="0 0 ${B} ${H}" style="--farbe:${esc(farbe)}" aria-label="${esc(this.t('ku_titel'))}">
+<polygon class="ku-flaeche" points="${x(0).toFixed(1)},${H - 24} ${pkt} ${x(vs.length - 1).toFixed(1)},${H - 24}"/><polyline class="ku-linie" points="${pkt}"/>
+${vs.map((v, i) => `<g class="ku-punkt" style="--n:${i}"><circle cx="${x(i).toFixed(1)}" cy="${y(q[i]).toFixed(1)}" r="${v.nr === w.aktiv ? 6 : 4}" class="${v.nr === w.aktiv ? 'aktiv' : ''}"/><text x="${x(i).toFixed(1)}" y="${(y(q[i]) - 11).toFixed(1)}">${esc(this._pct(q[i]))}</text><text class="ku-v" x="${x(i).toFixed(1)}" y="${H - 6}">v${v.nr}</text></g>`).join('')}</svg>`;
   }
 
   _alltag() {
@@ -1385,18 +1517,19 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
 <div class="zeile" style="margin-bottom:8px"><button class="chip ${r.modus === 'wort' ? 'an' : ''}" data-recmodus="wort">${esc(this.t('au_wort'))}: „${esc(this._daten.wort.einstellungen.wort)}“</button><button class="chip ${r.modus === 'kein_wort' ? 'an' : ''}" data-recmodus="kein_wort">${esc(this.t('au_gegen'))}</button></div>
 <div class="klein" style="line-height:1.5">${esc(this.t(r.modus === 'wort' ? 'au_hilfe_wort' : 'au_hilfe_gegen'))}</div>
 <div class="zeile" style="margin-top:10px"><span class="klein">${esc(this.t('h_wer'))}</span>${this._personWahl(this._person, 'rec')}<input type="text" id="recnotiz" style="max-width:260px" placeholder="${esc(this.t('au_umgebung_bsp'))}" value="${esc(r.notiz || '')}" title="${esc(this.t('au_umgebung'))}"></div>
-<div class="rec"><button class="gross ${r.an ? 'an' : ''}" data-a="rec" ${sicher ? '' : 'disabled'}><ha-icon icon="${r.an ? 'mdi:stop' : 'mdi:microphone'}"></ha-icon></button><div class="pegel" title="${esc(this.t('au_pegel'))}"><i id="pegel"></i></div><div class="klein" id="recinfo">${esc(this.t(r.an ? 'au_stopp' : 'au_start'))}</div></div>
+<div class="rec"><button class="gross ${r.an ? 'an' : ''}" data-a="rec" ${sicher ? '' : 'disabled'}><ha-icon icon="${r.an ? 'mdi:stop' : 'mdi:microphone'}"></ha-icon></button><div class="rec-welle ${r.an ? 'an' : ''}"><canvas id="recwelle" height="72"></canvas></div><div class="pegel" title="${esc(this.t('au_pegel'))}"><i id="pegel"></i></div><div class="klein" id="recinfo">${esc(this.t(r.an ? 'au_stopp' : 'au_start'))}</div></div>
 <div id="takes"></div>
-<div class="klein" style="margin-top:12px">${esc(this.t('au_wieviel', { n: bisher }))}</div></ha-card>`;
+<div class="rec-ziel">${this._zielRing(bisher, 50 * Math.max(1, Object.entries(s.personen || {}).filter(([n, p]) => n !== 'Unbekannt' && (r.modus === 'wort' ? p.wort : p.kein_wort)).length))}<div class="klein">${esc(this.t('au_wieviel', { n: bisher }))}</div></div></ha-card>`;
   }
 
   _recZeichnen() {
     const box = this.shadowRoot.getElementById('takes'); if (!box) return;
     const r = this._rec;
-    box.innerHTML = r.takes.length ? `<div class="takes">${r.takes.map((t, i) => `<span class="take ${t.modus === 'kein_wort' ? 'gegen' : ''}">${this._zahl(t.dauer, 1)} s<button data-takespielen="${i}" title="${esc(this.t('pr_abspielen'))}"><ha-icon icon="mdi:play"></ha-icon></button><button data-takeweg="${i}"><ha-icon icon="mdi:close"></ha-icon></button></span>`).join('')}</div>
+    box.innerHTML = r.takes.length ? `<div class="takes">${r.takes.map((t, i) => `<span class="take ${t.modus === 'kein_wort' ? 'gegen' : ''} ${Date.now() - (t.zeit || 0) < 1500 ? 'neu' : ''}">${this._miniForm(t.form)}${this._zahl(t.dauer, 1)} s<button data-takespielen="${i}" title="${esc(this.t('pr_abspielen'))}"><ha-icon icon="mdi:play"></ha-icon></button><button data-takeweg="${i}"><ha-icon icon="mdi:close"></ha-icon></button></span>`).join('')}</div>
 <div class="zeile" style="margin-top:12px"><button class="k haupt" data-a="recspeichern"><ha-icon icon="mdi:content-save-outline"></ha-icon>${esc(this.t('au_speichern', { n: r.takes.length }))}</button><button class="k leise" data-a="recverwerfen">${esc(this.t('au_verwerfen'))}</button></div>` : `<div class="klein" style="text-align:center">${esc(this.t('au_leer'))}</div>`;
     const knopf = this.shadowRoot.querySelector('[data-a="rec"]');
     if (knopf) { knopf.classList.toggle('an', r.an); knopf.querySelector('ha-icon').setAttribute('icon', r.an ? 'mdi:stop' : 'mdi:microphone'); }
+    const welle = this.shadowRoot.querySelector('.rec-welle'); if (welle) welle.classList.toggle('an', r.an);
     const info = this.shadowRoot.getElementById('recinfo'); if (info) info.textContent = this.t(r.an ? 'au_stopp' : 'au_start');
   }
 
@@ -1409,6 +1542,7 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
     const quelle = ctx.createMediaStreamSource(r.strom);
     const proz = ctx.createScriptProcessor(2048, 1, 1);
     const rate = ctx.sampleRate, block = 2048 / rate;
+    r.spitzen = [];
     // Einfache Trennung nach Lautstärke: Sprache = deutlich über dem Grundrauschen
     let rauschen = 0.004, imWort = false, still = 0, puffer = [], vorlauf = [];
     const VOR = Math.ceil(0.3 / block), NACH = Math.ceil(0.35 / block), LANG = Math.ceil(3.0 / block);
@@ -1417,6 +1551,8 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
       let s = 0; for (let i = 0; i < x.length; i++) s += x[i] * x[i];
       const rms = Math.sqrt(s / x.length);
       const p = this.shadowRoot.getElementById('pegel'); if (p) p.style.width = Math.min(100, Math.sqrt(rms) * 300) + '%';
+      let spitze = 0; for (let i = 0; i < x.length; i++) spitze = Math.max(spitze, Math.abs(x[i]));
+      r.spitzen.push({ p: spitze, wort: imWort }); if (r.spitzen.length > 400) r.spitzen.shift();
       const laut = rms > Math.max(0.012, rauschen * 4);
       if (!imWort) {
         rauschen = rauschen * 0.97 + rms * 0.03;
@@ -1435,6 +1571,40 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
     quelle.connect(proz); proz.connect(ctx.destination);
     Object.assign(r, { ctx, quelle, proz, an: true });
     this._recZeichnen();
+    this._recWelle();
+  }
+
+  // live wave while recording: speech that becomes a take glows in the colour of the word
+  _recWelle() {
+    const r = this._rec;
+    const malen = () => {
+      const c = this.shadowRoot.getElementById('recwelle');
+      if (!r.an || !c) { r.welle = null; return; }
+      const b = c.clientWidth || 300, h = c.height; if (c.width !== b) c.width = b;
+      const g = c.getContext('2d'), st = getComputedStyle(this);
+      const farbe = r.modus === 'kein_wort' ? (st.getPropertyValue('--error-color').trim() || '#f44336') : (st.getPropertyValue('--primary-color').trim() || '#03a9f4');
+      g.clearRect(0, 0, b, h);
+      const n = Math.floor(b / 4), sp = r.spitzen.slice(-n), v = n - sp.length;
+      sp.forEach((x, i) => {
+        const y = Math.max(2, Math.min(h - 2, Math.sqrt(x.p) * h * 1.2));
+        g.globalAlpha = (x.wort ? 0.55 : 0.18) + 0.45 * (i / n);
+        g.fillStyle = x.wort ? farbe : st.getPropertyValue('--secondary-text-color').trim() || '#888';
+        g.fillRect((v + i) * 4, (h - y) / 2, 2.5, y);
+      });
+      g.globalAlpha = 1;
+      r.welle = requestAnimationFrame(malen);
+    };
+    if (!r.welle) r.welle = requestAnimationFrame(malen);
+  }
+
+  _miniForm(form) {
+    if (!form) return '';
+    return `<svg class="mini-form" viewBox="0 0 48 16" aria-hidden="true">${form.map((x, i) => { const y = Math.max(1.5, Math.min(16, Math.sqrt(x) * 18)); return `<rect x="${i * 2}" y="${((16 - y) / 2).toFixed(1)}" width="1.3" height="${y.toFixed(1)}" rx=".6"/>`; }).join('')}</svg>`;
+  }
+
+  _zielRing(wert, ziel) {
+    const a = Math.min(1, wert / ziel), u = 2 * Math.PI * 16;
+    return `<div class="ziel-ring ${a >= 1 ? 'voll' : ''}"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" class="hinten"/><circle cx="20" cy="20" r="16" class="vorn" style="stroke-dasharray:${u.toFixed(1)};stroke-dashoffset:${(u * (1 - a)).toFixed(1)};--voll:${u.toFixed(1)}"/></svg>${a >= 1 ? '<ha-icon icon="mdi:check"></ha-icon>' : `<span>${Math.round(a * 100)}%</span>`}</div>`;
   }
 
   _recStopp() {
@@ -1461,7 +1631,8 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
     kopf.setUint32(16, 16, true); kopf.setUint16(20, 1, true); kopf.setUint16(22, 1, true); kopf.setUint32(24, 16000, true);
     kopf.setUint32(28, 32000, true); kopf.setUint16(32, 2, true); kopf.setUint16(34, 16, true); schreib(36, 'data'); kopf.setUint32(40, m * 2, true);
     const blob = new Blob([kopf, aus.buffer], { type: 'audio/wav' });
-    this._rec.takes.push({ blob, url: URL.createObjectURL(blob), dauer: m / 16000, modus: this._rec.modus });
+    const form = Array.from({ length: 24 }, (_, k) => { let x = 0; for (let i = Math.floor((k * m) / 24); i < Math.floor(((k + 1) * m) / 24); i++) x = Math.max(x, Math.abs(aus[i])); return x / 32768; });
+    this._rec.takes.push({ blob, url: URL.createObjectURL(blob), dauer: m / 16000, modus: this._rec.modus, form, zeit: Date.now() });
     this._recZeichnen();
   }
 
@@ -1624,16 +1795,17 @@ ${t.phase === 'fehler' ? `<p class="rot">${esc(this._schritt(t.schritt || t.hinw
 <div class="zeile" style="margin-top:12px">${laeuft || t.phase === 'wartet' ? `<button class="k schlecht" data-a="abbrechen"><ha-icon icon="mdi:stop"></ha-icon>${esc(this.t('t_abbrechen'))}</button>` : `<button class="k haupt" data-a="trainieren"><ha-icon icon="mdi:play"></ha-icon>${esc(this.t('t_jetzt'))}</button><span class="klein">${esc(w.neu_seit_lauf > 0 ? this.t('t_neue', { n: w.neu_seit_lauf }) : this.t('t_keine_neuen'))}</span>`}</div></ha-card>
 ${this._details(w, laeuft)}
 <ha-card><h2>${esc(this.t('t_auto'))}</h2>
-<div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="nachts" ${e.nachts ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_nachts'))} · ${esc(String(d.einstellungen.uhrzeit).slice(0, 5))}</label></div>
-<div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="automatisch_einspielen" ${e.automatisch_einspielen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_einspielen'))}</label></div>
-<div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="schwelle_automatisch" ${e.schwelle_automatisch ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_schwelle_auto'))}</label></div>
-<div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="vorpruefen" ${e.vorpruefen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_vorpruefen'))}</label></div>
-<div class="zeile"><label><input type="checkbox" data-wopt="gruendlich" ${e.gruendlich ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_gruendlich'))}</label></div>
-<div class="zeile unter ${e.gruendlich ? '' : 'aus'}"><label><input type="checkbox" data-wopt="mitteln" ${e.mitteln ? 'checked' : ''} ${this._admin && e.gruendlich ? '' : 'disabled'}> ${esc(this.t('t_mitteln'))}</label></div>
-${this._gruendlichInfo(w, e)}
+<div class="schalter-raster">
+${this._kachelSchalter('nachts', 'mdi:weather-night', 'sw_nachts', 'sw_nachts_text', e.nachts, { zusatz: String(d.einstellungen.uhrzeit).slice(0, 5) })}
+${this._kachelSchalter('automatisch_einspielen', 'mdi:rocket-launch-outline', 'sw_einspielen', 'sw_einspielen_text', e.automatisch_einspielen)}
+${this._kachelSchalter('schwelle_automatisch', 'mdi:tune-vertical', 'sw_schwelle', 'sw_schwelle_text', e.schwelle_automatisch)}
+${this._kachelSchalter('vorpruefen', 'mdi:ear-hearing', 'sw_vorpruefen', 'sw_vorpruefen_text', e.vorpruefen)}
+${this._kachelSchalter('gruendlich', 'mdi:podium-gold', 'sw_gruendlich', 'sw_gruendlich_text', e.gruendlich, { unter: `<label class="unter-schalter ${e.gruendlich ? '' : 'aus'}"><input type="checkbox" class="schieber" data-wopt="mitteln" ${e.mitteln ? 'checked' : ''} ${this._admin && e.gruendlich ? '' : 'disabled'}><span><b>${esc(this.t('sw_mitteln'))}</b><span class="klein">${esc(this.t('sw_mitteln_text'))}</span></span></label>` })}
 ${this._raumSchalter(e)}
+</div>
+${this._gruendlichInfo(w, e)}
 <p class="klein">${esc(this.t('t_besser_heisst'))}</p></ha-card>
-<ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}${l.geraet === 'gpu' || l.geraet_rueckfall ? `<div class="klein">${esc(this.t(l.geraet_rueckfall ? 'l_rueckfall' : 'l_gpu'))}</div>` : ''}${l.trainer_name && (this._daten.trainer.liste || []).length > 1 ? `<div class="klein">${esc(l.trainer_name)}</div>` : ''}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
+<ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${this._kurve(w)}${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}${l.geraet === 'gpu' || l.geraet_rueckfall ? `<div class="klein">${esc(this.t(l.geraet_rueckfall ? 'l_rueckfall' : 'l_gpu'))}</div>` : ''}${l.trainer_name && (this._daten.trainer.liste || []).length > 1 ? `<div class="klein">${esc(l.trainer_name)}</div>` : ''}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
   }
 
   // ---------- Qualität ----------
@@ -1777,7 +1949,7 @@ ${this._tabelle()}
 <ha-card><h2>${esc(this.t('q_schwelle'))}</h2>${this._verteilung(sj, s.schwelle_vorschlag)}
 ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.schwelle_vorschlag != null ? `<div class="zeile weit" style="margin-top:10px"><span>${this.t('q_vorschlag', { w: this._zahl(s.schwelle_vorschlag) })} ${sj != null ? esc(this.t('q_jetzt', { w: this._zahl(sj) })) : ''}</span><button class="k haupt" data-a="schwelle" data-wert="${s.schwelle_vorschlag}" ${!this._admin || (sj != null && Math.abs(sj - s.schwelle_vorschlag) < 0.005) ? 'disabled' : ''}>${esc(this.t('q_uebernehmen'))}</button></div>` : `<div class="klein">${esc(this.t('q_vorschlag_spaeter'))}</div>`}
 <div class="klein" style="margin-top:8px">${esc(this.t('q_legende'))}${(w.einstellungen || {}).schwelle_automatisch ? '' : ' ' + esc(this.t('q_legende_hand'))}</div></ha-card>
-<ha-card><h2>${esc(this.t('q_versionen'))}</h2>${w.versionen.length ? this._versionen(w) : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>`;
+<ha-card><h2>${esc(this.t('q_versionen'))}</h2>${this._kurve(w)}${w.versionen.length ? this._versionen(w) : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>`;
   }
 
   _schwelleAuto(s, sj) {
@@ -1840,6 +2012,38 @@ ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.s
     return `<div class="farbwahl">${FARBEN.map((f) => `<button data-farbe="${f}" class="${f === wert ? 'an' : ''}" style="background:${f}" aria-label="${f}"></button>`).join('')}</div>`;
   }
 
+  // live preview of the word being created: it appears big in its colour as you type
+  _neuVorschau(e) {
+    const spr = SPRACHNAMEN[this._spr][e.sprache] || this._sprachname(e.sprache);
+    return `<div class="neu-vorschau ${e.wort ? 'da' : ''}" style="--farbe:${esc(e.farbe || FARBEN[0])}"><div class="nv-funken" aria-hidden="true">${Array.from({ length: 10 }, (_, i) => `<i style="--i:${i}"></i>`).join('')}</div>
+<div class="klein nv-sprache">${esc(spr)}</div><div class="nv-wort">${esc(e.wort || this.t('nv_leer'))}</div><div class="klein nv-text">${esc(this.t(e.wort ? 'nv_da' : 'nv_hilfe'))}</div></div>`;
+  }
+
+  _neuStand() {
+    const e = this._entwurf, sr = this.shadowRoot; if (!e || e.id) return;
+    const v = sr.querySelector('.neu-vorschau'); if (!v) return;
+    const war = v.classList.contains('da');
+    v.classList.toggle('da', !!String(e.wort || '').trim());
+    v.style.setProperty('--farbe', e.farbe || FARBEN[0]);
+    v.querySelector('.nv-wort').textContent = String(e.wort || '').trim() || this.t('nv_leer');
+    v.querySelector('.nv-text').textContent = this.t(String(e.wort || '').trim() ? 'nv_da' : 'nv_hilfe');
+    const spr = sr.querySelector('select[data-feld="sprache"]');
+    if (spr) v.querySelector('.nv-sprache').textContent = spr.options[spr.selectedIndex] ? spr.options[spr.selectedIndex].text : '';
+    if (!war && v.classList.contains('da')) { v.classList.remove('funkt'); void v.offsetWidth; v.classList.add('funkt'); }
+    const schritt = (n, ok) => { const el = sr.querySelector(`.neu-schritt[data-schritt="${n}"]`); if (el) el.classList.toggle('fertig', ok); };
+    schritt('wort', !!String(e.wort || '').trim());
+    schritt('geraete', Object.keys(e.geraete || {}).length > 0);
+  }
+
+  // creating a word: a short moment of magic, then its page
+  async _erschaffen(name, farbe) {
+    const box = this.shadowRoot.querySelector('.raum-wurzel'); if (!box || this._raumD) return;
+    box.innerHTML = `<div class="rd-hinter"></div><div class="rd erschaffen" style="--farbe:${esc(farbe)}">${this._magie('training', farbe)}<div class="er-wort">${esc(name)}</div><p class="rd-mitte klein">${esc(this.t('nv_erschaffen'))}</p>${this._konfetti()}</div>`;
+    await new Promise((r) => setTimeout(r, 1900));
+    const dlg = box.querySelector('.rd'); if (dlg) dlg.classList.add('geht');
+    setTimeout(() => { if (!this._raumD) box.innerHTML = ''; }, 260);
+  }
+
   _neu() {
     const d = this._daten;
     if (!this._entwurf || this._entwurf.id) {
@@ -1848,14 +2052,15 @@ ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.s
     }
     const e = this._entwurf;
     const modelle = (d.vorhandene_modelle || []).filter((m) => !d.woerter.some((w) => w.modell_id === m.modell_id));
-    return `<ha-card><h2>${esc(this.t('w_neu_titel'))}</h2><div class="klein" style="line-height:1.5">${this.t('w_neu_text')}</div>
-<label class="feld">${esc(this.t('w_text'))}</label><input type="text" data-feld="wort" value="${esc(e.wort)}" placeholder="${esc(this.t('w_text_bsp'))}">
-<label class="feld">${esc(this.t('w_sprache'))}</label>${this._sprachWahl(e.sprache)}<div class="klein" style="margin-top:4px">${esc(this.t('w_sprache_hilfe'))}</div>
+    return `${this._neuVorschau(e)}<ha-card><h2>${esc(this.t('w_neu_titel'))}</h2><div class="klein" style="line-height:1.5">${this.t('w_neu_text')}</div>
+<div class="neu-schritt" data-schritt="wort"><span class="neu-nr">1</span><div><label class="feld">${esc(this.t('w_text'))}</label><input type="text" data-feld="wort" value="${esc(e.wort)}" placeholder="${esc(this.t('w_text_bsp'))}"></div></div>
+<div class="neu-schritt fertig" data-schritt="sprache"><span class="neu-nr">2</span><div><label class="feld">${esc(this.t('w_sprache'))}</label>${this._sprachWahl(e.sprache)}<div class="klein" style="margin-top:4px">${esc(this.t('w_sprache_hilfe'))}</div></div></div>
+<div class="neu-schritt fertig" data-schritt="aussehen"><span class="neu-nr">3</span><div>
 ${modelle.length ? `<label class="feld">${esc(this.t('w_vorhanden'))}</label><select data-feld="modell_id"><option value="">${esc(this.t('w_vorhanden_keins'))}</option>${modelle.map((m) => `<option value="${esc(m.modell_id)}" ${m.modell_id === e.modell_id ? 'selected' : ''}>${esc(m.anzeige || m.modell_id)} (${esc(m.modell_id)}.tflite)</option>`).join('')}</select><div class="klein" style="margin-top:4px">${esc(this.t('w_modell_hilfe'))}</div>` : ''}
 <label class="feld">${esc(this.t('w_anzeige'))}</label><input type="text" data-feld="anzeige" value="${esc(e.anzeige)}" placeholder="${esc(this.t('w_anzeige_hilfe', { w: e.wort || '…' }))}">
-<label class="feld">${esc(this.t('w_farbe'))}</label>${this._farbWahl(e.farbe)}
-<h3>${esc(this.t('w_geraete'))}</h3><div class="klein">${esc(this.t('w_geraete_hilfe'))}</div>${this._plaetze(e, null)}
-<div class="zeile" style="margin-top:16px"><button class="k haupt" data-a="anlegen"><ha-icon icon="mdi:plus"></ha-icon>${esc(this.t('w_anlegen'))}</button></div></ha-card>`;
+<label class="feld">${esc(this.t('w_farbe'))}</label>${this._farbWahl(e.farbe)}</div></div>
+<div class="neu-schritt" data-schritt="geraete"><span class="neu-nr">4</span><div><h3>${esc(this.t('w_geraete'))}</h3><div class="klein">${esc(this.t('w_geraete_hilfe'))}</div>${this._plaetze(e, null)}</div></div>
+<div class="zeile" style="margin-top:16px"><button class="k haupt gross-k" data-a="anlegen"><ha-icon icon="mdi:auto-fix"></ha-icon>${esc(this.t('w_anlegen'))}</button></div></ha-card>`;
   }
 
   _wortSeite() {
@@ -1903,8 +2108,16 @@ ${r && this._admin ? `<button class="k leise" data-raum="loeschen" data-knoten="
 
   _raumSchalter(e) {
     const n = (this._daten.geraete || []).filter((g) => g.raum).length;
-    return `<div class="zeile" style="margin-top:10px"><label><input type="checkbox" data-wopt="raumklang" ${e.raumklang !== false ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_raumklang'))}</label></div>
-<div class="klein unter-text">${n ? esc(this.t('rk_wort_an', { n })) : `${esc(this.t('rk_wort_keins'))} <a class="chip" data-reiter="geraete"><ha-icon icon="mdi:hand-clap"></ha-icon>${esc(this.t('rk_zu_geraeten'))}</a>`}</div>`;
+    const info = n ? `<span class="klein kachel-info"><ha-icon icon="mdi:check-circle"></ha-icon>${esc(this.t('rk_wort_an', { n }))}</span>`
+      : `<span class="klein kachel-info">${esc(this.t('rk_wort_keins'))} <a class="chip" data-reiter="geraete"><ha-icon icon="mdi:hand-clap"></ha-icon>${esc(this.t('rk_zu_geraeten'))}</a></span>`;
+    return this._kachelSchalter('raumklang', 'mdi:home-sound-out', 'sw_raumklang', 'sw_raumklang_text', e.raumklang !== false, { unter: info });
+  }
+
+  // one setting as a tile: icon, short title, one line on what it does, a switch; on = tinted and the icon glows
+  _kachelSchalter(opt, icon, titel, text, an, x = {}) {
+    return `<div class="kschalter ${an ? 'an' : ''}"><label class="kschalter-kopf"><span class="kschalter-ikon"><ha-icon icon="${icon}"></ha-icon></span>
+<span class="kschalter-text"><b>${esc(this.t(titel))}${x.zusatz ? ` <span class="klein">· ${esc(x.zusatz)}</span>` : ''}</b><span class="klein">${esc(this.t(text))}</span></span>
+<input type="checkbox" class="schieber" data-wopt="${opt}" ${an ? 'checked' : ''} ${this._admin ? '' : 'disabled'}></label>${x.unter || ''}</div>`;
   }
 
   _hallArt(h) { return h < 0.3 ? 'trocken' : h < 0.6 ? 'normal' : 'hallig'; }
@@ -2250,21 +2463,25 @@ ${e.laut ? `<div class="hinweis">${esc(this.t('rk_zu_laut'))}</div>` : ''}
     const basis = tr.adresse || location.origin;
     if (!this._admin) return `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('es_trainer'))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(tr.online ? this.t('t_trainer_an') : tr.kontakt ? this.t('t_trainer_zuletzt', { z: this._zeit(tr.kontakt) }) : this.t('t_trainer_nie'))}</span></div><p class="klein">${esc(this.t('nur_admin_hinweis'))}</p></ha-card>
 <div class="klein">${esc(this.t('es_info', { v: d.version_integration, a: d.ablage }))}</div>`;
-    return `<ha-card><h2>${esc(this.t('es_allgemein'))}</h2>
-<label class="feld">${esc(this.t('es_zeit'))}</label><input type="time" data-zopt="uhrzeit" value="${esc(String(e.uhrzeit).slice(0, 5))}">
+    return `${this._abschnitt('allgemein', 'mdi:clock-outline', 'es_allgemein', 'es_allgemein_kurz', `<label class="feld">${esc(this.t('es_zeit'))}</label><input type="time" data-zopt="uhrzeit" value="${esc(String(e.uhrzeit).slice(0, 5))}">
 <label class="feld">${esc(this.t('es_min_neu'))}</label><input type="number" min="1" max="500" data-zopt="nachts_min_neu" value="${e.nachts_min_neu}">
 <label class="feld">${esc(this.t('es_erinnerung'))}</label><input type="number" min="0" max="60" data-zopt="erinnerung_tage" value="${e.erinnerung_tage}">
 <label class="feld">${esc(this.t('es_aufbewahren'))}</label><input type="number" min="7" max="365" data-zopt="unbewertet_tage" value="${e.unbewertet_tage}">
-<label class="feld">${esc(this.t('es_personen'))}</label><input type="text" data-zopt="personen" value="${esc((e.personen || []).join(', '))}" placeholder="${esc(d.personen.join(', '))}"></ha-card>
-<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('es_trainer'))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(this._trainerStatus())}</span></div>
-<p class="klein" style="line-height:1.5">${esc(this.t('es_trainer_text'))}</p>
+<label class="feld">${esc(this.t('es_personen'))}</label><input type="text" data-zopt="personen" value="${esc((e.personen || []).join(', '))}" placeholder="${esc(d.personen.join(', '))}">`)}
+${this._abschnitt('trainer', 'mdi:school-outline', 'es_trainer', '', `<p class="klein" style="line-height:1.5">${esc(this.t('es_trainer_text'))}</p>
 <h3>${esc(this.t('tr_deine'))}</h3>${this._trainerUebersicht()}
 <h3>${esc(this.t('ei_titel'))}</h3>${this._einrichten(basis)}
-<table><tr><td>${esc(this.t('es_adresse'))}</td><td><code>${esc(basis)}</code></td></tr><tr><td>${esc(this.t('es_schluessel'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="schluessel">${esc(this.t(this._zeigeSchl ? 'es_verbergen' : 'es_zeigen'))}</button><button class="k leise" data-a="schluessel_neu">${esc(this.t('es_neu_schluessel'))}</button></div></td></tr></table>
-</ha-card>
+<table><tr><td>${esc(this.t('es_adresse'))}</td><td><code>${esc(basis)}</code></td></tr><tr><td>${esc(this.t('es_schluessel'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="schluessel">${esc(this.t(this._zeigeSchl ? 'es_verbergen' : 'es_zeigen'))}</button><button class="k leise" data-a="schluessel_neu">${esc(this.t('es_neu_schluessel'))}</button></div></td></tr></table>`, `<span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(this._trainerStatus())}</span>`)}
 ${this._sendenKarte(tr, basis)}
-<ha-card><h2>${esc(this.t('es_ablage'))}</h2><p class="klein" style="line-height:1.6">${this.t('es_ablage_text', { a: esc(d.ablage) })}</p></ha-card>
+${this._abschnitt('ablage', 'mdi:folder-outline', 'es_ablage', 'es_ablage_kurz', `<p class="klein" style="line-height:1.6">${this.t('es_ablage_text', { a: esc(d.ablage) })}</p>`)}
 <div class="klein">${esc(this.t('es_info', { v: d.version_integration, a: d.ablage }))}</div>`;
+  }
+
+  // a settings section that folds open and closed; which ones are open is remembered in this browser
+  _abschnitt(id, icon, titel, kurz, inhalt, rechts = '') {
+    const offen = this._merk('abschnitt.' + id);
+    const auf = offen == null ? id === 'trainer' : offen === '1';
+    return `<ha-card class="abschnitt"><details data-abschnitt="${id}" ${auf ? 'open' : ''}><summary><span class="ab-ikon"><ha-icon icon="${icon}"></ha-icon></span><span class="ab-titel"><h2>${esc(this.t(titel))}</h2>${kurz ? `<span class="klein">${esc(this.t(kurz))}</span>` : ''}</span>${rechts}<ha-icon class="ab-pfeil" icon="mdi:chevron-down"></ha-icon></summary><div class="ab-inhalt">${inhalt}</div></details></ha-card>`;
   }
 
   _sendenKarte(tr, basis) {
@@ -2288,11 +2505,11 @@ ${this._sendenKarte(tr, basis)}
 <div class="zeile sgeraet-regler">${schalter(s.behalten_entitaet, behalten, this.t('es_schalter_behalten'), true)}${schalter(s.seite_entitaet, seite, this.t('es_schalter_seite'))}${auswahl}</div>
 <div class="zeile weit"><span class="klein">${esc(extra || (s.ip ? 'IP ' + s.ip : ''))}</span>${einrichten}</div></div>`;
     }).join('');
-    return `<ha-card><h2>${esc(this.t('es_senden'))}</h2><p class="klein" style="line-height:1.6">${esc(this.t('es_senden_text'))}</p>
+    return this._abschnitt('senden', 'mdi:send-outline', 'es_senden', 'es_senden_kurz', `<p class="klein" style="line-height:1.6">${esc(this.t('es_senden_text'))}</p>
 <ol class="klein" style="line-height:1.6;padding-left:20px">${schritte}</ol>
 <table><tr><td>${esc(this.t('es_senden_ziel'))}</td><td><code>Custom</code></td></tr><tr><td>${esc(this.t('es_adresse'))}</td><td><div class="schluessel"><code>${esc(adresse)}</code><button class="k leise" data-a="kopieren" data-text="${esc(adresse)}">${esc(this.t('es_kopieren'))}</button></div></td></tr><tr><td>${esc(this.t('es_senden_token'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="kopieren" data-schl="1">${esc(this.t('es_kopieren'))}</button></div></td></tr></table>
 ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraete'))}</h3><div class="sgeraete">${zeilen}</div>` : `<p class="klein">${esc(this.t('es_senden_keine'))}</p>`}
-<p class="klein" style="line-height:1.6">${esc(this.t('es_senden_hinweis'))}</p></ha-card>`;
+<p class="klein" style="line-height:1.6">${esc(this.t('es_senden_hinweis'))}</p>`);
   }
 
   async _kopieren(text) {
@@ -2327,7 +2544,7 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
     if (t.dataset.recmodus) { this._rec.modus = t.dataset.recmodus; this._zeichnen(); return; }
     if (t.dataset.takespielen) { const tk = this._rec.takes[Number(t.dataset.takespielen)]; if (tk) this._spielen('take' + t.dataset.takespielen, tk.url); return; }
     if (t.dataset.takeweg) { const [tk] = this._rec.takes.splice(Number(t.dataset.takeweg), 1); if (tk) URL.revokeObjectURL(tk.url); this._recZeichnen(); return; }
-    if (t.dataset.farbe) { if (this._entwurf) { this._entwurf.farbe = t.dataset.farbe; this._entwurf._geaendert = true; } this.shadowRoot.querySelectorAll('[data-farbe]').forEach((b) => b.classList.toggle('an', b === t)); return; }
+    if (t.dataset.farbe) { if (this._entwurf) { this._entwurf.farbe = t.dataset.farbe; this._entwurf._geaendert = true; } this.shadowRoot.querySelectorAll('[data-farbe]').forEach((b) => b.classList.toggle('an', b === t)); this._neuStand(); return; }
     const a = t.dataset.a;
     try {
       if (a === 'neu') this._laden();
@@ -2391,7 +2608,9 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
         if (!String(e2.wort || '').trim()) { this._meldung(this.t('w_fehlt')); return; }
         t.disabled = true;
         const r = await this._api('POST', 'aktion', { aktion: 'wort_neu', einstellungen: e2 });
+        const zauber = this._erschaffen(String(e2.wort).trim(), e2.farbe || FARBEN[0]);
         this._entwurf = null; this._gehe('uebersicht', r.id);
+        await zauber;
       } else if (a === 'wort_speichern') {
         const e2 = this._entwurfDaten(); delete e2.modell_id;
         if (!String(e2.wort || '').trim()) { this._meldung(this.t('w_fehlt')); return; }
@@ -2422,6 +2641,7 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
     if (t.dataset.feld && this._entwurf && t.tagName === 'INPUT') {
       this._entwurf[t.dataset.feld] = t.value; this._entwurf._geaendert = true;
       if (t.dataset.feld === 'wort' && !this._entwurf.id) { const an = this.shadowRoot.querySelector('input[data-feld="anzeige"]'); if (an) an.placeholder = this.t('w_anzeige_hilfe', { w: t.value || '…' }); }
+      this._neuStand();
     }
   }
 
@@ -2430,11 +2650,11 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
     if (t.id === 'datei') { this._hochladen([...t.files]); t.value = ''; return; }
     if (t.id === 'autoplay') { this._autoplay = t.checked; this._merk('autoplay', t.checked ? '1' : '0'); return; }
     if (t.id === 'recnotiz') { this._rec.notiz = t.value; return; }
-    if (t.dataset.feld && this._entwurf) { this._entwurf[t.dataset.feld] = t.value; this._entwurf._geaendert = true; return; }
+    if (t.dataset.feld && this._entwurf) { this._entwurf[t.dataset.feld] = t.value; this._entwurf._geaendert = true; this._neuStand(); return; }
     if (t.dataset.platz !== undefined && this._entwurf) {
       const g = { ...(this._entwurf.geraete || {}) };
       if (t.value) g[t.dataset.platz] = t.value; else delete g[t.dataset.platz];
-      this._entwurf.geraete = g; this._entwurf._geaendert = true; return;
+      this._entwurf.geraete = g; this._entwurf._geaendert = true; this._neuStand(); return;
     }
     if (t.dataset.gschalter) {
       // "Keep wake clips" off deletes the clips on the device, so that one asks first
@@ -2457,6 +2677,12 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
     }
     try {
       if (t.dataset.wopt) {
+        const kachel = t.closest('.kschalter-kopf') && t.closest('.kschalter');
+        if (kachel) { kachel.classList.toggle('an', t.checked); kachel.classList.toggle('neu', t.checked); }
+        if (t.dataset.wopt === 'gruendlich' && kachel) {
+          const u = kachel.querySelector('.unter-schalter'), m = u && u.querySelector('input');
+          if (u) u.classList.toggle('aus', !t.checked); if (m) m.disabled = !t.checked || !this._admin;
+        }
         await this._api('POST', 'aktion', { aktion: 'wort_aendern', wort: this._wortId, einstellungen: { [t.dataset.wopt]: t.checked } });
         this._meldung(this.t('gespeichert'));
       } else if (t.dataset.ttaste) {
