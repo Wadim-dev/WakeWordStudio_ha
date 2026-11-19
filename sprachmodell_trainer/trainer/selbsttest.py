@@ -25,8 +25,14 @@ RATE = 16000
 class _HA:
     """Stands in for Home Assistant."""
 
+    def __init__(self) -> None:
+        self.klatscher: dict[str, bytes] = {}
+
     def status(self, daten: dict) -> None:
         pass
+
+    def raum(self, knoten: str, rid: str) -> bytes | None:
+        return self.klatscher.get(rid)
 
 
 def _wav(pfad: Path, x: np.ndarray) -> str:
@@ -75,6 +81,33 @@ def main() -> None:
                                                 "wiederholungen": 0, "prozesse": 1}, 0, 1, "merkmale")
             assert ergebnis.get("merkmale", 0) > 0, f"no long features: {ergebnis}"
         print(f"SELBSTTEST features ok ({time.time() - t0:.0f} s)", flush=True)
+
+        # room sound of the user's devices: fetched, mixed to about half with the general set, usable by the
+        # augmentation, and the features are rebuilt when the claps change
+        ha = lauf.ha
+        for i in range(2):
+            klatsch = np.concatenate([[0.9], rnd.normal(0, 0.2, 3000) * np.exp(-np.arange(3000) / 900)])
+            sf.write(o / "k.wav", np.clip(klatsch, -1, 1), RATE, subtype="PCM_16")
+            ha.klatscher[f"k{i}"] = (o / "k.wav").read_bytes()
+        rir_dir = Path(rir).parent
+        for i in range(5):
+            _wav(rir_dir / f"r{i}.wav", np.concatenate([[1.0], rnd.normal(0, 0.05, 800) * np.exp(-np.arange(800) / 150)]))
+        lauf.auftrag["raeume"] = [{"knoten": "kueche", "id": "k0"}, {"knoten": "kueche", "id": "k1"},
+                                  {"knoten": "bad", "id": "weg"}]
+        mix = lauf._raumklang(rir_dir)
+        eigen = sorted(mix.glob("eigen_*.wav"))
+        assert lauf.raum_n == 2 and len(eigen) == 6 and len(list(mix.glob("r*.wav"))) == 6, (lauf.raum_n, len(eigen))
+        ergebnis = lauf._merkmale_werkzeug({
+            "ziel": str(o / "raum_test" / "pos_mmap"), "dateien": pos[:4], "wiederholungen": 3, "frames": 150,
+            "trim": True, "bg": bg, "rir": str(mix), "snr_min": 5, "prozesse": 1,
+        }, 0, 1, "merkmale")
+        assert ergebnis.get("merkmale", 0) > 0, f"no features with the room mix: {ergebnis}"
+        sig = lauf.raum_sig
+        lauf.auftrag["raeume"] = lauf.auftrag["raeume"][:1]
+        lauf._raumklang(rir_dir)
+        assert lauf.raum_sig and lauf.raum_sig != sig, "room change must rebuild the features"
+        lauf.auftrag["raeume"], lauf.raum_n, lauf.raum_sig = [], 0, ""
+        print("SELBSTTEST room sound ok", flush=True)
 
         merkmale = {"pos": {"dir": str(m / "pos"), "wort": True, "gewicht": 1.0, "strafe": 1.0},
                     "neg": {"dir": str(m / "neg"), "wort": False, "gewicht": 1.0, "strafe": 1.0}}

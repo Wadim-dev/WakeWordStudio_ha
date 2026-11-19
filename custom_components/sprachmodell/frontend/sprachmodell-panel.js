@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.33';
+const VERSION = '1.0.34';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -60,7 +60,12 @@ h3{font-size:14px;font-weight:500;margin:18px 0 6px;color:var(--secondary-text-c
 .wortkarte .reihe{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
 .zeile{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .zeile.weit{justify-content:space-between}
-.zeile.unter{margin:6px 0 0 26px}.zeile.unter.aus{opacity:.5}
+.zeile.unter{margin:6px 0 0 26px}.zeile.unter.aus{opacity:.5}.unter-text{margin:4px 0 0 26px;line-height:1.6}
+.v-karte{padding:6px 16px!important}.v-hinweis{display:flex;align-items:center;gap:12px;padding:10px 0;flex-wrap:wrap}.v-hinweis+.v-hinweis{border-top:1px solid var(--divider-color)}
+.v-hinweis>ha-icon{color:var(--primary-color);flex:none}.v-hinweis.warn>ha-icon{color:var(--warning-color)}.v-text{flex:1 1 220px;line-height:1.45}
+.dreher{display:inline-block;width:16px;height:16px;border:2px solid var(--divider-color);border-top-color:var(--primary-color);border-radius:50%;animation:drehen 1s linear infinite;flex:none}
+button.startet{gap:8px}.klein.warn{color:var(--warning-color);margin-top:4px}
+@media (prefers-reduced-motion:reduce){.dreher{animation:none}}
 button.k{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:18px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer;background:rgba(var(--rgb-primary-text-color,0,0,0),.07);color:var(--primary-text-color)}
 button.k:disabled{opacity:.45;cursor:default}
 button.k.haupt{background:var(--primary-color);color:var(--text-primary-color,#fff)}
@@ -323,6 +328,149 @@ table.tb th,table.tb td{border:0;padding:0;vertical-align:middle}
 .tb-z.auff{outline:2px solid var(--warning-color,#ff9800);outline-offset:-2px;font-weight:600}
 .tb-muster{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}.tb-muster.auff{outline:2px solid var(--warning-color,#ff9800);outline-offset:-2px}.tb-muster.sw{background:var(--primary-color)}
 @media (max-width:600px){main{padding:12px 8px 80px}.eintrag{grid-template-columns:44px minmax(0,1fr);gap:10px;padding:10px}.spielen{width:44px;height:44px}button.k kbd{display:none}}
+.raum{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px;padding:12px;border-radius:14px;background:linear-gradient(120deg,rgba(var(--rgb-primary-color,3,169,244),.07),rgba(var(--rgb-primary-color,3,169,244),.02))}
+.raum.an{background:linear-gradient(120deg,rgba(var(--rgb-success-color,76,175,80),.12),rgba(var(--rgb-primary-color,3,169,244),.05))}
+.raum-ikon{position:relative;width:44px;height:44px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(var(--rgb-primary-color,3,169,244),.16);color:var(--primary-color)}
+.raum.an .raum-ikon{background:rgba(var(--rgb-success-color,76,175,80),.2);color:var(--success-color,#4caf50)}
+.raum-ikon i{position:absolute;inset:0;border-radius:50%;border:2px solid currentColor;opacity:0;animation:raum-welle 3.2s ease-out infinite;animation-delay:calc(var(--i) * .64s)}
+.raum:not(.an) .raum-ikon i:nth-child(n+3){display:none}
+@keyframes raum-welle{0%{transform:scale(.8);opacity:.5}100%{transform:scale(1.9);opacity:0}}
+.raum-text{flex:1 1 220px;min-width:0}.raum-warum{margin-top:3px;line-height:1.45}
+.raum-knoepfe{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.raum-wurzel:empty{display:none}
+.rd-hinter{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);animation:rd-hell .25s ease-out both}
+.rd{position:fixed;z-index:21;left:50%;top:50%;width:min(460px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;transform:translate(-50%,-50%);border-radius:24px;background:var(--card-background-color,var(--ha-card-background,#fff));box-shadow:0 18px 60px rgba(0,0,0,.35);animation:rd-auf .35s cubic-bezier(.2,.9,.3,1.2) both;box-sizing:border-box}
+.rd.geht{animation:rd-zu .25s ease-in both}
+@keyframes rd-hell{from{opacity:0}}@keyframes rd-auf{from{opacity:0;transform:translate(-50%,-46%) scale(.94)}}@keyframes rd-zu{to{opacity:0;transform:translate(-50%,-48%) scale(.96)}}
+.rd-kopf{display:flex;align-items:center;gap:12px;padding:16px 12px 6px 20px}.rd-kopf>ha-icon{color:var(--primary-color)}.rd-kopf>div{flex:1;min-width:0}.rd-kopf b{font-size:18px;font-weight:500}
+.rd-kopf .ikon{width:40px;height:40px;border-radius:50%;border:0;background:none;color:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.rd-inhalt{padding:4px 20px 20px}.rd-schritt{animation:auftauchen .4s cubic-bezier(.2,.8,.3,1) both}
+.rd-mitte{text-align:center;line-height:1.5}
+.rd-knoepfe{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:16px}
+.rd-schritte{margin:8px 0;padding-left:22px;line-height:1.6}.rd-schritte li{margin:3px 0;animation:auftauchen .45s both}.rd-schritte li:nth-child(2){animation-delay:.12s}.rd-schritte li:nth-child(3){animation-delay:.24s}
+.rd-tipp{line-height:1.5}
+.rd-szene{display:block;width:100%;height:auto;color:var(--primary-color)}
+.rd-szene .sz-boden{fill:var(--divider-color,rgba(127,127,127,.3))}
+.rd-szene .sz-geraet rect{fill:var(--secondary-text-color);opacity:.55}.rd-szene .sz-geraet circle{fill:var(--primary-color);animation:atmen 1.6s ease-in-out infinite}
+.rd-szene .sz-handy rect{fill:var(--primary-text-color);opacity:.75}.rd-szene .sz-handy .sz-schirm{fill:var(--primary-color);opacity:1}
+.rd-szene .sz-person circle,.rd-szene .sz-person path{fill:none;stroke:var(--primary-text-color);stroke-width:3;stroke-linecap:round;opacity:.8}
+.rd-szene .sz-l{transform-origin:250px 52px;animation:sz-klatsch 1.1s ease-in-out infinite}.rd-szene .sz-r{transform-origin:250px 56px;animation:sz-klatsch2 1.1s ease-in-out infinite}
+@keyframes sz-klatsch{0%,100%{transform:rotate(-14deg)}45%{transform:rotate(2deg)}}@keyframes sz-klatsch2{0%,100%{transform:rotate(14deg)}45%{transform:rotate(-2deg)}}
+.rd-szene .sz-ringe circle{fill:none;stroke:var(--primary-color);stroke-width:2;opacity:0;transform-box:fill-box;transform-origin:center;animation:sz-ring 1.1s ease-out infinite}
+.rd-szene .sz-ringe circle:nth-child(2){animation-delay:.18s}.rd-szene .sz-ringe circle:nth-child(3){animation-delay:.36s}
+@keyframes sz-ring{0%,40%{transform:scale(.4);opacity:0}48%{opacity:.9}100%{transform:scale(3.2);opacity:0}}
+.rd-szene .sz-weg{fill:none;stroke:var(--primary-color);stroke-width:2;stroke-dasharray:5 7;opacity:.55;animation:sz-weg 1.1s linear infinite}@keyframes sz-weg{to{stroke-dashoffset:-24}}
+.rd-zaehler{position:relative;width:160px;height:160px;margin:10px auto}.rd-zaehler svg{width:100%;height:100%;transform:rotate(-90deg)}
+.rd-ring-grund{fill:none;stroke:rgba(var(--rgb-primary-color,3,169,244),.14);stroke-width:8}
+.rd-ring{fill:none;stroke:var(--primary-color);stroke-width:8;stroke-linecap:round;stroke-dasharray:327;stroke-dashoffset:0;animation:rd-ablauf var(--dauer) linear forwards;filter:drop-shadow(0 0 6px rgba(var(--rgb-primary-color,3,169,244),.6))}
+@keyframes rd-ablauf{to{stroke-dashoffset:327}}
+.rd-zaehler b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:300;font-variant-numeric:tabular-nums}
+.rd-zaehler b.tick{animation:rd-tick .5s cubic-bezier(.2,.9,.3,1.3)}@keyframes rd-tick{from{transform:scale(1.5);opacity:.2}}
+.rd-live{position:relative;border-radius:16px;overflow:hidden;background:radial-gradient(ellipse at center,rgba(var(--rgb-primary-color,3,169,244),.16),rgba(var(--rgb-primary-color,3,169,244),.03))}
+.rd-live canvas{display:block;width:100%;height:120px}
+.rd-aufnahme{position:absolute;left:12px;top:8px;font-size:12px;color:var(--secondary-text-color)}
+.rd-blitz{position:absolute;inset:0;background:radial-gradient(circle at center,rgba(255,255,255,.55),transparent 60%);animation:rd-blitz .7s ease-out forwards;pointer-events:none}@keyframes rd-blitz{from{opacity:1;transform:scale(.6)}to{opacity:0;transform:scale(1.6)}}
+.rd-punkte{display:flex;justify-content:center;gap:14px;margin:14px 0 4px}
+.rd-punkt{position:relative;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(var(--rgb-primary-text-color,0,0,0),.06);color:var(--secondary-text-color);transition:background .3s,color .3s}
+.rd-punkt.an{background:var(--primary-color);color:var(--text-primary-color,#fff);animation:rd-pop .5s cubic-bezier(.2,.9,.3,1.5)}
+.rd-punkt.an::after{content:'';position:absolute;inset:0;border-radius:50%;border:2px solid var(--primary-color);animation:m-ring .9s ease-out forwards}
+@keyframes rd-pop{0%{transform:scale(.6)}60%{transform:scale(1.2)}100%{transform:none}}
+.rd-zeit{height:6px}
+.rd-denkt{font-size:15px;min-height:24px}.rd-denkt.neu{animation:auftauchen .35s both}
+.rd-ergebnis{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;margin-top:6px}
+.rd-kurven{width:100%;height:110px;border-radius:12px;background:rgba(var(--rgb-primary-text-color,0,0,0),.04)}
+.rd-kurven line{stroke:var(--divider-color,rgba(127,127,127,.3))}
+.rd-kurven polyline{fill:none;stroke:var(--c);stroke-width:2;stroke-linejoin:round;vector-effect:non-scaling-stroke;stroke-dasharray:1200;stroke-dashoffset:1200;animation:rd-zeichnen 1.4s cubic-bezier(.3,.7,.3,1) forwards;animation-delay:var(--v)}
+@keyframes rd-zeichnen{to{stroke-dashoffset:0}}
+.rd-kurven polygon{fill:var(--c);opacity:0;animation:rd-flaeche .9s ease-out forwards;animation-delay:var(--v)}@keyframes rd-flaeche{to{opacity:.05}}
+.rd-wert{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:96px}.rd-wert b{font-size:30px;font-weight:400;font-variant-numeric:tabular-nums;animation:rd-pop .6s .3s both}
+.rd-art{cursor:default}.rd-trocken{background:rgba(255,152,0,.18)}.rd-normal{background:rgba(var(--rgb-success-color,76,175,80),.2)}.rd-hallig{background:rgba(156,39,176,.2)}
+.rd-fertig{display:flex;justify-content:center;margin:12px 0 0}.rd-fertig ha-icon{--mdc-icon-size:72px;color:var(--success-color,#4caf50);animation:rd-pop .6s cubic-bezier(.2,.9,.3,1.5) both}
+.rd-fertig.rd-nein ha-icon{color:var(--warning-color,#ff9800)}
+@media (max-width:420px){.rd-ergebnis{grid-template-columns:1fr}.rd{border-radius:20px}}
+@media (prefers-reduced-motion:reduce){.raum-ikon i,.rd *,.rd,.rd-hinter{animation:none!important}.rd-kurven polyline{stroke-dashoffset:0}}
+.schalter-raster{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin:4px 0 14px}
+.kschalter{border-radius:16px;padding:12px 14px;background:rgba(var(--rgb-primary-text-color,0,0,0),.04);border:1px solid transparent;transition:background .35s,border-color .35s,box-shadow .35s}
+.kschalter.an{background:linear-gradient(135deg,rgba(var(--rgb-primary-color,3,169,244),.14),rgba(var(--rgb-primary-color,3,169,244),.04));border-color:rgba(var(--rgb-primary-color,3,169,244),.25)}
+.kschalter-kopf{display:flex;gap:12px;align-items:center;cursor:pointer}
+.kschalter-ikon{width:40px;height:40px;flex:none;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgba(var(--rgb-primary-text-color,0,0,0),.07);color:var(--secondary-text-color);transition:background .35s,color .35s,box-shadow .35s,transform .35s}
+.kschalter.an .kschalter-ikon{background:var(--primary-color);color:var(--text-primary-color,#fff);box-shadow:0 4px 14px rgba(var(--rgb-primary-color,3,169,244),.45)}
+.kschalter.an.neu .kschalter-ikon{animation:k-funke .6s cubic-bezier(.2,.9,.3,1.4)}@keyframes k-funke{0%{transform:scale(.7) rotate(-12deg)}60%{transform:scale(1.15) rotate(4deg)}100%{transform:none}}
+.kschalter-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.kschalter-text b{font-weight:500}.kschalter-text .klein{line-height:1.4}
+input.schieber{appearance:none;-webkit-appearance:none;flex:none;width:42px;height:24px;border-radius:12px;background:rgba(var(--rgb-primary-text-color,0,0,0),.22);position:relative;cursor:pointer;margin:0;transition:background .25s}
+input.schieber::after{content:'';position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.35);transition:transform .25s cubic-bezier(.3,.9,.4,1.3)}
+input.schieber:checked{background:var(--primary-color)}input.schieber:checked::after{transform:translateX(18px)}
+input.schieber:disabled{opacity:.45;cursor:default}
+.unter-schalter{display:flex;gap:10px;align-items:center;margin:10px 0 0 52px;padding-top:10px;border-top:1px solid rgba(var(--rgb-primary-text-color,0,0,0),.08);cursor:pointer;transition:opacity .3s}
+.unter-schalter>span{display:flex;flex-direction:column;gap:2px;flex:1}.unter-schalter b{font-weight:500;font-size:14px}.unter-schalter.aus{opacity:.45}
+.kachel-info{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 0 52px}.kachel-info ha-icon{--mdc-icon-size:16px;color:var(--success-color,#4caf50)}
+@media (max-width:500px){.schalter-raster{grid-template-columns:1fr}.unter-schalter,.kachel-info{margin-left:0}}
+@media (prefers-reduced-motion:reduce){.kschalter-ikon{animation:none!important}}
+main:not(.still) .ring .vorn{animation:ring-fuellen 1.1s cubic-bezier(.3,.8,.3,1) both}@keyframes ring-fuellen{from{stroke-dashoffset:var(--voll)}}
+.weg{display:flex;align-items:flex-start;gap:0;margin:6px 0 4px}
+.weg-station{flex:0 0 auto;width:120px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;cursor:pointer;color:inherit;text-decoration:none;border-radius:14px;padding:6px 4px}
+.weg-station:hover{background:rgba(var(--rgb-primary-text-color,0,0,0),.04)}
+.weg-station b{font-weight:500;font-size:14px}.weg-station .klein{line-height:1.35}
+.weg-punkt{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(var(--rgb-primary-text-color,0,0,0),.07);color:var(--secondary-text-color);position:relative;transition:background .4s,color .4s}
+main:not(.still) .weg-punkt{animation:rd-pop .55s cubic-bezier(.2,.9,.3,1.5) both;animation-delay:calc(var(--n) * .15s)}
+.weg-station.erledigt .weg-punkt{background:rgba(var(--rgb-success-color,76,175,80),.2);color:var(--success-color,#4caf50)}
+.weg-station.jetzt .weg-punkt{background:var(--primary-color);color:var(--text-primary-color,#fff);box-shadow:0 4px 16px rgba(var(--rgb-primary-color,3,169,244),.5)}
+.weg-station.jetzt .weg-punkt::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--primary-color);animation:weg-puls 2s ease-out infinite}
+@keyframes weg-puls{0%{transform:scale(.9);opacity:.8}100%{transform:scale(1.45);opacity:0}}
+.weg-linie{flex:1 1 20px;min-width:16px;height:4px;margin-top:28px;border-radius:2px;background:rgba(var(--rgb-primary-text-color,0,0,0),.08);overflow:hidden;position:relative}
+.weg-linie i{position:absolute;inset:0;width:0;background:var(--success-color,#4caf50);border-radius:2px}
+.weg-linie.durch i{width:100%}main:not(.still) .weg-linie.durch i{animation:balken-wachsen .5s ease-out both;animation-delay:calc(.15s + var(--n,0) * .15s)}
+.weg-linie:not(.durch)::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(90deg,rgba(var(--rgb-primary-color,3,169,244),.5) 0 6px,transparent 6px 14px);background-size:28px 100%;opacity:.0}
+.weg-linie.durch+.weg-station.jetzt{}
+.weg .weg-linie.durch:has(+.weg-station.jetzt) i{background:linear-gradient(90deg,var(--success-color,#4caf50),var(--primary-color))}
+.weg-mehr{margin-top:10px}.weg-mehr summary{cursor:pointer}.weg-mehr ol{margin:8px 0 0;padding-left:20px;line-height:1.6}
+@media (max-width:560px){.weg{flex-direction:column;align-items:stretch}.weg-station{width:auto;flex-direction:row;text-align:left;gap:12px}.weg-station b{min-width:84px}.weg-linie{width:4px;min-width:0;height:18px;flex:0 0 18px;margin:0 0 0 26px}.weg-linie i{height:100%}}
+@media (prefers-reduced-motion:reduce){.weg *,main .ring .vorn{animation:none!important}}
+.rec-welle{width:100%;max-width:520px;border-radius:14px;overflow:hidden;background:radial-gradient(ellipse at center,rgba(var(--rgb-primary-color,3,169,244),.1),transparent 70%);transition:background .4s}
+.rec-welle canvas{display:block;width:100%;height:72px}
+.rec-welle:not(.an){opacity:.5}
+.take.neu{animation:rd-pop .5s cubic-bezier(.2,.9,.3,1.5)}
+.mini-form{width:48px;height:16px;margin-right:6px;fill:var(--primary-color)}.take.gegen .mini-form{fill:var(--error-color,#f44336)}
+.rec-ziel{display:flex;align-items:center;gap:12px;margin-top:14px}
+.ziel-ring{position:relative;width:44px;height:44px;flex:none}.ziel-ring svg{width:44px;height:44px;transform:rotate(-90deg)}
+.ziel-ring circle{fill:none;stroke-width:4;stroke-linecap:round}.ziel-ring .hinten{stroke:rgba(var(--rgb-primary-text-color,0,0,0),.08)}.ziel-ring .vorn{stroke:var(--primary-color);transition:stroke-dashoffset .8s}
+.ziel-ring.voll .vorn{stroke:var(--success-color,#4caf50)}
+main:not(.still) .ziel-ring .vorn{animation:ring-fuellen 1.1s cubic-bezier(.3,.8,.3,1) both}
+.ziel-ring span,.ziel-ring ha-icon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500}.ziel-ring ha-icon{--mdc-icon-size:20px;color:var(--success-color,#4caf50)}
+ha-card.abschnitt{padding:0}
+.abschnitt summary{display:flex;align-items:center;gap:14px;padding:16px;cursor:pointer;list-style:none;border-radius:var(--ha-card-border-radius,12px)}
+.abschnitt summary::-webkit-details-marker{display:none}
+.abschnitt summary:hover{background:rgba(var(--rgb-primary-text-color,0,0,0),.03)}
+.ab-ikon{width:40px;height:40px;flex:none;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgba(var(--rgb-primary-color,3,169,244),.14);color:var(--primary-color);transition:transform .35s}
+.abschnitt details[open] .ab-ikon{transform:rotate(-8deg) scale(1.05)}
+.ab-titel{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.ab-titel h2{margin:0}
+.ab-pfeil{color:var(--secondary-text-color);transition:transform .3s cubic-bezier(.3,.8,.3,1)}
+.abschnitt details[open] .ab-pfeil{transform:rotate(180deg)}
+.ab-inhalt{padding:0 16px 16px}
+.abschnitt details[open] .ab-inhalt{animation:aufklappen .35s ease-out}
+.neu-vorschau{position:relative;overflow:hidden;margin:0 0 16px;padding:22px 20px;border-radius:var(--ha-card-border-radius,12px);text-align:center;background:linear-gradient(135deg,color-mix(in srgb,var(--farbe) 22%,transparent),color-mix(in srgb,var(--farbe) 6%,transparent));border:1px solid color-mix(in srgb,var(--farbe) 35%,transparent);transition:background .5s,border-color .5s}
+.nv-wort{font-size:34px;font-weight:300;letter-spacing:.5px;margin:4px 0;color:var(--secondary-text-color);transition:color .4s,text-shadow .4s;word-break:break-word}
+.neu-vorschau.da .nv-wort{color:var(--primary-text-color);text-shadow:0 0 22px color-mix(in srgb,var(--farbe) 70%,transparent)}
+.nv-funken i{position:absolute;left:calc(8% + var(--i) * 9%);top:50%;width:6px;height:6px;border-radius:50%;background:var(--farbe);opacity:0}
+.neu-vorschau.da .nv-funken i{animation:nv-funke 3.4s ease-in-out infinite;animation-delay:calc(var(--i) * .33s)}
+@keyframes nv-funke{0%{opacity:0;transform:translateY(18px) scale(.4)}30%{opacity:.85}100%{opacity:0;transform:translateY(-46px) scale(1)}}
+.neu-vorschau.funkt{animation:gefeiert 1.1s ease-out}.neu-vorschau.funkt .nv-wort{animation:rd-pop .55s cubic-bezier(.2,.9,.3,1.5)}
+.neu-schritt{display:grid;grid-template-columns:30px 1fr;gap:0 12px;align-items:start;margin-top:6px}
+.neu-nr{width:26px;height:26px;margin-top:12px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;background:rgba(var(--rgb-primary-text-color,0,0,0),.08);color:var(--secondary-text-color);transition:background .35s,color .35s}
+.neu-schritt.fertig .neu-nr{background:var(--primary-color);color:var(--text-primary-color,#fff);animation:rd-pop .45s cubic-bezier(.2,.9,.3,1.5)}
+.neu-schritt h3{margin-top:14px}
+button.k.gross-k{padding:11px 20px;font-size:15px;box-shadow:0 4px 16px rgba(var(--rgb-primary-color,3,169,244),.35)}
+.rd.erschaffen{padding:22px 20px 26px;text-align:center}.rd.erschaffen .magie{color:var(--farbe)}
+.er-wort{font-size:30px;font-weight:300;margin:6px 0;text-shadow:0 0 24px color-mix(in srgb,var(--farbe) 75%,transparent);animation:rd-pop .7s .3s cubic-bezier(.2,.9,.3,1.5) both}
+@media (prefers-reduced-motion:reduce){.nv-funken,.neu-vorschau *{animation:none!important}}
+.kurve{display:block;width:100%;height:auto;max-height:150px;margin:2px 0 10px;overflow:visible;color:var(--farbe)}
+.ku-linie{fill:none;stroke:var(--farbe);stroke-width:3;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:2000;stroke-dashoffset:0}
+main:not(.still) .ku-linie{animation:ku-zeichnen 1.6s cubic-bezier(.3,.7,.3,1) both}@keyframes ku-zeichnen{from{stroke-dashoffset:2000}}
+.ku-flaeche{fill:var(--farbe);opacity:.1}main:not(.still) .ku-flaeche{animation:ku-flaeche 1.2s .5s ease-out both}@keyframes ku-flaeche{from{opacity:0}}
+.ku-punkt circle{fill:var(--card-background-color,#1c1c1c);stroke:var(--farbe);stroke-width:3}.ku-punkt circle.aktiv{fill:var(--farbe);filter:drop-shadow(0 0 6px var(--farbe))}
+main:not(.still) .ku-punkt{animation:auftauchen .4s both;animation-delay:calc(.25s + var(--n) * .2s)}
+.kurve text{font-size:13px;fill:var(--primary-text-color);text-anchor:middle}.kurve text.ku-v{fill:var(--secondary-text-color);font-size:12px}
+@media (prefers-reduced-motion:reduce){.kurve *{animation:none!important}}
 `;
 
 class SprachmodellPanel extends HTMLElement {
@@ -406,7 +554,7 @@ class SprachmodellPanel extends HTMLElement {
     }
     window.addEventListener('keydown', this._taste);
   }
-  disconnectedCallback() { window.removeEventListener('keydown', this._taste); this._audio.pause(); this._recStopp(); }
+  disconnectedCallback() { window.removeEventListener('keydown', this._taste); this._audio.pause(); this._recStopp(); if (this._raumD) this._raumSchliessen(); }
 
   // Formular offen und geändert? Dann nicht unter den Fingern neu zeichnen
   _bearbeitet() { return ['neu', 'wort'].includes(this._reiter) && this._entwurf && this._entwurf._geaendert; }
@@ -423,7 +571,7 @@ class SprachmodellPanel extends HTMLElement {
 <div class="kopf"><ha-menu-button></ha-menu-button><h1>${esc(this.t('titel'))}</h1>
 <button class="ikon" data-reiter="geraete" title="${esc(this.t('r_geraete'))}"><ha-icon icon="mdi:speaker-wireless"></ha-icon></button>
 <button class="ikon" data-reiter="einstellungen" title="${esc(this.t('r_einstellungen'))}"><ha-icon icon="mdi:cog-outline"></ha-icon></button></div>
-<div class="leisten"><nav class="woerter"></nav><nav class="reiter"></nav></div><main></main><input type="file" id="datei" accept=".zip,application/zip,.wav,audio/wav" hidden multiple>`;
+<div class="leisten"><nav class="woerter"></nav><nav class="reiter"></nav></div><main></main><div class="raum-wurzel"></div><input type="file" id="datei" accept=".zip,application/zip,.wav,audio/wav" hidden multiple>`;
     const m = this.shadowRoot.querySelector('ha-menu-button'); m.hass = this._hass; m.narrow = this._narrow;
     this._reiter = this._reiter || 'zentrale';
     this.shadowRoot.addEventListener('click', (e) => this._klick(e));
@@ -431,7 +579,9 @@ class SprachmodellPanel extends HTMLElement {
     this.shadowRoot.addEventListener('input', (e) => this._eingabe(e));
     // which trainer entries are open survives a redraw ("toggle" does not bubble, so listen while capturing)
     this.shadowRoot.addEventListener('toggle', (e) => {
-      const d = e.target; if (!d.classList || !d.classList.contains('tr-eintrag')) return;
+      const d = e.target;
+      if (d.dataset && d.dataset.abschnitt) { this._merk('abschnitt.' + d.dataset.abschnitt, d.open ? '1' : '0'); return; }
+      if (!d.classList || !d.classList.contains('tr-eintrag')) return;
       this._trOffen = this._trOffen || new Set([...this.shadowRoot.querySelectorAll('details.tr-eintrag[open]')].map((x) => x.dataset.tid));
       if (d.open) this._trOffen.add(d.dataset.tid); else this._trOffen.delete(d.dataset.tid);
     }, true);
@@ -511,9 +661,28 @@ class SprachmodellPanel extends HTMLElement {
     if (this._reiter === 'pruefen') this._markieren(false);
     if (main.querySelector('[data-welle]')) this._wellen(main);
     if (this._reiter === 'aufnehmen') this._recZeichnen();
+    if (!main.classList.contains('still')) this._hochzaehlen(main);
     positionen.forEach(([el, y]) => { if (el.scrollTop !== y) el.scrollTop = y; });
     // cards fill in their content a moment later: let go of the height only once they have
     requestAnimationFrame(() => { main.style.minHeight = ''; });
+  }
+
+  // big numbers count up when a page opens (not when its data refreshes)
+  _hochzaehlen(wurzel) {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    wurzel.querySelectorAll('.wert, .ring span, .rd-wert b').forEach((el) => {
+      if (el.children.length) return;
+      const m = /^(\D{0,2}?)(\d+(?:[.,]\d+)?)(.*)$/.exec(el.textContent.trim()); if (!m) return;
+      const ziel = parseFloat(m[2].replace(',', '.')), stellen = (m[2].split(/[.,]/)[1] || '').length, komma = m[2].includes(',') ? ',' : '.';
+      if (!(ziel > 0) || (m[1] && m[1] !== 'v')) return;
+      const start = performance.now(), dauer = 900;
+      const schritt = (jetzt) => {
+        const f = Math.min(1, (jetzt - start) / dauer), x = ziel * (1 - Math.pow(1 - f, 3));
+        el.textContent = m[1] + (stellen ? x.toFixed(stellen).replace('.', komma) : String(Math.round(x))) + m[3];
+        if (f < 1 && el.isConnected) requestAnimationFrame(schritt);
+      };
+      requestAnimationFrame(schritt);
+    });
   }
 
   _scrollPositionen() {
@@ -535,7 +704,7 @@ class SprachmodellPanel extends HTMLElement {
 
   _quoteRing(q, farbe) {
     const r = 25, u = 2 * Math.PI * r, a = q == null ? 0 : Math.max(0, Math.min(1, q));
-    return `<div class="ring"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="${r}" class="hinten"></circle>${q == null ? '' : `<circle cx="32" cy="32" r="${r}" class="vorn" style="stroke:${farbe};stroke-dasharray:${u.toFixed(1)};stroke-dashoffset:${(u * (1 - a)).toFixed(1)}"></circle>`}</svg><span>${q == null ? '–' : Math.round(a * 100) + '%'}</span><small>${esc(this.t('h_erkennt'))}</small></div>`;
+    return `<div class="ring"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="${r}" class="hinten"></circle>${q == null ? '' : `<circle cx="32" cy="32" r="${r}" class="vorn" style="stroke:${farbe};stroke-dasharray:${u.toFixed(1)};stroke-dashoffset:${(u * (1 - a)).toFixed(1)};--voll:${u.toFixed(1)}"></circle>`}</svg><span>${q == null ? '–' : Math.round(a * 100) + '%'}</span><small>${esc(this.t('h_erkennt'))}</small></div>`;
   }
 
   _tage(tage, farbe) {
@@ -717,7 +886,7 @@ ${unten}</ha-card>`;
     const ampel = (stufe) => `<span class="punkt" style="background:var(--${['success', 'warning', 'error'][stufe]}-color)"></span>`;
     const zeilen = [];
     const aelter = (a, b) => { const x = String(a).split('.').map(Number), y = String(b).split('.').map(Number); for (let k = 0; k < 3; k++) if ((x[k] || 0) !== (y[k] || 0)) return (x[k] || 0) < (y[k] || 0); return false; };
-    if (i.version) { const alt = aelter(i.version, VERSION); zeilen.push([this.t('sb_version'), 'v' + i.version + (i.art ? ' · ' + (i.art === 'app' ? this.t('sb_app') : 'Docker') : ''), alt ? 1 : 0, alt ? this.t(tr.bild_bereit === false ? 'sb_version_bild_fehlt' : this._daten.einstellungen.trainer_neustart ? 'sb_version_alt_knopf' : 'sb_version_alt', { v: VERSION }) : '']); }
+    if (i.version) { const alt = aelter(i.version, VERSION); zeilen.push([this.t('sb_version'), 'v' + i.version + (i.art ? ' · ' + (i.art === 'app' ? this.t('sb_app') : 'Docker') : ''), alt ? 1 : 0, alt ? this.t(tr.bild_bereit === false ? 'sb_version_bild_fehlt' : (t ? t.neustart_taste : this._daten.einstellungen.trainer_neustart) ? 'sb_version_alt_knopf' : 'sb_version_alt', { v: VERSION }) : '']); }
     if (i.prozessor) zeilen.push([this.t('sb_prozessor'), i.prozessor.replace(/\((R|TM)\)/g, '').replace(/\s+CPU\b/, '').replace(/\s+/g, ' ').trim(), 0, '']);
     if (i.grafik) zeilen.push([this.t('sb_grafik'), i.grafik.length ? i.grafik.map((k) => k.name).join(', ') : this.t('sb_grafik_keine'), 0, this._gpuKurz(i)]);
     if (i.cpu) zeilen.push([this.t('sb_kerne'), String(i.cpu) + (i.prozesse ? ' · ' + this.t('sb_prozesse', { n: i.prozesse }) : ''), i.cpu >= 4 ? 0 : i.cpu >= 2 ? 1 : 2, i.cpu >= 4 ? '' : this.t('sb_kerne_wenig')]);
@@ -754,6 +923,7 @@ ${unten}</ha-card>`;
       const offen = this._trOffen ? this._trOffen.has(t.id) : k === 0;
       return `<details class="tr-eintrag" data-tid="${esc(t.id)}" ${offen ? 'open' : ''}><summary><span class="punkt ${t.online && !t.pause ? 'an' : ''}"></span><b>${esc(this._trName(t))}</b><span class="klein">${esc(zustand)}</span></summary>
 ${t.alt ? `<div class="hinweis">${esc(this.t('tr_alt'))}</div>` : ''}${this._steckbrief(t)}
+${this._neustartTeil(t)}
 <label class="schalter-zeile"><input type="checkbox" data-tpause="${esc(t.id)}" ${t.pause ? '' : 'checked'}> ${esc(this.t('tr_nimmt'))}</label>
 <div class="klein">${esc(this.t('tr_nimmt_hilfe'))}</div>
 ${t.online ? '' : `<button class="k leise" data-a="trainer_vergessen" data-tid="${esc(t.id)}"><ha-icon icon="mdi:delete-outline"></ha-icon>${esc(this.t('tr_vergessen'))}</button>`}</details>`;
@@ -784,29 +954,66 @@ ${t.online ? '' : `<button class="k leise" data-a="trainer_vergessen" data-tid="
     return `docker run -d --name wake-word-studio-trainer --restart unless-stopped${gpu ? ' --gpus all' : ''} -v wake-word-studio-trainer:/data -v /var/run/docker.sock:/var/run/docker.sock -e HA_URL=${basis} -e KEY=${schl} ${gpu ? BILD.replace(':latest', ':gpu') : BILD}`;
   }
 
-  // restart the trainer from here: any button entity of Home Assistant that restarts it (Proxmox, Portainer, app ...)
-  _neustartTeil() {
-    const wahl = this._daten.einstellungen.trainer_neustart || '', st = this._hass.states || {};
+  // restart a trainer from here: a button entity of Home Assistant that restarts it (Proxmox, Portainer, app ...), one per trainer
+  _neustartTeil(t) {
+    const wahl = t.neustart_taste || '', st = this._hass.states || {};
     const name = (id) => (st[id] && st[id].attributes.friendly_name) || id;
     const passt = (id) => /trainer|wake|sprachmodell/i.test(id + ' ' + name(id));
     const tasten = Object.keys(st).filter((id) => id.startsWith('button.'))
       .sort((a, b) => (passt(b) - passt(a)) || name(a).localeCompare(name(b)));
     if (wahl && !tasten.includes(wahl)) tasten.unshift(wahl);
-    const da = wahl && st[wahl] && st[wahl].state !== 'unavailable';
-    return `<h3>${esc(this.t('es_neustart_titel'))}</h3>
-<div class="neustart"><select data-zopt="trainer_neustart" title="${esc(this.t('es_neustart_taste'))}"><option value="">${esc(this.t('es_neustart_keine'))}</option>${tasten.map((id) => `<option value="${esc(id)}" ${id === wahl ? 'selected' : ''}>${esc(name(id))}${name(id) !== id ? ' · ' + esc(id) : ''}</option>`).join('')}</select>
-<button class="k ${da ? 'haupt' : 'leise'}" data-a="trainer_neustart" ${da ? '' : 'disabled'}><ha-icon icon="mdi:restart"></ha-icon>${esc(this.t('es_neustart'))}</button></div>
+    return `<div class="neustart"><select data-ttaste="${esc(t.id)}" title="${esc(this.t('es_neustart_taste'))}"><option value="">${esc(this.t('es_neustart_keine'))}</option>${tasten.map((id) => `<option value="${esc(id)}" ${id === wahl ? 'selected' : ''}>${esc(name(id))}${name(id) !== id ? ' · ' + esc(id) : ''}</option>`).join('')}</select>
+${this._neustartKnopf(t)}</div>
 <p class="klein" style="line-height:1.5">${esc(this.t(wahl && !st[wahl] ? 'es_neustart_fehlt' : 'es_neustart_hilfe'))}</p>`;
+  }
+
+  // the restart button of one trainer: while it restarts it says so and cannot be pressed again
+  _neustartKnopf(t, klein) {
+    const st = this._hass.states || {}, wahl = t.neustart_taste, n = t.neustart;
+    if (n && !n.zu_lange) return `<button class="k leise startet" disabled><span class="dreher"></span>${esc(this.t('nst_startet', { z: this._uhrzeit(n.seit) }))}</button>`;
+    const da = wahl && st[wahl] && st[wahl].state !== 'unavailable';
+    return `<button class="k ${da ? 'haupt' : 'leise'}" data-a="trainer_neustart" data-tid="${esc(t.id)}" ${da ? '' : 'disabled'}><ha-icon icon="mdi:restart"></ha-icon>${esc(this.t(klein ? 'nst_jetzt' : 'es_neustart'))}</button>${n && n.zu_lange ? `<div class="klein warn">${esc(this.t('nst_zu_lange'))}</div>` : ''}`;
+  }
+
+  _uhrzeit(iso) { try { return new Date(iso).toLocaleTimeString(this._loc, { hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } }
+
+  _aelter(a, b) { const x = String(a).replace(/^v/, '').split('.').map(Number), y = String(b).replace(/^v/, '').split('.').map(Number); for (let k = 0; k < 3; k++) if ((x[k] || 0) !== (y[k] || 0)) return (x[k] || 0) < (y[k] || 0); return false; }
+
+  // main page: a newer version of the studio or of a trainer is there - say what to do, with the button right here
+  _versionHinweise() {
+    if (!this._admin) return '';
+    const d = this._daten, st = this._hass.states || {}, aus = [];
+    const zeile = (icon, text, knopf, art) => `<div class="v-hinweis ${art || ''}"><ha-icon icon="${icon}"></ha-icon><div class="v-text">${esc(text)}</div>${knopf || ''}</div>`;
+    // the studio itself (Marketplace/HACS update entity): update, then Home Assistant has to restart
+    const upd = Object.keys(st).filter((id) => id.startsWith('update.') && /wake.?word.?studio/i.test(id + ' ' + (st[id].attributes.friendly_name || st[id].attributes.title || ''))).map((id) => st[id])[0];
+    const neuste = upd && upd.attributes.latest_version, drin = upd && upd.attributes.installed_version;
+    if (upd && upd.state === 'on' && neuste) {
+      aus.push(zeile('mdi:package-up', this.t(upd.attributes.in_progress ? 'vh_studio_laedt' : 'vh_studio_neu', { v: neuste }), upd.attributes.in_progress ? '<span class="dreher"></span>' : `<button class="k haupt" data-a="studio_update" data-ent="${esc(upd.entity_id)}"><ha-icon icon="mdi:download"></ha-icon>${esc(this.t('vh_aktualisieren'))}</button>`));
+    } else if (drin && this._aelter(d.version_integration, drin)) {
+      aus.push(zeile('mdi:restart-alert', this.t('vh_ha_neustart', { v: drin }), `<button class="k haupt" data-a="ha_neustart"><ha-icon icon="mdi:restart"></ha-icon>${esc(this.t('vh_ha_knopf'))}</button>`, 'warn'));
+    }
+    // trainers that are on and older than the studio
+    for (const t of d.trainer.liste || []) {
+      const i = t.info || {};
+      if (!t.online || t.alt || !i.version || !this._aelter(i.version, d.version_integration)) continue;
+      const name = this._trName(t), v = d.version_integration;
+      if (t.neustart && !t.neustart.zu_lange) { aus.push(zeile('mdi:restart', this.t('vh_tr_startet', { n: name, v, z: this._uhrzeit(t.neustart.seit) }), '<span class="dreher"></span>')); continue; }
+      if (t.bild_bereit === false) { aus.push(zeile('mdi:timer-sand', this.t('vh_tr_bild', { n: name, v }))); continue; }
+      const text = this.t(i.selbst_update && !t.laeuft.length ? 'vh_tr_selbst' : 'vh_tr_alt', { n: name, a: i.version, v });
+      const knopf = t.neustart_taste ? this._neustartKnopf(t, true) : `<button class="k leise" data-reiter="einstellungen"><ha-icon icon="mdi:cog-outline"></ha-icon>${esc(this.t('vh_taste_waehlen'))}</button>`;
+      aus.push(zeile('mdi:update', text, knopf, 'info'));
+    }
+    return aus.length ? `<ha-card class="v-karte">${aus.join('')}</ha-card>` : '';
   }
 
   _zentrale() {
     const d = this._daten;
     if (!d.woerter.length) {
-      return `<ha-card><div class="leer" style="padding:28px 12px"><ha-icon icon="mdi:waveform"></ha-icon><h2 style="margin-top:12px;color:var(--primary-text-color)">${esc(this.t('z_leer_titel'))}</h2><p style="max-width:560px;margin:0 auto 16px;line-height:1.5">${esc(this.t('z_leer_text'))}</p>${this._admin ? `<button class="k haupt" data-reiter="neu"><ha-icon icon="mdi:plus"></ha-icon>${esc(this.t('z_wort_anlegen'))}</button>` : `<p class="klein">${esc(this.t('nur_admin_hinweis'))}</p>`}</div></ha-card>
+      return `${this._versionHinweise()}<ha-card><div class="leer" style="padding:28px 12px"><ha-icon icon="mdi:waveform"></ha-icon><h2 style="margin-top:12px;color:var(--primary-text-color)">${esc(this.t('z_leer_titel'))}</h2><p style="max-width:560px;margin:0 auto 16px;line-height:1.5">${esc(this.t('z_leer_text'))}</p>${this._admin ? `<button class="k haupt" data-reiter="neu"><ha-icon icon="mdi:plus"></ha-icon>${esc(this.t('z_wort_anlegen'))}</button>` : `<p class="klein">${esc(this.t('nur_admin_hinweis'))}</p>`}</div></ha-card>
 <div class="raster">${this._trainerKachel()}${this._geraeteKachel()}</div>`;
     }
     const karten = d.woerter.map((w, i) => this._wortKarte(w, i)).join('');
-    return `${this._held()}
+    return `${this._versionHinweise()}${this._held()}
 <h3 class="abschnitt">${esc(this.t('h_deine_woerter'))}</h3>
 <div class="raster">${karten}${this._admin ? `<ha-card class="kachel neu-karte" data-reiter="neu"><ha-icon icon="mdi:plus"></ha-icon><div>${esc(this.t('neues_wort'))}</div></ha-card>` : ''}</div>
 <h3 class="abschnitt">${esc(this.t('h_studio'))}</h3>
@@ -827,10 +1034,39 @@ ${t.online ? '' : `<button class="k leise" data-a="trainer_vergessen" data-tid="
   <ha-card class="kachel" data-reiter="${this._admin ? 'wort' : 'geraete'}"><div class="klein"><ha-icon icon="mdi:speaker-wireless"></ha-icon> ${esc(this.t('ue_geraete'))}</div><div class="wert">${geraete.length}</div><div class="klein">${geraete.map(esc).join(', ') || esc(this.t('z_kein_geraet'))}</div></ha-card>
 </div>
 <ha-card><h2>${esc(this.t('ue_alltag'))}</h2>${this._alltag()}</ha-card>
-<ha-card><h2>${esc(this.t('ue_so'))}</h2><div class="klein" style="line-height:1.6">
-1. ${this.t('ue_so_1')}<br>2. ${esc(this.t('ue_so_2', { w: e.wort }))}<br>3. ${this.t('ue_so_3')}<br>
-4. ${esc(e.nachts ? this.t('ue_so_4n', { u: String(d.einstellungen.uhrzeit).slice(0, 5) }) : this.t('ue_so_4h'))} ${esc(this.t('ue_so_4b'))} ${esc(e.automatisch_einspielen ? this.t('ue_so_5a') : this.t('ue_so_5h'))}
-</div></ha-card>`;
+${this._weg(w, v)}`;
+  }
+
+  // the way of a wake word as four stations; the one that needs you now glows, the ones behind are done
+  _weg(w, v) {
+    const d = this._daten, s = w.statistik, t = w.training, e = w.einstellungen, laeuft = LAEUFT.includes(t.phase);
+    const n = Object.keys(e.geraete || {}).length;
+    const jetzt = s.offen ? 1 : (laeuft || t.phase === 'wartet') ? 2 : !v ? 2 : 3;
+    const stationen = [
+      ['pruefen', 'mdi:microphone-message', 'ws_sammeln', this.t('ws_sammeln_wert', { n: s.aufnahmen })],
+      ['pruefen', 'mdi:playlist-check', 'ws_pruefen', s.offen ? this.t('ws_pruefen_offen', { n: s.offen }) : this.t('ws_pruefen_fertig')],
+      ['training', 'mdi:auto-fix', 'ws_training', laeuft ? this.t('p_' + t.phase) + (t.prozent != null ? ` · ${Math.round(t.prozent)} %` : '')
+        : e.nachts ? this.t('ws_training_nachts', { u: String(d.einstellungen.uhrzeit).slice(0, 5) }) : this.t('ws_training_hand')],
+      ['qualitaet', 'mdi:speaker-wireless', 'ws_geraet', v ? this.t('ws_geraet_wert', { v: v.nr, n }) : this.t('ws_geraet_noch')],
+    ];
+    const erklaerung = [this.t('ue_so_1'), esc(this.t('ue_so_2', { w: e.wort })), this.t('ue_so_3'),
+      esc(e.nachts ? this.t('ue_so_4n', { u: String(d.einstellungen.uhrzeit).slice(0, 5) }) : this.t('ue_so_4h')) + ' ' + esc(this.t('ue_so_4b')) + ' ' + esc(e.automatisch_einspielen ? this.t('ue_so_5a') : this.t('ue_so_5h'))];
+    return `<ha-card><h2>${esc(this.t('ue_so'))}</h2><div class="weg ${laeuft ? 'laeuft' : ''}">${stationen.map(([reiter, icon, titel, wert], i) => `${i ? `<div class="weg-linie ${i <= jetzt ? 'durch' : ''}"><i></i></div>` : ''}<a class="weg-station ${i < jetzt ? 'erledigt' : i === jetzt ? 'jetzt' : ''}" data-reiter="${reiter}" style="--n:${i}">
+<span class="weg-punkt"><ha-icon icon="${i < jetzt ? 'mdi:check' : icon}"></ha-icon></span><b>${esc(this.t(titel))}</b><span class="klein">${esc(wert)}</span></a>`).join('')}</div>
+<details class="weg-mehr"><summary class="klein">${esc(this.t('ws_mehr'))}</summary><ol class="klein">${erklaerung.map((x) => `<li>${x}</li>`).join('')}</ol></details></ha-card>`;
+  }
+
+  // how the word got better: hit rate of every version that was used, drawn in as a line
+  _kurve(w) {
+    const vs = [...w.versionen].filter((v) => v.bericht && v.bericht.neu && v.bericht.neu.trefferquote != null && v.status !== 'verworfen').sort((a, b) => a.nr - b.nr);
+    if (vs.length < 2) return '';
+    const q = vs.map((v) => v.bericht.neu.trefferquote), lo = Math.max(0, Math.min(...q) - 0.05), hi = Math.min(1, Math.max(...q) + 0.02);
+    const B = 600, H = 120, x = (i) => 30 + (i / (vs.length - 1)) * (B - 60), y = (v) => 14 + (1 - (v - lo) / ((hi - lo) || 1)) * (H - 44);
+    const pkt = q.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    const farbe = this._farbe(this._wortKurz() || {});
+    return `<svg class="kurve" viewBox="0 0 ${B} ${H}" style="--farbe:${esc(farbe)}" aria-label="${esc(this.t('ku_titel'))}">
+<polygon class="ku-flaeche" points="${x(0).toFixed(1)},${H - 24} ${pkt} ${x(vs.length - 1).toFixed(1)},${H - 24}"/><polyline class="ku-linie" points="${pkt}"/>
+${vs.map((v, i) => `<g class="ku-punkt" style="--n:${i}"><circle cx="${x(i).toFixed(1)}" cy="${y(q[i]).toFixed(1)}" r="${v.nr === w.aktiv ? 6 : 4}" class="${v.nr === w.aktiv ? 'aktiv' : ''}"/><text x="${x(i).toFixed(1)}" y="${(y(q[i]) - 11).toFixed(1)}">${esc(this._pct(q[i]))}</text><text class="ku-v" x="${x(i).toFixed(1)}" y="${H - 6}">v${v.nr}</text></g>`).join('')}</svg>`;
   }
 
   _alltag() {
@@ -1101,6 +1337,8 @@ ${this._andere().length && !a.zu_wort && !a.von_wort ? `<button class="k leise" 
   }
 
   _tastatur(e) {
+    if (this._raumD && e.key === 'Escape') { this._raumSchliessen(); return; }
+    if (this._raumD) return;
     if (this._reiter !== 'pruefen' || e.ctrlKey || e.metaKey || e.altKey) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes((e.composedPath()[0] || {}).tagName)) return;
     const alle = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')];
@@ -1279,18 +1517,19 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
 <div class="zeile" style="margin-bottom:8px"><button class="chip ${r.modus === 'wort' ? 'an' : ''}" data-recmodus="wort">${esc(this.t('au_wort'))}: „${esc(this._daten.wort.einstellungen.wort)}“</button><button class="chip ${r.modus === 'kein_wort' ? 'an' : ''}" data-recmodus="kein_wort">${esc(this.t('au_gegen'))}</button></div>
 <div class="klein" style="line-height:1.5">${esc(this.t(r.modus === 'wort' ? 'au_hilfe_wort' : 'au_hilfe_gegen'))}</div>
 <div class="zeile" style="margin-top:10px"><span class="klein">${esc(this.t('h_wer'))}</span>${this._personWahl(this._person, 'rec')}<input type="text" id="recnotiz" style="max-width:260px" placeholder="${esc(this.t('au_umgebung_bsp'))}" value="${esc(r.notiz || '')}" title="${esc(this.t('au_umgebung'))}"></div>
-<div class="rec"><button class="gross ${r.an ? 'an' : ''}" data-a="rec" ${sicher ? '' : 'disabled'}><ha-icon icon="${r.an ? 'mdi:stop' : 'mdi:microphone'}"></ha-icon></button><div class="pegel" title="${esc(this.t('au_pegel'))}"><i id="pegel"></i></div><div class="klein" id="recinfo">${esc(this.t(r.an ? 'au_stopp' : 'au_start'))}</div></div>
+<div class="rec"><button class="gross ${r.an ? 'an' : ''}" data-a="rec" ${sicher ? '' : 'disabled'}><ha-icon icon="${r.an ? 'mdi:stop' : 'mdi:microphone'}"></ha-icon></button><div class="rec-welle ${r.an ? 'an' : ''}"><canvas id="recwelle" height="72"></canvas></div><div class="pegel" title="${esc(this.t('au_pegel'))}"><i id="pegel"></i></div><div class="klein" id="recinfo">${esc(this.t(r.an ? 'au_stopp' : 'au_start'))}</div></div>
 <div id="takes"></div>
-<div class="klein" style="margin-top:12px">${esc(this.t('au_wieviel', { n: bisher }))}</div></ha-card>`;
+<div class="rec-ziel">${this._zielRing(bisher, 50 * Math.max(1, Object.entries(s.personen || {}).filter(([n, p]) => n !== 'Unbekannt' && (r.modus === 'wort' ? p.wort : p.kein_wort)).length))}<div class="klein">${esc(this.t('au_wieviel', { n: bisher }))}</div></div></ha-card>`;
   }
 
   _recZeichnen() {
     const box = this.shadowRoot.getElementById('takes'); if (!box) return;
     const r = this._rec;
-    box.innerHTML = r.takes.length ? `<div class="takes">${r.takes.map((t, i) => `<span class="take ${t.modus === 'kein_wort' ? 'gegen' : ''}">${this._zahl(t.dauer, 1)} s<button data-takespielen="${i}" title="${esc(this.t('pr_abspielen'))}"><ha-icon icon="mdi:play"></ha-icon></button><button data-takeweg="${i}"><ha-icon icon="mdi:close"></ha-icon></button></span>`).join('')}</div>
+    box.innerHTML = r.takes.length ? `<div class="takes">${r.takes.map((t, i) => `<span class="take ${t.modus === 'kein_wort' ? 'gegen' : ''} ${Date.now() - (t.zeit || 0) < 1500 ? 'neu' : ''}">${this._miniForm(t.form)}${this._zahl(t.dauer, 1)} s<button data-takespielen="${i}" title="${esc(this.t('pr_abspielen'))}"><ha-icon icon="mdi:play"></ha-icon></button><button data-takeweg="${i}"><ha-icon icon="mdi:close"></ha-icon></button></span>`).join('')}</div>
 <div class="zeile" style="margin-top:12px"><button class="k haupt" data-a="recspeichern"><ha-icon icon="mdi:content-save-outline"></ha-icon>${esc(this.t('au_speichern', { n: r.takes.length }))}</button><button class="k leise" data-a="recverwerfen">${esc(this.t('au_verwerfen'))}</button></div>` : `<div class="klein" style="text-align:center">${esc(this.t('au_leer'))}</div>`;
     const knopf = this.shadowRoot.querySelector('[data-a="rec"]');
     if (knopf) { knopf.classList.toggle('an', r.an); knopf.querySelector('ha-icon').setAttribute('icon', r.an ? 'mdi:stop' : 'mdi:microphone'); }
+    const welle = this.shadowRoot.querySelector('.rec-welle'); if (welle) welle.classList.toggle('an', r.an);
     const info = this.shadowRoot.getElementById('recinfo'); if (info) info.textContent = this.t(r.an ? 'au_stopp' : 'au_start');
   }
 
@@ -1303,6 +1542,7 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
     const quelle = ctx.createMediaStreamSource(r.strom);
     const proz = ctx.createScriptProcessor(2048, 1, 1);
     const rate = ctx.sampleRate, block = 2048 / rate;
+    r.spitzen = [];
     // Einfache Trennung nach Lautstärke: Sprache = deutlich über dem Grundrauschen
     let rauschen = 0.004, imWort = false, still = 0, puffer = [], vorlauf = [];
     const VOR = Math.ceil(0.3 / block), NACH = Math.ceil(0.35 / block), LANG = Math.ceil(3.0 / block);
@@ -1311,6 +1551,8 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
       let s = 0; for (let i = 0; i < x.length; i++) s += x[i] * x[i];
       const rms = Math.sqrt(s / x.length);
       const p = this.shadowRoot.getElementById('pegel'); if (p) p.style.width = Math.min(100, Math.sqrt(rms) * 300) + '%';
+      let spitze = 0; for (let i = 0; i < x.length; i++) spitze = Math.max(spitze, Math.abs(x[i]));
+      r.spitzen.push({ p: spitze, wort: imWort }); if (r.spitzen.length > 400) r.spitzen.shift();
       const laut = rms > Math.max(0.012, rauschen * 4);
       if (!imWort) {
         rauschen = rauschen * 0.97 + rms * 0.03;
@@ -1329,6 +1571,40 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
     quelle.connect(proz); proz.connect(ctx.destination);
     Object.assign(r, { ctx, quelle, proz, an: true });
     this._recZeichnen();
+    this._recWelle();
+  }
+
+  // live wave while recording: speech that becomes a take glows in the colour of the word
+  _recWelle() {
+    const r = this._rec;
+    const malen = () => {
+      const c = this.shadowRoot.getElementById('recwelle');
+      if (!r.an || !c) { r.welle = null; return; }
+      const b = c.clientWidth || 300, h = c.height; if (c.width !== b) c.width = b;
+      const g = c.getContext('2d'), st = getComputedStyle(this);
+      const farbe = r.modus === 'kein_wort' ? (st.getPropertyValue('--error-color').trim() || '#f44336') : (st.getPropertyValue('--primary-color').trim() || '#03a9f4');
+      g.clearRect(0, 0, b, h);
+      const n = Math.floor(b / 4), sp = r.spitzen.slice(-n), v = n - sp.length;
+      sp.forEach((x, i) => {
+        const y = Math.max(2, Math.min(h - 2, Math.sqrt(x.p) * h * 1.2));
+        g.globalAlpha = (x.wort ? 0.55 : 0.18) + 0.45 * (i / n);
+        g.fillStyle = x.wort ? farbe : st.getPropertyValue('--secondary-text-color').trim() || '#888';
+        g.fillRect((v + i) * 4, (h - y) / 2, 2.5, y);
+      });
+      g.globalAlpha = 1;
+      r.welle = requestAnimationFrame(malen);
+    };
+    if (!r.welle) r.welle = requestAnimationFrame(malen);
+  }
+
+  _miniForm(form) {
+    if (!form) return '';
+    return `<svg class="mini-form" viewBox="0 0 48 16" aria-hidden="true">${form.map((x, i) => { const y = Math.max(1.5, Math.min(16, Math.sqrt(x) * 18)); return `<rect x="${i * 2}" y="${((16 - y) / 2).toFixed(1)}" width="1.3" height="${y.toFixed(1)}" rx=".6"/>`; }).join('')}</svg>`;
+  }
+
+  _zielRing(wert, ziel) {
+    const a = Math.min(1, wert / ziel), u = 2 * Math.PI * 16;
+    return `<div class="ziel-ring ${a >= 1 ? 'voll' : ''}"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" class="hinten"/><circle cx="20" cy="20" r="16" class="vorn" style="stroke-dasharray:${u.toFixed(1)};stroke-dashoffset:${(u * (1 - a)).toFixed(1)};--voll:${u.toFixed(1)}"/></svg>${a >= 1 ? '<ha-icon icon="mdi:check"></ha-icon>' : `<span>${Math.round(a * 100)}%</span>`}</div>`;
   }
 
   _recStopp() {
@@ -1355,7 +1631,8 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
     kopf.setUint32(16, 16, true); kopf.setUint16(20, 1, true); kopf.setUint16(22, 1, true); kopf.setUint32(24, 16000, true);
     kopf.setUint32(28, 32000, true); kopf.setUint16(32, 2, true); kopf.setUint16(34, 16, true); schreib(36, 'data'); kopf.setUint32(40, m * 2, true);
     const blob = new Blob([kopf, aus.buffer], { type: 'audio/wav' });
-    this._rec.takes.push({ blob, url: URL.createObjectURL(blob), dauer: m / 16000, modus: this._rec.modus });
+    const form = Array.from({ length: 24 }, (_, k) => { let x = 0; for (let i = Math.floor((k * m) / 24); i < Math.floor(((k + 1) * m) / 24); i++) x = Math.max(x, Math.abs(aus[i])); return x / 32768; });
+    this._rec.takes.push({ blob, url: URL.createObjectURL(blob), dauer: m / 16000, modus: this._rec.modus, form, zeit: Date.now() });
     this._recZeichnen();
   }
 
@@ -1518,15 +1795,17 @@ ${t.phase === 'fehler' ? `<p class="rot">${esc(this._schritt(t.schritt || t.hinw
 <div class="zeile" style="margin-top:12px">${laeuft || t.phase === 'wartet' ? `<button class="k schlecht" data-a="abbrechen"><ha-icon icon="mdi:stop"></ha-icon>${esc(this.t('t_abbrechen'))}</button>` : `<button class="k haupt" data-a="trainieren"><ha-icon icon="mdi:play"></ha-icon>${esc(this.t('t_jetzt'))}</button><span class="klein">${esc(w.neu_seit_lauf > 0 ? this.t('t_neue', { n: w.neu_seit_lauf }) : this.t('t_keine_neuen'))}</span>`}</div></ha-card>
 ${this._details(w, laeuft)}
 <ha-card><h2>${esc(this.t('t_auto'))}</h2>
-<div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="nachts" ${e.nachts ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_nachts'))} · ${esc(String(d.einstellungen.uhrzeit).slice(0, 5))}</label></div>
-<div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="automatisch_einspielen" ${e.automatisch_einspielen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_einspielen'))}</label></div>
-<div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="schwelle_automatisch" ${e.schwelle_automatisch ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_schwelle_auto'))}</label></div>
-<div class="zeile" style="margin-bottom:10px"><label><input type="checkbox" data-wopt="vorpruefen" ${e.vorpruefen ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_vorpruefen'))}</label></div>
-<div class="zeile"><label><input type="checkbox" data-wopt="gruendlich" ${e.gruendlich ? 'checked' : ''} ${this._admin ? '' : 'disabled'}> ${esc(this.t('t_gruendlich'))}</label></div>
-<div class="zeile unter ${e.gruendlich ? '' : 'aus'}"><label><input type="checkbox" data-wopt="mitteln" ${e.mitteln ? 'checked' : ''} ${this._admin && e.gruendlich ? '' : 'disabled'}> ${esc(this.t('t_mitteln'))}</label></div>
+<div class="schalter-raster">
+${this._kachelSchalter('nachts', 'mdi:weather-night', 'sw_nachts', 'sw_nachts_text', e.nachts, { zusatz: String(d.einstellungen.uhrzeit).slice(0, 5) })}
+${this._kachelSchalter('automatisch_einspielen', 'mdi:rocket-launch-outline', 'sw_einspielen', 'sw_einspielen_text', e.automatisch_einspielen)}
+${this._kachelSchalter('schwelle_automatisch', 'mdi:tune-vertical', 'sw_schwelle', 'sw_schwelle_text', e.schwelle_automatisch)}
+${this._kachelSchalter('vorpruefen', 'mdi:ear-hearing', 'sw_vorpruefen', 'sw_vorpruefen_text', e.vorpruefen)}
+${this._kachelSchalter('gruendlich', 'mdi:podium-gold', 'sw_gruendlich', 'sw_gruendlich_text', e.gruendlich, { unter: `<label class="unter-schalter ${e.gruendlich ? '' : 'aus'}"><input type="checkbox" class="schieber" data-wopt="mitteln" ${e.mitteln ? 'checked' : ''} ${this._admin && e.gruendlich ? '' : 'disabled'}><span><b>${esc(this.t('sw_mitteln'))}</b><span class="klein">${esc(this.t('sw_mitteln_text'))}</span></span></label>` })}
+${this._raumSchalter(e)}
+</div>
 ${this._gruendlichInfo(w, e)}
 <p class="klein">${esc(this.t('t_besser_heisst'))}</p></ha-card>
-<ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}${l.geraet === 'gpu' || l.geraet_rueckfall ? `<div class="klein">${esc(this.t(l.geraet_rueckfall ? 'l_rueckfall' : 'l_gpu'))}</div>` : ''}${l.trainer_name && (this._daten.trainer.liste || []).length > 1 ? `<div class="klein">${esc(l.trainer_name)}</div>` : ''}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
+<ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${this._kurve(w)}${w.laeufe.length ? `<table><tr><th>${esc(this.t('t_wann'))}</th><th>${esc(this.t('t_ergebnis'))}</th><th>${esc(this.t('t_vorher'))}</th><th>${esc(this.t('t_nachher'))}</th><th class="z">${esc(this.t('t_dauer'))}</th></tr>${w.laeufe.map((l) => `<tr><td>${this._datum(l.ende)}</td><td class="${l.ergebnis === 'eingespielt' ? 'gruen' : l.ergebnis === 'fehler' ? 'rot' : ''}">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ' (v' + l.version + ')' : ''}${l.hinweis ? '<div class="klein">' + esc(l.hinweis) + '</div>' : ''}</td><td>${kurz(l.alt)}</td><td>${kurz(l.neu)}</td><td class="z">${l.dauer_min != null ? this._dauer(l.dauer_min) : '–'}${l.geraet === 'gpu' || l.geraet_rueckfall ? `<div class="klein">${esc(this.t(l.geraet_rueckfall ? 'l_rueckfall' : 'l_gpu'))}</div>` : ''}${l.trainer_name && (this._daten.trainer.liste || []).length > 1 ? `<div class="klein">${esc(l.trainer_name)}</div>` : ''}</td></tr>`).join('')}</table>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
   }
 
   // ---------- Qualität ----------
@@ -1583,7 +1862,8 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
     const tab = vg ? `<table class="vgl-tab"><tr><th>${esc(this.t(b.alt_nr ? 'q_vgl' : 'q_vgl_vorher', { v: b.alt_nr }))}</th><th class="z">${esc(this.t('q_vgl_neu', { v: x.nr }))}</th><th class="z">${esc(b.alt_nr ? 'v' + b.alt_nr : this.t('q_vgl_alt'))}</th><th class="z"></th></tr>${vg.zeilen.map((z) => `<tr class="${z.wichtig ? 'wichtig' : ''}"><td>${esc(name(z))}</td><td class="z">${z.kennzahl.endsWith('_bei_fa') && z.neu == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.neu)}</td><td class="z">${z.kennzahl.endsWith('_bei_fa') && z.alt == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.alt)}</td><td class="z"><ha-icon class="u-${z.urteil}" icon="${icon[z.urteil]}" title="${esc(this.t('u_' + z.urteil))}"></ha-icon></td></tr>`).join('')}</table>
 <div class="klein" style="margin-top:6px">${esc(this.t('q_vgl_basis', { n: vg.testaufnahmen, h: this._zahl(vg.stunden_rede, 1), g: this._zahl(vg.stunden_geraeusch, 1) }))}</div>` : '';
     const kand = b.kandidaten ? `<div class="klein" style="margin-top:8px">${esc(this._kandidatText(b.kandidaten))}</div>` : '';
-    return kopf + this._duell(b, x.nr) + tab + kand;
+    const raum = b.raumklang ? `<div class="klein" style="margin-top:6px"><ha-icon icon="mdi:home-sound-out" style="--mdc-icon-size:16px;vertical-align:-3px"></ha-icon> ${esc(this.t('rk_bericht', { n: b.raumklang }))}</div>` : '';
+    return kopf + this._duell(b, x.nr) + tab + kand + raum;
   }
 
   _kandidatText(k) {
@@ -1669,7 +1949,7 @@ ${this._tabelle()}
 <ha-card><h2>${esc(this.t('q_schwelle'))}</h2>${this._verteilung(sj, s.schwelle_vorschlag)}
 ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.schwelle_vorschlag != null ? `<div class="zeile weit" style="margin-top:10px"><span>${this.t('q_vorschlag', { w: this._zahl(s.schwelle_vorschlag) })} ${sj != null ? esc(this.t('q_jetzt', { w: this._zahl(sj) })) : ''}</span><button class="k haupt" data-a="schwelle" data-wert="${s.schwelle_vorschlag}" ${!this._admin || (sj != null && Math.abs(sj - s.schwelle_vorschlag) < 0.005) ? 'disabled' : ''}>${esc(this.t('q_uebernehmen'))}</button></div>` : `<div class="klein">${esc(this.t('q_vorschlag_spaeter'))}</div>`}
 <div class="klein" style="margin-top:8px">${esc(this.t('q_legende'))}${(w.einstellungen || {}).schwelle_automatisch ? '' : ' ' + esc(this.t('q_legende_hand'))}</div></ha-card>
-<ha-card><h2>${esc(this.t('q_versionen'))}</h2>${w.versionen.length ? this._versionen(w) : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>`;
+<ha-card><h2>${esc(this.t('q_versionen'))}</h2>${this._kurve(w)}${w.versionen.length ? this._versionen(w) : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>`;
   }
 
   _schwelleAuto(s, sj) {
@@ -1732,6 +2012,38 @@ ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.s
     return `<div class="farbwahl">${FARBEN.map((f) => `<button data-farbe="${f}" class="${f === wert ? 'an' : ''}" style="background:${f}" aria-label="${f}"></button>`).join('')}</div>`;
   }
 
+  // live preview of the word being created: it appears big in its colour as you type
+  _neuVorschau(e) {
+    const spr = SPRACHNAMEN[this._spr][e.sprache] || this._sprachname(e.sprache);
+    return `<div class="neu-vorschau ${e.wort ? 'da' : ''}" style="--farbe:${esc(e.farbe || FARBEN[0])}"><div class="nv-funken" aria-hidden="true">${Array.from({ length: 10 }, (_, i) => `<i style="--i:${i}"></i>`).join('')}</div>
+<div class="klein nv-sprache">${esc(spr)}</div><div class="nv-wort">${esc(e.wort || this.t('nv_leer'))}</div><div class="klein nv-text">${esc(this.t(e.wort ? 'nv_da' : 'nv_hilfe'))}</div></div>`;
+  }
+
+  _neuStand() {
+    const e = this._entwurf, sr = this.shadowRoot; if (!e || e.id) return;
+    const v = sr.querySelector('.neu-vorschau'); if (!v) return;
+    const war = v.classList.contains('da');
+    v.classList.toggle('da', !!String(e.wort || '').trim());
+    v.style.setProperty('--farbe', e.farbe || FARBEN[0]);
+    v.querySelector('.nv-wort').textContent = String(e.wort || '').trim() || this.t('nv_leer');
+    v.querySelector('.nv-text').textContent = this.t(String(e.wort || '').trim() ? 'nv_da' : 'nv_hilfe');
+    const spr = sr.querySelector('select[data-feld="sprache"]');
+    if (spr) v.querySelector('.nv-sprache').textContent = spr.options[spr.selectedIndex] ? spr.options[spr.selectedIndex].text : '';
+    if (!war && v.classList.contains('da')) { v.classList.remove('funkt'); void v.offsetWidth; v.classList.add('funkt'); }
+    const schritt = (n, ok) => { const el = sr.querySelector(`.neu-schritt[data-schritt="${n}"]`); if (el) el.classList.toggle('fertig', ok); };
+    schritt('wort', !!String(e.wort || '').trim());
+    schritt('geraete', Object.keys(e.geraete || {}).length > 0);
+  }
+
+  // creating a word: a short moment of magic, then its page
+  async _erschaffen(name, farbe) {
+    const box = this.shadowRoot.querySelector('.raum-wurzel'); if (!box || this._raumD) return;
+    box.innerHTML = `<div class="rd-hinter"></div><div class="rd erschaffen" style="--farbe:${esc(farbe)}">${this._magie('training', farbe)}<div class="er-wort">${esc(name)}</div><p class="rd-mitte klein">${esc(this.t('nv_erschaffen'))}</p>${this._konfetti()}</div>`;
+    await new Promise((r) => setTimeout(r, 1900));
+    const dlg = box.querySelector('.rd'); if (dlg) dlg.classList.add('geht');
+    setTimeout(() => { if (!this._raumD) box.innerHTML = ''; }, 260);
+  }
+
   _neu() {
     const d = this._daten;
     if (!this._entwurf || this._entwurf.id) {
@@ -1740,14 +2052,15 @@ ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.s
     }
     const e = this._entwurf;
     const modelle = (d.vorhandene_modelle || []).filter((m) => !d.woerter.some((w) => w.modell_id === m.modell_id));
-    return `<ha-card><h2>${esc(this.t('w_neu_titel'))}</h2><div class="klein" style="line-height:1.5">${this.t('w_neu_text')}</div>
-<label class="feld">${esc(this.t('w_text'))}</label><input type="text" data-feld="wort" value="${esc(e.wort)}" placeholder="${esc(this.t('w_text_bsp'))}">
-<label class="feld">${esc(this.t('w_sprache'))}</label>${this._sprachWahl(e.sprache)}<div class="klein" style="margin-top:4px">${esc(this.t('w_sprache_hilfe'))}</div>
+    return `${this._neuVorschau(e)}<ha-card><h2>${esc(this.t('w_neu_titel'))}</h2><div class="klein" style="line-height:1.5">${this.t('w_neu_text')}</div>
+<div class="neu-schritt" data-schritt="wort"><span class="neu-nr">1</span><div><label class="feld">${esc(this.t('w_text'))}</label><input type="text" data-feld="wort" value="${esc(e.wort)}" placeholder="${esc(this.t('w_text_bsp'))}"></div></div>
+<div class="neu-schritt fertig" data-schritt="sprache"><span class="neu-nr">2</span><div><label class="feld">${esc(this.t('w_sprache'))}</label>${this._sprachWahl(e.sprache)}<div class="klein" style="margin-top:4px">${esc(this.t('w_sprache_hilfe'))}</div></div></div>
+<div class="neu-schritt fertig" data-schritt="aussehen"><span class="neu-nr">3</span><div>
 ${modelle.length ? `<label class="feld">${esc(this.t('w_vorhanden'))}</label><select data-feld="modell_id"><option value="">${esc(this.t('w_vorhanden_keins'))}</option>${modelle.map((m) => `<option value="${esc(m.modell_id)}" ${m.modell_id === e.modell_id ? 'selected' : ''}>${esc(m.anzeige || m.modell_id)} (${esc(m.modell_id)}.tflite)</option>`).join('')}</select><div class="klein" style="margin-top:4px">${esc(this.t('w_modell_hilfe'))}</div>` : ''}
 <label class="feld">${esc(this.t('w_anzeige'))}</label><input type="text" data-feld="anzeige" value="${esc(e.anzeige)}" placeholder="${esc(this.t('w_anzeige_hilfe', { w: e.wort || '…' }))}">
-<label class="feld">${esc(this.t('w_farbe'))}</label>${this._farbWahl(e.farbe)}
-<h3>${esc(this.t('w_geraete'))}</h3><div class="klein">${esc(this.t('w_geraete_hilfe'))}</div>${this._plaetze(e, null)}
-<div class="zeile" style="margin-top:16px"><button class="k haupt" data-a="anlegen"><ha-icon icon="mdi:plus"></ha-icon>${esc(this.t('w_anlegen'))}</button></div></ha-card>`;
+<label class="feld">${esc(this.t('w_farbe'))}</label>${this._farbWahl(e.farbe)}</div></div>
+<div class="neu-schritt" data-schritt="geraete"><span class="neu-nr">4</span><div><h3>${esc(this.t('w_geraete'))}</h3><div class="klein">${esc(this.t('w_geraete_hilfe'))}</div>${this._plaetze(e, null)}</div></div>
+<div class="zeile" style="margin-top:16px"><button class="k haupt gross-k" data-a="anlegen"><ha-icon icon="mdi:auto-fix"></ha-icon>${esc(this.t('w_anlegen'))}</button></div></ha-card>`;
   }
 
   _wortSeite() {
@@ -1777,7 +2090,371 @@ ${modelle.length ? `<label class="feld">${esc(this.t('w_vorhanden'))}</label><se
 ${g.clips ? '' : `<div class="klein" style="margin-top:8px">${esc(this.t('ge_ohne_clips'))}</div>`}
 ${g.fehler ? `<div class="hinweis" style="margin-top:10px">${esc(String(g.fehler).slice(0, 160))}<br>${esc(this.t('ge_fehler_hinweis'))}</div>` : ''}
 <table style="margin-top:8px"><tr><th></th><th>${esc(this.t('ge_wort'))}</th><th>${esc(this.t('ge_gewaehlt'))}</th><th class="z">${esc(this.t('ge_schwelle'))}</th></tr>
-${Object.keys(g.plaetze).map((p) => { const pl = g.plaetze[p], w = wort(pl.wort); return `<tr><td>${esc(this.t('ge_platz', { n: p }))}</td><td>${w ? `<a class="chip" data-reiter="${this._admin ? 'wort' : 'uebersicht'}" data-wort="${esc(w.id)}"><span class="punkt" style="background:${this._farbe(w)}"></span>${esc(w.wort)}</a>` : `<span class="klein">${esc(this.t('ge_nicht'))}</span>`}</td><td>${esc(pl.auswahl || '–')}</td><td class="z">${pl.schwelle != null ? this._zahl(pl.schwelle) : '–'}</td></tr>`; }).join('')}</table></ha-card>`).join('') + `<div class="klein">${esc(this.t('ge_hilfe'))}</div>`;
+${Object.keys(g.plaetze).map((p) => { const pl = g.plaetze[p], w = wort(pl.wort); return `<tr><td>${esc(this.t('ge_platz', { n: p }))}</td><td>${w ? `<a class="chip" data-reiter="${this._admin ? 'wort' : 'uebersicht'}" data-wort="${esc(w.id)}"><span class="punkt" style="background:${this._farbe(w)}"></span>${esc(w.wort)}</a>` : `<span class="klein">${esc(this.t('ge_nicht'))}</span>`}</td><td>${esc(pl.auswahl || '–')}</td><td class="z">${pl.schwelle != null ? this._zahl(pl.schwelle) : '–'}</td></tr>`; }).join('')}</table>${this._raumTeil(g)}</ha-card>`).join('') + `<div class="klein">${esc(this.t('ge_hilfe'))}</div>`;
+  }
+
+  // ---------- Raumklang (claps next to a device = how its room sounds) ----------
+  _raumTeil(g) {
+    const r = g.raum, art = r && r.hall != null ? this._hallArt(r.hall) : '';
+    const status = r ? this.t(r.stellen === 1 ? 'rk_angelernt_1' : 'rk_angelernt', { n: r.n, s: r.stellen }) : this.t('rk_nicht');
+    const wellen = Array.from({ length: 5 }, (_, i) => `<i style="--i:${i}"></i>`).join('');
+    return `<div class="raum ${r ? 'an' : ''}"><div class="raum-ikon" aria-hidden="true">${wellen}<ha-icon icon="mdi:home-sound-out"></ha-icon></div>
+<div class="raum-text"><b>${esc(this.t('rk_titel'))}</b><div class="klein">${esc(status)}${r && r.hall != null ? ` · ${esc(this.t('rk_hall_kurz', { h: this._zahl(r.hall, 2), a: this.t('rk_art_' + art) }))}` : ''}</div>
+${r ? '' : `<div class="klein raum-warum">${esc(this.t('rk_warum'))}</div>`}</div>
+<div class="raum-knoepfe">${r ? `<button class="k leise" data-raum="hoeren" data-knoten="${esc(g.knoten)}" title="${esc(this.t('rk_hoeren_titel'))}"><ha-icon icon="mdi:ear-hearing"></ha-icon>${esc(this.t('rk_hoeren'))}</button>` : ''}
+${this._admin ? `<button class="k ${r ? '' : 'haupt'}" data-raum="start" data-knoten="${esc(g.knoten)}"><ha-icon icon="mdi:hand-clap"></ha-icon>${esc(this.t(r ? 'rk_weitere' : 'rk_anlernen'))}</button>` : ''}
+${r && this._admin ? `<button class="k leise" data-raum="loeschen" data-knoten="${esc(g.knoten)}" title="${esc(this.t('rk_loeschen'))}"><ha-icon icon="mdi:delete-outline"></ha-icon></button>` : ''}</div></div>`;
+  }
+
+  _raumSchalter(e) {
+    const n = (this._daten.geraete || []).filter((g) => g.raum).length;
+    const info = n ? `<span class="klein kachel-info"><ha-icon icon="mdi:check-circle"></ha-icon>${esc(this.t('rk_wort_an', { n }))}</span>`
+      : `<span class="klein kachel-info">${esc(this.t('rk_wort_keins'))} <a class="chip" data-reiter="geraete"><ha-icon icon="mdi:hand-clap"></ha-icon>${esc(this.t('rk_zu_geraeten'))}</a></span>`;
+    return this._kachelSchalter('raumklang', 'mdi:home-sound-out', 'sw_raumklang', 'sw_raumklang_text', e.raumklang !== false, { unter: info });
+  }
+
+  // one setting as a tile: icon, short title, one line on what it does, a switch; on = tinted and the icon glows
+  _kachelSchalter(opt, icon, titel, text, an, x = {}) {
+    return `<div class="kschalter ${an ? 'an' : ''}"><label class="kschalter-kopf"><span class="kschalter-ikon"><ha-icon icon="${icon}"></ha-icon></span>
+<span class="kschalter-text"><b>${esc(this.t(titel))}${x.zusatz ? ` <span class="klein">· ${esc(x.zusatz)}</span>` : ''}</b><span class="klein">${esc(this.t(text))}</span></span>
+<input type="checkbox" class="schieber" data-wopt="${opt}" ${an ? 'checked' : ''} ${this._admin ? '' : 'disabled'}></label>${x.unter || ''}</div>`;
+  }
+
+  _hallArt(h) { return h < 0.3 ? 'trocken' : h < 0.6 ? 'normal' : 'hallig'; }
+
+  async _raumAktion(was, knoten) {
+    const g = ((this._daten && this._daten.geraete) || []).find((x) => x.knoten === knoten);
+    if (was === 'start' && g) { this._raumOeffnen(g); return; }
+    if (was === 'hoeren' && g && g.raum) { this._raumHoeren(null, g); return; }
+    if (was === 'loeschen' && g) {
+      if (!confirm(this.t('rk_loeschen_frage', { g: g.name }))) return;
+      try { await this._hass.fetchWithAuth('/api/sprachmodell/raum?knoten=' + encodeURIComponent(knoten), { method: 'DELETE' }); } catch (e) { this._meldung(this.t('ging_nicht', { f: e.message })); }
+      this._laden(); return;
+    }
+    const d = this._raumD; if (!d) return;
+    if (was === 'los') this._raumLos();
+    else if (was === 'nochmal') { this._raumAufraeumen(); d.schritt = 'start'; d.ergebnis = null; this._raumZeichnen(); }
+    else if (was === 'probe') this._raumHoeren(d.ergebnis ? d.ergebnis.impulse : null, d.geraet);
+    else if (was === 'speichern') this._raumSpeichern();
+    else if (was === 'zu') this._raumSchliessen();
+  }
+
+  _raumOeffnen(g) {
+    if (!(window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) { this._meldung(this.t('au_kein_mikro')); return; }
+    this._raumD = { geraet: g, schritt: 'start', klatscher: [], ergebnis: null };
+    this._raumZeichnen();
+  }
+
+  _raumSchliessen() {
+    this._raumAufraeumen();
+    const box = this.shadowRoot.querySelector('.raum-wurzel');
+    const dlg = box && box.querySelector('.rd');
+    this._raumD = null;
+    if (dlg) { dlg.classList.add('geht'); setTimeout(() => { if (!this._raumD) box.innerHTML = ''; }, 260); } else if (box) box.innerHTML = '';
+  }
+
+  _raumAufraeumen() {
+    const d = this._raumD; if (!d) return;
+    clearInterval(d.uhr); cancelAnimationFrame(d.bild);
+    try { if (d.proz) d.proz.disconnect(); if (d.quelle) d.quelle.disconnect(); if (d.strom) d.strom.getTracks().forEach((t) => t.stop()); if (d.ctx) d.ctx.close(); } catch (e) { /* schon zu */ }
+    Object.assign(d, { proz: null, quelle: null, strom: null, ctx: null });
+  }
+
+  _raumZeichnen() {
+    const box = this.shadowRoot.querySelector('.raum-wurzel'), d = this._raumD; if (!box || !d) return;
+    const name = esc(d.geraet.name), s = d.schritt;
+    let inhalt = '';
+    if (s === 'start') {
+      inhalt = `<div class="rd-bild">${this._raumSzene()}</div>
+<ol class="rd-schritte"><li>${esc(this.t('rk_s1', { g: d.geraet.name }))}</li><li>${esc(this.t('rk_s2'))}</li><li>${esc(this.t('rk_s3'))}</li></ol>
+<div class="klein rd-tipp">${esc(this.t('rk_tipp'))}</div>
+<div class="rd-knoepfe"><button class="k leise" data-raum="zu">${esc(this.t('rk_abbrechen'))}</button><button class="k haupt" data-raum="los"><ha-icon icon="mdi:microphone"></ha-icon>${esc(this.t('rk_los'))}</button></div>`;
+    } else if (s === 'zaehlen') {
+      inhalt = `<div class="rd-zaehler"><svg viewBox="0 0 120 120"><circle class="rd-ring-grund" cx="60" cy="60" r="52"/><circle class="rd-ring" cx="60" cy="60" r="52" style="--dauer:${d.zaehlen}s"/></svg><b id="rdzahl">${d.rest}</b></div>
+<p class="rd-mitte">${esc(this.t('rk_hingehen'))}</p><div class="rd-knoepfe"><button class="k leise" data-raum="zu">${esc(this.t('rk_abbrechen'))}</button></div>`;
+    } else if (s === 'hoeren') {
+      const punkte = Array.from({ length: 4 }, (_, i) => `<span class="rd-punkt" data-n="${i}"><ha-icon icon="mdi:hand-clap"></ha-icon></span>`).join('');
+      inhalt = `<div class="rd-live"><canvas id="rdwelle" height="120"></canvas><div class="rd-aufnahme"><span class="lebt"></span>${esc(this.t('rk_lauscht'))}</div></div>
+<div class="rd-punkte">${punkte}</div><p class="rd-mitte" id="rdhinweis">${esc(this.t('rk_klatschen'))}</p>
+<div class="fortschritt rd-zeit"><i id="rdzeit" style="width:0"></i></div>
+<div class="rd-knoepfe"><button class="k leise" data-raum="zu">${esc(this.t('rk_abbrechen'))}</button></div>`;
+    } else if (s === 'denken') {
+      inhalt = `${this._magie('merkmale')}<p class="rd-mitte rd-denkt" id="rddenkt">${esc(this.t('rk_denkt_1'))}</p>`;
+    } else if (s === 'fertig') {
+      const e = d.ergebnis, art = e.hall != null ? this._hallArt(e.hall) : 'normal';
+      inhalt = `<div class="rd-ergebnis">${this._raumKurven(e.impulse)}
+<div class="rd-wert"><span class="klein">${esc(this.t('rk_nachhall'))}</span><b>${e.hall != null ? esc(this._zahl(e.hall, 2)) + ' s' : '–'}</b><span class="chip rd-art rd-${art}">${esc(this.t('rk_art_' + art))}</span></div></div>
+<p class="klein rd-mitte">${esc(this.t('rk_gefunden', { n: e.impulse.length }))} ${esc(this.t('rk_erklaerung_' + art))}</p>
+${e.laut ? `<div class="hinweis">${esc(this.t('rk_zu_laut'))}</div>` : ''}
+<div class="rd-knoepfe"><button class="k leise" data-raum="nochmal"><ha-icon icon="mdi:restart"></ha-icon>${esc(this.t('rk_nochmal'))}</button><button class="k" data-raum="probe"><ha-icon icon="mdi:ear-hearing"></ha-icon>${esc(this.t('rk_hoeren'))}</button><button class="k haupt" data-raum="speichern" ${d.speichert ? 'disabled' : ''}><ha-icon icon="mdi:auto-fix"></ha-icon>${esc(this.t('rk_speichern'))}</button></div>`;
+    } else if (s === 'gespeichert') {
+      inhalt = `${this._konfetti()}<div class="rd-fertig"><ha-icon icon="mdi:check-circle"></ha-icon></div><p class="rd-mitte"><b>${esc(this.t('rk_gespeichert', { g: d.geraet.name }))}</b></p><p class="klein rd-mitte">${esc(this.t('rk_gespeichert_text'))}</p>
+<div class="rd-knoepfe"><button class="k haupt" data-raum="zu">${esc(this.t('rk_fertig'))}</button></div>`;
+    } else if (s === 'fehler') {
+      inhalt = `<div class="rd-fertig rd-nein"><ha-icon icon="mdi:hand-clap"></ha-icon></div><p class="rd-mitte"><b>${esc(this.t('rk_zu_wenig_titel'))}</b></p><p class="klein rd-mitte">${esc(this.t(d.fehler || 'rk_zu_wenig'))}</p>
+<div class="rd-knoepfe"><button class="k leise" data-raum="zu">${esc(this.t('rk_abbrechen'))}</button><button class="k haupt" data-raum="nochmal"><ha-icon icon="mdi:restart"></ha-icon>${esc(this.t('rk_nochmal'))}</button></div>`;
+    }
+    const neu = !box.querySelector('.rd');
+    if (neu) box.innerHTML = `<div class="rd-hinter" data-raum="zu"></div><div class="rd" role="dialog" aria-modal="true"><div class="rd-kopf"><ha-icon icon="mdi:home-sound-out"></ha-icon><div><div class="klein">${esc(this.t('rk_titel'))}</div><b>${name}</b></div><button class="ikon" data-raum="zu" title="${esc(this.t('rk_abbrechen'))}"><ha-icon icon="mdi:close"></ha-icon></button></div><div class="rd-inhalt"></div></div>`;
+    const ziel = box.querySelector('.rd-inhalt');
+    ziel.innerHTML = `<div class="rd-schritt">${inhalt}</div>`;
+  }
+
+  // little scene for the start: phone next to the device, a person clapping a few steps away, sound rings
+  _raumSzene() {
+    return `<svg class="rd-szene" viewBox="0 0 320 120" aria-hidden="true">
+<rect class="sz-boden" x="10" y="104" width="300" height="2" rx="1"/>
+<g class="sz-geraet"><rect x="40" y="70" width="38" height="34" rx="10"/><circle cx="59" cy="80" r="3"/></g>
+<g class="sz-handy"><rect x="84" y="84" width="14" height="20" rx="3"/><rect class="sz-schirm" x="86" y="87" width="10" height="13" rx="1"/></g>
+<g class="sz-ringe"><circle cx="230" cy="56" r="10"/><circle cx="230" cy="56" r="10"/><circle cx="230" cy="56" r="10"/></g>
+<g class="sz-person"><circle cx="250" cy="34" r="9"/><path d="M250 44v34M250 78l-10 26M250 78l10 26"/><g class="sz-haende"><path class="sz-l" d="M250 52l-18 2"/><path class="sz-r" d="M250 56l-18 0"/></g></g>
+<path class="sz-weg" d="M224 70 C 180 50, 140 58, 104 84"/></svg>`;
+  }
+
+  // decay of every clap (level in dB over time): steep = dry room, long = echoey room
+  _raumKurven(impulse) {
+    const farben = ['var(--primary-color)', '#8bc34a', '#ff9800', '#e91e63', '#9c27b0', '#009688'];
+    const B = 300, H = 110, rahmen = 160, T = Math.max(0.3, ...impulse.map((x) => x.length / 16000));
+    const pfade = impulse.map((x, k) => {
+      const n = Math.floor(x.length / rahmen);
+      let spitze = 1e-9; for (let i = 0; i < x.length; i++) spitze = Math.max(spitze, Math.abs(x[i]));
+      const pkt = [];
+      for (let i = 0; i < n; i++) {
+        let s = 0; for (let j = i * rahmen; j < (i + 1) * rahmen; j++) s += x[j] * x[j];
+        const db = Math.max(-60, 20 * Math.log10(Math.sqrt(s / rahmen) / spitze + 1e-9));
+        pkt.push(`${((i * rahmen) / 16000 / T * B).toFixed(1)},${(8 + (-db / 60) * (H - 16)).toFixed(1)}`);
+      }
+      if (!pkt.length) return '';
+      const letzt = pkt[pkt.length - 1].split(',')[0];
+      return `<polygon points="0,${H - 8} ${pkt.join(' ')} ${letzt},${H - 8}" style="--c:${farben[k % farben.length]};--v:${k * 120 + 500}ms"/><polyline points="${pkt.join(' ')}" style="--c:${farben[k % farben.length]};--v:${k * 120}ms"/>`;
+    }).join('');
+    return `<svg class="rd-kurven" viewBox="0 0 ${B} ${H}" preserveAspectRatio="none" aria-hidden="true"><line x1="0" y1="${H - 8}" x2="${B}" y2="${H - 8}"/>${pfade}</svg>`;
+  }
+
+  _ton(ctx, frequenz, dauer, wann = 0, laut = 0.25) {
+    const o = ctx.createOscillator(), v = ctx.createGain(), t = ctx.currentTime + wann;
+    o.frequency.value = frequenz; o.type = 'sine';
+    v.gain.setValueAtTime(0, t); v.gain.linearRampToValueAtTime(laut, t + 0.01); v.gain.exponentialRampToValueAtTime(0.0001, t + dauer);
+    o.connect(v); v.connect(ctx.destination); o.start(t); o.stop(t + dauer + 0.02);
+  }
+
+  async _raumLos() {
+    const d = this._raumD; if (!d) return;
+    try {
+      d.strom = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
+    } catch (e) { this._meldung(this.t('au_erlaubnis', { f: e.message })); return; }
+    if (this._raumD !== d) { d.strom.getTracks().forEach((t) => t.stop()); return; }
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const quelle = ctx.createMediaStreamSource(d.strom), proz = ctx.createScriptProcessor(1024, 1, 1);
+    const rate = ctx.sampleRate, block = 1024 / rate;
+    Object.assign(d, { ctx, quelle, proz, rate, stuecke: [], spitzen: [], klatscher: [], rauschen: 0.002, laeuft: false, zaehlen: 5, rest: 5 });
+    let letzte = -9, vorher = [0, 0, 0], t = 0;
+    const DAUER = 12;
+    proz.onaudioprocess = (ev) => {
+      const x = new Float32Array(ev.inputBuffer.getChannelData(0));
+      let s = 0, p = 0; for (let i = 0; i < x.length; i++) { s += x[i] * x[i]; p = Math.max(p, Math.abs(x[i])); }
+      const rms = Math.sqrt(s / x.length);
+      if (!d.laeuft) { d.rauschen = d.rauschen * 0.9 + rms * 0.1; return; }
+      d.stuecke.push(x); d.spitzen.push(p); t += block;
+      const davor = Math.max(...vorher);
+      // a clap: a sudden, loud peak well above the room's noise and the blocks before it
+      if (p > Math.max(0.05, d.rauschen * 10) && p > davor * 3 && t - letzte > 0.35) {
+        letzte = t; d.klatscher.push(t - block); this._raumKlatsch(d.klatscher.length);
+      } else if (t - letzte > 0.6) d.rauschen = d.rauschen * 0.98 + rms * 0.02;
+      vorher = [vorher[1], vorher[2], p];
+      const fertig = t >= DAUER || d.klatscher.length >= 6 || (d.klatscher.length >= 4 && t - letzte > 1.3);
+      if (fertig && d.laeuft) { d.laeuft = false; setTimeout(() => this._raumAuswerten(), 0); }
+    };
+    quelle.connect(proz); proz.connect(ctx.destination);
+    d.schritt = 'zaehlen'; this._raumZeichnen();
+    this._ton(ctx, 660, 0.12);
+    d.uhr = setInterval(() => {
+      if (this._raumD !== d) { clearInterval(d.uhr); return; }
+      d.rest -= 1;
+      const z = this.shadowRoot.getElementById('rdzahl');
+      if (d.rest > 0) { if (z) { z.textContent = d.rest; z.classList.remove('tick'); void z.offsetWidth; z.classList.add('tick'); } this._ton(ctx, 660, 0.12); return; }
+      clearInterval(d.uhr);
+      this._ton(ctx, 1320, 0.25, 0, 0.35);
+      // start listening once the signal tone has died away, so it is never taken for a clap
+      setTimeout(() => {
+        if (this._raumD !== d) return;
+        d.schritt = 'hoeren'; this._raumZeichnen(); d.laeuft = true; this._raumWelle();
+        const start = performance.now();
+        d.uhr = setInterval(() => { const b = this.shadowRoot.getElementById('rdzeit'); if (b) b.style.width = Math.min(100, (performance.now() - start) / (DAUER * 10)) + '%'; }, 200);
+      }, 450);
+    }, 1000);
+  }
+
+  _raumKlatsch(n) {
+    const p = this.shadowRoot.querySelector(`.rd-punkt[data-n="${n - 1}"]`);
+    if (p) p.classList.add('an');
+    const h = this.shadowRoot.getElementById('rdhinweis');
+    if (h) h.textContent = this.t(n >= 4 ? 'rk_genug' : 'rk_weiter', { n });
+    const live = this.shadowRoot.querySelector('.rd-live');
+    if (live) { const r = document.createElement('i'); r.className = 'rd-blitz'; live.appendChild(r); setTimeout(() => r.remove(), 700); }
+  }
+
+  // live wave: the peaks scroll from right to left, claps glow
+  _raumWelle() {
+    const d = this._raumD, c = this.shadowRoot.getElementById('rdwelle'); if (!d || !c) return;
+    const farbe = getComputedStyle(this).getPropertyValue('--primary-color').trim() || '#03a9f4';
+    const malen = () => {
+      if (this._raumD !== d || d.schritt !== 'hoeren') return;
+      const b = c.clientWidth || 300, h = c.height; if (c.width !== b) c.width = b;
+      const g = c.getContext('2d'); g.clearRect(0, 0, b, h);
+      const n = Math.floor(b / 4), sp = d.spitzen.slice(-n), versatz = n - sp.length;
+      g.fillStyle = farbe;
+      sp.forEach((p, i) => {
+        const y = Math.max(2, Math.min(h - 4, Math.sqrt(p) * h * 1.1));
+        g.globalAlpha = 0.35 + 0.65 * (i / n);
+        g.fillRect((versatz + i) * 4, (h - y) / 2, 2.5, y);
+      });
+      g.globalAlpha = 1;
+      const block = 1024 / d.rate, jetzt = d.spitzen.length * block;
+      d.klatscher.forEach((k) => {
+        const x = b - ((jetzt - k) / block) * 4; if (x < 0) return;
+        const verlauf = g.createLinearGradient(x - 10, 0, x + 10, 0);
+        verlauf.addColorStop(0, 'rgba(255,255,255,0)'); verlauf.addColorStop(0.5, 'rgba(255,255,255,.75)'); verlauf.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = verlauf; g.fillRect(x - 10, 0, 20, h); g.fillStyle = farbe;
+      });
+      d.bild = requestAnimationFrame(malen);
+    };
+    malen();
+  }
+
+  _auf16k(roh, rate) {
+    const faktor = rate / 16000, m = Math.floor(roh.length / faktor), aus = new Float32Array(m);
+    for (let i = 0; i < m; i++) {
+      const a = Math.floor(i * faktor), b = Math.max(a + 1, Math.min(roh.length, Math.floor((i + 1) * faktor)));
+      let s = 0; for (let j = a; j < b; j++) s += roh[j];
+      aus[i] = s / (b - a);
+    }
+    return aus;
+  }
+
+  _wavBlob(x) {
+    const m = x.length, kopf = new DataView(new ArrayBuffer(44)), daten = new Int16Array(m);
+    for (let i = 0; i < m; i++) daten[i] = Math.max(-32768, Math.min(32767, Math.round(x[i] * 32767)));
+    const schreib = (p, t) => { for (let i = 0; i < t.length; i++) kopf.setUint8(p + i, t.charCodeAt(i)); };
+    schreib(0, 'RIFF'); kopf.setUint32(4, 36 + m * 2, true); schreib(8, 'WAVE'); schreib(12, 'fmt ');
+    kopf.setUint32(16, 16, true); kopf.setUint16(20, 1, true); kopf.setUint16(22, 1, true); kopf.setUint32(24, 16000, true);
+    kopf.setUint32(28, 32000, true); kopf.setUint16(32, 2, true); kopf.setUint16(34, 16, true); schreib(36, 'data'); kopf.setUint32(40, m * 2, true);
+    return new Blob([kopf, daten.buffer], { type: 'audio/wav' });
+  }
+
+  // reverb time from the decay (Schroeder): -5 to -25 dB, else -5 to -15 dB, extrapolated to 60 dB
+  _hallzeit(x) {
+    const e = new Float64Array(x.length + 1);
+    for (let i = x.length - 1; i >= 0; i--) e[i] = e[i + 1] + x[i] * x[i];
+    if (!(e[0] > 0)) return null;
+    const zeit = (db) => { const grenze = e[0] * Math.pow(10, db / 10); for (let i = 0; i < x.length; i++) if (e[i] <= grenze) return i / 16000; return null; };
+    const t5 = zeit(-5), t25 = zeit(-25), t15 = zeit(-15);
+    if (t5 != null && t25 != null && t25 > t5) return 3 * (t25 - t5);
+    if (t5 != null && t15 != null && t15 > t5) return 6 * (t15 - t5);
+    return null;
+  }
+
+  // cut every clap with its echo out of the recording: from just before the peak until it sinks into the noise
+  _raumImpulse(x, zeiten) {
+    const rahmen = 160, n = Math.floor(x.length / rahmen), pegel = new Float32Array(n);
+    for (let i = 0; i < n; i++) { let s = 0; for (let j = i * rahmen; j < (i + 1) * rahmen; j++) s += x[j] * x[j]; pegel[i] = Math.sqrt(s / rahmen); }
+    const sortiert = [...pegel].sort((a, b) => a - b), rauschen = Math.max(1e-5, sortiert[Math.floor(n * 0.2)] || 1e-5);
+    const spitzen = zeiten.map((t) => {
+      const a = Math.max(0, Math.floor((t - 0.12) * 16000)), b = Math.min(x.length, Math.floor((t + 0.2) * 16000));
+      let p = a; for (let i = a; i < b; i++) if (Math.abs(x[i]) > Math.abs(x[p])) p = i;
+      return p;
+    });
+    const aus = []; let laut = 0;
+    spitzen.forEach((p, k) => {
+      const start = Math.max(0, p - 16), grenze = Math.min(x.length, k + 1 < spitzen.length ? spitzen[k + 1] - 320 : x.length, p + Math.floor(1.2 * 16000));
+      const spitze = Math.abs(x[p]);
+      if (20 * Math.log10(spitze / rauschen) < 25) return;  // too quiet against the room noise
+      let ende = grenze, still = 0;
+      for (let f = Math.ceil(p / rahmen) + 2; f < Math.floor(grenze / rahmen); f++) {
+        still = pegel[f] < rauschen * 2 ? still + 1 : 0;
+        if (still >= 3) { ende = Math.min(grenze, (f + 2) * rahmen); break; }
+      }
+      if (ende - start < 0.06 * 16000) return;
+      let geclippt = 0; for (let i = start; i < ende; i++) if (Math.abs(x[i]) > 0.98) geclippt++;
+      if (geclippt > 8) laut++;
+      const h = x.slice(start, ende), faktor = 0.9 / spitze, aus_n = Math.min(320, h.length >> 2);
+      for (let i = 0; i < h.length; i++) h[i] *= faktor;
+      for (let i = 0; i < aus_n; i++) h[h.length - 1 - i] *= 0.5 - 0.5 * Math.cos((Math.PI * i) / aus_n);
+      aus.push(h);
+    });
+    return { impulse: aus.slice(0, 6), laut: laut > 0 && laut >= aus.length / 2 };
+  }
+
+  async _raumAuswerten() {
+    const d = this._raumD; if (!d) return;
+    const stuecke = d.stuecke, rate = d.rate, zeiten = [...d.klatscher];
+    this._raumAufraeumen();
+    if (this._raumD !== d) return;
+    d.schritt = 'denken'; this._raumZeichnen();
+    const n = stuecke.reduce((a, b) => a + b.length, 0), roh = new Float32Array(n);
+    let o = 0; for (const s of stuecke) { roh.set(s, o); o += s.length; }
+    const e = this._raumImpulse(this._auf16k(roh, rate), zeiten);
+    const hall = e.impulse.map((h) => this._hallzeit(h)).filter((h) => h != null && h > 0.05 && h < 4);
+    hall.sort((a, b) => a - b);
+    e.hall = hall.length ? hall[Math.floor(hall.length / 2)] : null;
+    e.hallJe = e.impulse.map((h) => this._hallzeit(h));
+    // a short moment of "thinking" with changing words: the analysis itself takes milliseconds
+    const worte = ['rk_denkt_1', 'rk_denkt_2', 'rk_denkt_3'];
+    for (let i = 1; i < worte.length; i++) {
+      await new Promise((r) => setTimeout(r, 650));
+      const p = this.shadowRoot.getElementById('rddenkt'); if (p) { p.textContent = this.t(worte[i]); p.classList.remove('neu'); void p.offsetWidth; p.classList.add('neu'); }
+    }
+    await new Promise((r) => setTimeout(r, 600));
+    if (this._raumD !== d) return;
+    if (e.impulse.length < 2) { d.schritt = 'fehler'; d.fehler = zeiten.length >= 2 ? 'rk_zu_leise' : 'rk_zu_wenig'; this._raumZeichnen(); return; }
+    d.ergebnis = e; d.schritt = 'fertig'; this._raumZeichnen();
+  }
+
+  async _raumSpeichern() {
+    const d = this._raumD; if (!d || !d.ergebnis || d.speichert) return;
+    d.speichert = true; this._raumZeichnen();
+    const stelle = Date.now().toString(36);
+    let ok = 0;
+    for (let i = 0; i < d.ergebnis.impulse.length; i++) {
+      const fd = new FormData();
+      fd.append('knoten', d.geraet.knoten); fd.append('stelle', stelle);
+      const h = d.ergebnis.hallJe[i]; if (h != null) fd.append('hall', String(h));
+      fd.append('datei', this._wavBlob(d.ergebnis.impulse[i]), 'klatsch.wav');
+      try { const r = await this._hass.fetchWithAuth('/api/sprachmodell/raum', { method: 'POST', body: fd }); if (r.ok) ok++; } catch (e) { /* zählt als nicht gespeichert */ }
+    }
+    d.speichert = false;
+    if (this._raumD !== d) return;
+    if (!ok) { this._meldung(this.t('ging_nicht', { f: '' })); this._raumZeichnen(); return; }
+    d.schritt = 'gespeichert'; this._raumZeichnen(); this._laden();
+  }
+
+  // hear it: one of your own recordings of the word, first as recorded, then as in this room
+  async _raumHoeren(impulse, g) {
+    try {
+      const ctx = this._hoerCtx || (this._hoerCtx = new (window.AudioContext || window.webkitAudioContext)());
+      if (ctx.state === 'suspended') await ctx.resume();
+      let h = impulse;
+      if (!h) {
+        h = await Promise.all((g.raum.ids || []).slice(-3).map(async (id) => {
+          const r = await this._hass.fetchWithAuth('/api/sprachmodell/raum/' + encodeURIComponent(g.knoten) + '/' + encodeURIComponent(id));
+          return (await ctx.decodeAudioData(await r.arrayBuffer())).getChannelData(0);
+        }));
+      }
+      const wid = (Object.values(g.plaetze || {}).find((p) => p.wort) || {}).wort || (this._daten.woerter[0] || {}).id;
+      let trocken = null;
+      if (wid) {
+        const l = await this._api('GET', `liste?filter=bewertet&art=wort&wort=${encodeURIComponent(wid)}`);
+        const a = (l.eintraege || [])[0];
+        if (a) { const r = await this._hass.fetchWithAuth('/api/sprachmodell/audio/' + encodeURIComponent(wid) + '/' + encodeURIComponent(a.id)); trocken = await ctx.decodeAudioData(await r.arrayBuffer()); }
+      }
+      const imp = h[0], buf = ctx.createBuffer(1, imp.length, 16000); buf.copyToChannel(imp instanceof Float32Array ? imp : new Float32Array(imp), 0);
+      if (!trocken) { const q = ctx.createBufferSource(); q.buffer = buf; q.connect(ctx.destination); q.start(); this._meldung(this.t('rk_hoeren_klatsch')); return; }
+      const nass = ctx.createConvolver(); nass.normalize = true; nass.buffer = buf;
+      const a = ctx.createBufferSource(); a.buffer = trocken; a.connect(ctx.destination); a.start();
+      const b = ctx.createBufferSource(); b.buffer = trocken; const v = ctx.createGain(); v.gain.value = 1.4;
+      b.connect(nass); nass.connect(v); v.connect(ctx.destination); b.start(ctx.currentTime + trocken.duration + 0.5);
+      this._meldung(this.t('rk_hoeren_info'));
+    } catch (e) { this._meldung(this.t('ging_nicht', { f: e.message })); }
   }
 
   // ---------- Einstellungen ----------
@@ -1786,21 +2463,25 @@ ${Object.keys(g.plaetze).map((p) => { const pl = g.plaetze[p], w = wort(pl.wort)
     const basis = tr.adresse || location.origin;
     if (!this._admin) return `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('es_trainer'))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(tr.online ? this.t('t_trainer_an') : tr.kontakt ? this.t('t_trainer_zuletzt', { z: this._zeit(tr.kontakt) }) : this.t('t_trainer_nie'))}</span></div><p class="klein">${esc(this.t('nur_admin_hinweis'))}</p></ha-card>
 <div class="klein">${esc(this.t('es_info', { v: d.version_integration, a: d.ablage }))}</div>`;
-    return `<ha-card><h2>${esc(this.t('es_allgemein'))}</h2>
-<label class="feld">${esc(this.t('es_zeit'))}</label><input type="time" data-zopt="uhrzeit" value="${esc(String(e.uhrzeit).slice(0, 5))}">
+    return `${this._abschnitt('allgemein', 'mdi:clock-outline', 'es_allgemein', 'es_allgemein_kurz', `<label class="feld">${esc(this.t('es_zeit'))}</label><input type="time" data-zopt="uhrzeit" value="${esc(String(e.uhrzeit).slice(0, 5))}">
 <label class="feld">${esc(this.t('es_min_neu'))}</label><input type="number" min="1" max="500" data-zopt="nachts_min_neu" value="${e.nachts_min_neu}">
 <label class="feld">${esc(this.t('es_erinnerung'))}</label><input type="number" min="0" max="60" data-zopt="erinnerung_tage" value="${e.erinnerung_tage}">
 <label class="feld">${esc(this.t('es_aufbewahren'))}</label><input type="number" min="7" max="365" data-zopt="unbewertet_tage" value="${e.unbewertet_tage}">
-<label class="feld">${esc(this.t('es_personen'))}</label><input type="text" data-zopt="personen" value="${esc((e.personen || []).join(', '))}" placeholder="${esc(d.personen.join(', '))}"></ha-card>
-<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('es_trainer'))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(this._trainerStatus())}</span></div>
-<p class="klein" style="line-height:1.5">${esc(this.t('es_trainer_text'))}</p>
+<label class="feld">${esc(this.t('es_personen'))}</label><input type="text" data-zopt="personen" value="${esc((e.personen || []).join(', '))}" placeholder="${esc(d.personen.join(', '))}">`)}
+${this._abschnitt('trainer', 'mdi:school-outline', 'es_trainer', '', `<p class="klein" style="line-height:1.5">${esc(this.t('es_trainer_text'))}</p>
 <h3>${esc(this.t('tr_deine'))}</h3>${this._trainerUebersicht()}
 <h3>${esc(this.t('ei_titel'))}</h3>${this._einrichten(basis)}
-<table><tr><td>${esc(this.t('es_adresse'))}</td><td><code>${esc(basis)}</code></td></tr><tr><td>${esc(this.t('es_schluessel'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="schluessel">${esc(this.t(this._zeigeSchl ? 'es_verbergen' : 'es_zeigen'))}</button><button class="k leise" data-a="schluessel_neu">${esc(this.t('es_neu_schluessel'))}</button></div></td></tr></table>
-${this._neustartTeil()}</ha-card>
+<table><tr><td>${esc(this.t('es_adresse'))}</td><td><code>${esc(basis)}</code></td></tr><tr><td>${esc(this.t('es_schluessel'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="schluessel">${esc(this.t(this._zeigeSchl ? 'es_verbergen' : 'es_zeigen'))}</button><button class="k leise" data-a="schluessel_neu">${esc(this.t('es_neu_schluessel'))}</button></div></td></tr></table>`, `<span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(this._trainerStatus())}</span>`)}
 ${this._sendenKarte(tr, basis)}
-<ha-card><h2>${esc(this.t('es_ablage'))}</h2><p class="klein" style="line-height:1.6">${this.t('es_ablage_text', { a: esc(d.ablage) })}</p></ha-card>
+${this._abschnitt('ablage', 'mdi:folder-outline', 'es_ablage', 'es_ablage_kurz', `<p class="klein" style="line-height:1.6">${this.t('es_ablage_text', { a: esc(d.ablage) })}</p>`)}
 <div class="klein">${esc(this.t('es_info', { v: d.version_integration, a: d.ablage }))}</div>`;
+  }
+
+  // a settings section that folds open and closed; which ones are open is remembered in this browser
+  _abschnitt(id, icon, titel, kurz, inhalt, rechts = '') {
+    const offen = this._merk('abschnitt.' + id);
+    const auf = offen == null ? id === 'trainer' : offen === '1';
+    return `<ha-card class="abschnitt"><details data-abschnitt="${id}" ${auf ? 'open' : ''}><summary><span class="ab-ikon"><ha-icon icon="${icon}"></ha-icon></span><span class="ab-titel"><h2>${esc(this.t(titel))}</h2>${kurz ? `<span class="klein">${esc(this.t(kurz))}</span>` : ''}</span>${rechts}<ha-icon class="ab-pfeil" icon="mdi:chevron-down"></ha-icon></summary><div class="ab-inhalt">${inhalt}</div></details></ha-card>`;
   }
 
   _sendenKarte(tr, basis) {
@@ -1824,11 +2505,11 @@ ${this._sendenKarte(tr, basis)}
 <div class="zeile sgeraet-regler">${schalter(s.behalten_entitaet, behalten, this.t('es_schalter_behalten'), true)}${schalter(s.seite_entitaet, seite, this.t('es_schalter_seite'))}${auswahl}</div>
 <div class="zeile weit"><span class="klein">${esc(extra || (s.ip ? 'IP ' + s.ip : ''))}</span>${einrichten}</div></div>`;
     }).join('');
-    return `<ha-card><h2>${esc(this.t('es_senden'))}</h2><p class="klein" style="line-height:1.6">${esc(this.t('es_senden_text'))}</p>
+    return this._abschnitt('senden', 'mdi:send-outline', 'es_senden', 'es_senden_kurz', `<p class="klein" style="line-height:1.6">${esc(this.t('es_senden_text'))}</p>
 <ol class="klein" style="line-height:1.6;padding-left:20px">${schritte}</ol>
 <table><tr><td>${esc(this.t('es_senden_ziel'))}</td><td><code>Custom</code></td></tr><tr><td>${esc(this.t('es_adresse'))}</td><td><div class="schluessel"><code>${esc(adresse)}</code><button class="k leise" data-a="kopieren" data-text="${esc(adresse)}">${esc(this.t('es_kopieren'))}</button></div></td></tr><tr><td>${esc(this.t('es_senden_token'))}</td><td><div class="schluessel"><code>${this._zeigeSchl ? esc(tr.schluessel) : '••••••••••••'}</code><button class="k leise" data-a="kopieren" data-schl="1">${esc(this.t('es_kopieren'))}</button></div></td></tr></table>
 ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraete'))}</h3><div class="sgeraete">${zeilen}</div>` : `<p class="klein">${esc(this.t('es_senden_keine'))}</p>`}
-<p class="klein" style="line-height:1.6">${esc(this.t('es_senden_hinweis'))}</p></ha-card>`;
+<p class="klein" style="line-height:1.6">${esc(this.t('es_senden_hinweis'))}</p>`);
   }
 
   async _kopieren(text) {
@@ -1842,8 +2523,9 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
 
   // ---------- Ereignisse ----------
   async _klick(e) {
-    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe],[data-zelle],[data-tbecho],[data-schnitt],[data-sa],[data-logfilter],[data-umzug],[data-ziel],[data-zurueck],[data-vgl]');
+    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe],[data-zelle],[data-tbecho],[data-schnitt],[data-sa],[data-logfilter],[data-umzug],[data-ziel],[data-zurueck],[data-vgl],[data-raum]');
     if (!t) return;
+    if (t.dataset.raum) { this._raumAktion(t.dataset.raum, t.dataset.knoten); return; }
     if (t.dataset.reiter) { if (t.dataset.reiter === 'neu') this._entwurf = null; this._gehe(t.dataset.reiter, t.dataset.wort); return; }
     if (t.dataset.spielen) { const zeile = t.closest('.eintrag'); if (zeile) { const alle = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')]; this._aktiv = Math.max(0, alle.indexOf(zeile)); this._markieren(false); } this._spielen(t.dataset.spielen); return; }
     if (t.dataset.urteil) { this._urteilen(t.dataset.id, t.dataset.urteil); return; }
@@ -1862,7 +2544,7 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
     if (t.dataset.recmodus) { this._rec.modus = t.dataset.recmodus; this._zeichnen(); return; }
     if (t.dataset.takespielen) { const tk = this._rec.takes[Number(t.dataset.takespielen)]; if (tk) this._spielen('take' + t.dataset.takespielen, tk.url); return; }
     if (t.dataset.takeweg) { const [tk] = this._rec.takes.splice(Number(t.dataset.takeweg), 1); if (tk) URL.revokeObjectURL(tk.url); this._recZeichnen(); return; }
-    if (t.dataset.farbe) { if (this._entwurf) { this._entwurf.farbe = t.dataset.farbe; this._entwurf._geaendert = true; } this.shadowRoot.querySelectorAll('[data-farbe]').forEach((b) => b.classList.toggle('an', b === t)); return; }
+    if (t.dataset.farbe) { if (this._entwurf) { this._entwurf.farbe = t.dataset.farbe; this._entwurf._geaendert = true; } this.shadowRoot.querySelectorAll('[data-farbe]').forEach((b) => b.classList.toggle('an', b === t)); this._neuStand(); return; }
     const a = t.dataset.a;
     try {
       if (a === 'neu') this._laden();
@@ -1884,12 +2566,17 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
         const nr = Number(t.dataset.nr);
         if (confirm(this.t('q_einspielen_frage', { n: nr }))) { await this._api('POST', 'aktion', { aktion: 'einspielen', wort: this._wortId, nr }); this._meldung(this.t('q_wird', { n: nr })); this._laden(); }
       } else if (a === 'trainer_neustart') {
-        const ent = this._daten.einstellungen.trainer_neustart;
-        const laeuft = this._daten.woerter.some((w) => LAEUFT.includes((w.training || {}).phase));
-        if (ent && confirm(this.t(laeuft ? 'es_neustart_frage_lauf' : 'es_neustart_frage'))) {
-          await this._hass.callService('button', 'press', { entity_id: ent });
+        const tr = (this._daten.trainer.liste || []).find((x) => x.id === t.dataset.tid);
+        if (tr && confirm(this.t(tr.laeuft.length ? 'es_neustart_frage_lauf' : 'es_neustart_frage'))) {
+          t.disabled = true;
+          await this._api('POST', 'aktion', { aktion: 'trainer', trainer: tr.id, neustarten: true });
           this._meldung(this.t('es_neustart_ok'));
+          this._laden();
         }
+      } else if (a === 'studio_update') {
+        if (confirm(this.t('vh_update_frage'))) { t.disabled = true; await this._hass.callService('update', 'install', { entity_id: t.dataset.ent }); }
+      } else if (a === 'ha_neustart') {
+        if (confirm(this.t('vh_ha_frage'))) { t.disabled = true; await this._hass.callService('homeassistant', 'restart', {}); }
       } else if (a === 'schluessel') { this._zeigeSchl = !this._zeigeSchl; this._zeichnen(); }
       else if (a === 'schluessel_neu') { if (confirm(this.t('es_neu_frage'))) { await this._api('POST', 'aktion', { aktion: 'schluessel_neu' }); this._zeigeSchl = true; this._laden(); } }
       else if (a === 'log_kopieren') { const w = this._daten.wort, l = (w && w.live) || {}; await this._kopieren((l.protokoll || []).map(([z, art, text]) => `${new Date(z * 1000).toLocaleString()} [${art}] ${text}`).join('\n')); }
@@ -1921,7 +2608,9 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
         if (!String(e2.wort || '').trim()) { this._meldung(this.t('w_fehlt')); return; }
         t.disabled = true;
         const r = await this._api('POST', 'aktion', { aktion: 'wort_neu', einstellungen: e2 });
+        const zauber = this._erschaffen(String(e2.wort).trim(), e2.farbe || FARBEN[0]);
         this._entwurf = null; this._gehe('uebersicht', r.id);
+        await zauber;
       } else if (a === 'wort_speichern') {
         const e2 = this._entwurfDaten(); delete e2.modell_id;
         if (!String(e2.wort || '').trim()) { this._meldung(this.t('w_fehlt')); return; }
@@ -1952,6 +2641,7 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
     if (t.dataset.feld && this._entwurf && t.tagName === 'INPUT') {
       this._entwurf[t.dataset.feld] = t.value; this._entwurf._geaendert = true;
       if (t.dataset.feld === 'wort' && !this._entwurf.id) { const an = this.shadowRoot.querySelector('input[data-feld="anzeige"]'); if (an) an.placeholder = this.t('w_anzeige_hilfe', { w: t.value || '…' }); }
+      this._neuStand();
     }
   }
 
@@ -1960,11 +2650,11 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
     if (t.id === 'datei') { this._hochladen([...t.files]); t.value = ''; return; }
     if (t.id === 'autoplay') { this._autoplay = t.checked; this._merk('autoplay', t.checked ? '1' : '0'); return; }
     if (t.id === 'recnotiz') { this._rec.notiz = t.value; return; }
-    if (t.dataset.feld && this._entwurf) { this._entwurf[t.dataset.feld] = t.value; this._entwurf._geaendert = true; return; }
+    if (t.dataset.feld && this._entwurf) { this._entwurf[t.dataset.feld] = t.value; this._entwurf._geaendert = true; this._neuStand(); return; }
     if (t.dataset.platz !== undefined && this._entwurf) {
       const g = { ...(this._entwurf.geraete || {}) };
       if (t.value) g[t.dataset.platz] = t.value; else delete g[t.dataset.platz];
-      this._entwurf.geraete = g; this._entwurf._geaendert = true; return;
+      this._entwurf.geraete = g; this._entwurf._geaendert = true; this._neuStand(); return;
     }
     if (t.dataset.gschalter) {
       // "Keep wake clips" off deletes the clips on the device, so that one asks first
@@ -1987,8 +2677,18 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
     }
     try {
       if (t.dataset.wopt) {
+        const kachel = t.closest('.kschalter-kopf') && t.closest('.kschalter');
+        if (kachel) { kachel.classList.toggle('an', t.checked); kachel.classList.toggle('neu', t.checked); }
+        if (t.dataset.wopt === 'gruendlich' && kachel) {
+          const u = kachel.querySelector('.unter-schalter'), m = u && u.querySelector('input');
+          if (u) u.classList.toggle('aus', !t.checked); if (m) m.disabled = !t.checked || !this._admin;
+        }
         await this._api('POST', 'aktion', { aktion: 'wort_aendern', wort: this._wortId, einstellungen: { [t.dataset.wopt]: t.checked } });
         this._meldung(this.t('gespeichert'));
+      } else if (t.dataset.ttaste) {
+        await this._api('POST', 'aktion', { aktion: 'trainer', trainer: t.dataset.ttaste, taste: t.value });
+        this._meldung(this.t('gespeichert'));
+        this._laden();
       } else if (t.dataset.tpause) {
         await this._api('POST', 'aktion', { aktion: 'trainer', trainer: t.dataset.tpause, pause: !t.checked });
         this._meldung(this.t('gespeichert'));
@@ -1998,7 +2698,7 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
         if (t.dataset.zopt === 'personen') wert = t.value.split(',').map((x) => x.trim()).filter(Boolean);
         await this._api('POST', 'aktion', { aktion: 'einstellungen', einstellungen: { [t.dataset.zopt]: wert } });
         this._meldung(this.t('gespeichert'));
-        if (t.dataset.zopt === 'trainer_neustart' || t.dataset.zopt === 'trainer_wahl') this._laden();
+        if (t.dataset.zopt === 'trainer_wahl') this._laden();
       }
     } catch (err) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(err) })); }
   }

@@ -53,6 +53,9 @@ STANDARD_WORT = {
     # With "thorough": also one model that averages the candidates (fewer false wakes, but it needs about three
     # times the memory on the device). It is only used if it does better than the best single candidate.
     "mitteln": False,
+    # Mix the room sound learned on the devices page (claps next to each device) into the training. Only has an
+    # effect once at least one device has its room learned
+    "raumklang": True,
     "farbe": "",
 }
 
@@ -65,8 +68,10 @@ STANDARD_ZENTRALE = {
     "erinnerung_tage": 7,
     "unbewertet_tage": 60,
     "personen": [],
-    # a button entity that restarts the trainer (Proxmox, Portainer, app ...), empty = none
+    # a button entity that restarts the trainer (Proxmox, Portainer, app ...), empty = none. Since 1.0.34 one per
+    # trainer in "neustart_tasten" (trainer id -> button); this older single one still counts for its trainer
     "trainer_neustart": "",
+    "neustart_tasten": {},
     "alle_plaetze": False,  # auch Aufnahmen von Plaetzen sammeln, die keinem Wort gehoeren
     # where the trainer computes: "auto" = graphics card if the trainer can use one, "cpu" = processor only
     "geraet": "auto",

@@ -122,6 +122,14 @@ class HA:
         r.raise_for_status()
         return r.content
 
+    def raum(self, knoten: str, rid: str) -> bytes | None:
+        """One clap recorded next to a device (its room sound), None if it was deleted meanwhile."""
+        r = self._get(f"raum/{knoten}/{rid}")
+        if r.status_code == 404:
+            return None
+        r.raise_for_status()
+        return r.content
+
     def modell(self, wort: str) -> bytes | None:
         r = self._get("modell", params={"wort": wort})
         return r.content if r.status_code == 200 else None
