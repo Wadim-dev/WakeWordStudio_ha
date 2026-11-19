@@ -58,6 +58,7 @@ from .const import (
     TRAINER_VERGESSEN_S,
 )
 from .dauer import schaetzen
+from .raum import Raeume
 from .sammler import WAHL_ENDUNGEN, Sammler, alle_geraete, esphome_eintraege, geraete_info
 from .speicher import Speicher, jetzt, sichere_id
 
@@ -69,6 +70,7 @@ SAMMELN_TAKT = timedelta(minutes=2)
 HINWEIS_ID = f"{DOMAIN}_pruefen"
 # Cache der ESPHome-Integration fuer eigene Aktivierungswoerter (sonst erst nach Neustart neu)
 NEUSTART_MELDUNG = "restart_to_roll_out"
+NEUSTART_WARTEN_S = 600  # a trainer restarted from the studio that has not reported back after this long: say so
 DATEI = "zentrale.json"
 
 
@@ -223,11 +225,16 @@ class Zentrale:
         self._fehlt_seit: dict[tuple[str, str], datetime] = {}
         self._engpass_seit: datetime | None = None
         self._meldungen: set[str] = set()
+        # trainer id -> when the studio pressed its restart button (until it reports a fresh start)
+        self._neustart: dict[str, datetime] = {}
+        # room sound of each device (claps recorded next to it)
+        self.raeume = Raeume(self.ablage)
 
     # --- Ablage -----------------------------------------------------------
 
     def _laden(self) -> None:
         os.makedirs(os.path.join(self.ablage, "woerter"), exist_ok=True)
+        self.raeume.laden()
         try:
             with open(os.path.join(self.ablage, DATEI), encoding="utf-8") as datei:
                 daten = json.load(datei)
@@ -358,6 +365,53 @@ class Zentrale:
         await self.hass.async_add_executor_job(self.speichern)
         self.geaendert()
 
+    def neustart_taste(self, tid: str) -> str:
+        """The button entity that restarts this trainer, "" if none. The single button of versions before 1.0.34
+        belongs to the Proxmox trainer, or to the only trainer there is."""
+        tasten = self.opt("neustart_tasten") or {}
+        if isinstance(tasten, dict) and tid in tasten:
+            return str(tasten[tid] or "")
+        alt = str(self.opt("trainer_neustart") or "")
+        if not alt or (isinstance(tasten, dict) and alt in tasten.values()):
+            return ""
+        proxmox = [k for k, t in self.trainer.items() if (t.get("info") or {}).get("ort") == "proxmox"]
+        besitzer = proxmox[0] if len(proxmox) == 1 else next(iter(self.trainer)) if len(self.trainer) == 1 else None
+        return alt if besitzer == tid else ""
+
+    async def neustart_taste_setzen(self, tid: str, entity: str) -> None:
+        tasten = dict(self.opt("neustart_tasten") or {})
+        alt = self.neustart_taste(tid)
+        tasten[tid] = entity
+        e = self.daten.setdefault("einstellungen", {})
+        e["neustart_tasten"] = tasten
+        if alt and alt == e.get("trainer_neustart"):
+            e["trainer_neustart"] = ""  # the old single button now belongs to this trainer only
+        await self.hass.async_add_executor_job(self.speichern)
+        self.geaendert()
+
+    def neustart_zustand(self, tid: str) -> dict[str, Any] | None:
+        """{"seit", "zu_lange"} while a restart from the studio waits for the trainer to report back."""
+        seit = self._neustart.get(tid)
+        if seit is None:
+            return None
+        dauer = (datetime.now(UTC) - seit).total_seconds()
+        if dauer > 3 * NEUSTART_WARTEN_S:
+            self._neustart.pop(tid, None)
+            return None
+        return {"seit": seit.isoformat(), "zu_lange": dauer > NEUSTART_WARTEN_S}
+
+    async def trainer_neustarten(self, tid: str) -> None:
+        """Press the trainer's restart button once; again only after it reported back (or after 10 minutes)."""
+        taste = self.neustart_taste(tid)
+        if not taste:
+            raise ValueError("keine_taste")
+        z = self.neustart_zustand(tid)
+        if z and not z["zu_lange"]:
+            raise ValueError("startet_schon")
+        await self.hass.services.async_call("button", "press", {"entity_id": taste}, blocking=True)
+        self._neustart[tid] = datetime.now(UTC)
+        self.geaendert()
+
     def laeuft_bei(self, tid: str) -> list[Wort]:
         """Words whose run this trainer is working on (runs from trainers without id count for those too)."""
         return [w for w in self.woerter.values() if w.speicher.daten["training"].get("phase") in LAEUFT
@@ -457,6 +511,7 @@ class Zentrale:
                 "knoten": knoten, "name": name, "plaetze": plaetze, "clips": info["clips"],
                 "fehler": self.sammler.fehler.get(knoten),
                 "zaehler": self._zaehlerstand(knoten),
+                "raum": self.raeume.zustand(knoten),
                 "senden": self._senden_zustand(knoten),
             })
         return aus
@@ -936,6 +991,7 @@ class Zentrale:
             if any(alt.get(k) != status["info"].get(k) for k in ("version", "tempo", "name", "prozessor")):
                 self.speichern_spaeter()
         if status.get("neustart"):
+            self._neustart.pop(tid, None)  # back after a restart from the studio
             # Trainer ist neu gestartet (Absturz, Speicher voll, Update): seine Laeufe, die noch als aktiv gelten,
             # sind verloren (die eines anderen Trainers laufen weiter)
             for anderes in self.laeuft_bei(tid):

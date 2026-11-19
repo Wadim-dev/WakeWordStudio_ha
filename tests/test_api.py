@@ -12,6 +12,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 import pytest
 
+from custom_components.sprachmodell.api import _auftrag
+
 from .conftest import wav
 
 
@@ -407,3 +409,111 @@ async def test_mehrere_trainer_api(hass: HomeAssistant, hass_client_no_auth, adm
     assert r.status == 400 and (await r.json())["message"] == "trainer_unbekannt"
     d = await (await admin.get("/api/sprachmodell/daten?wort=hey_lumi")).json()
     assert set(d["wort"]["dauer"]) == {"pc", "trainer"}
+
+
+async def test_trainer_neustart_je_trainer(hass: HomeAssistant, hass_client_no_auth, admin, api) -> None:
+    """Each trainer has its own restart button; a restart waits for the trainer to report back before another."""
+    from homeassistant.core import ServiceCall
+
+    gedrueckt: list[str] = []
+
+    async def druecken(call: ServiceCall) -> None:
+        gedrueckt.append(call.data["entity_id"])
+
+    hass.services.async_register("button", "press", druecken)
+    client = await hass_client_no_auth()
+    kopf = {"X-Sprachmodell-Schluessel": api.schluessel}
+    pc, proxmox = {**kopf, "X-Sprachmodell-Trainer": "pc"}, {**kopf, "X-Sprachmodell-Trainer": "proxmox"}
+    await client.post("/api/sprachmodell/trainer/status", headers=proxmox, json={"info": {"art": "docker", "ort": "proxmox"}})
+    await client.post("/api/sprachmodell/trainer/status", headers=pc, json={"info": {"art": "docker"}})
+    # the single button of older versions belongs to the Proxmox trainer
+    await api.einstellungen_setzen({"trainer_neustart": "button.ct_102"})
+    assert api.neustart_taste("proxmox") == "button.ct_102" and api.neustart_taste("pc") == ""
+    r = await admin.post("/api/sprachmodell/aktion", json={"aktion": "trainer", "trainer": "pc", "neustarten": True})
+    assert r.status == 400 and (await r.json())["message"] == "keine_taste"
+    r = await admin.post("/api/sprachmodell/aktion", json={"aktion": "trainer", "trainer": "pc", "taste": "light.x"})
+    assert r.status == 400
+    r = await admin.post("/api/sprachmodell/aktion", json={"aktion": "trainer", "trainer": "pc", "taste": "button.pc"})
+    assert r.status == 200 and api.neustart_taste("pc") == "button.pc" and api.neustart_taste("proxmox") == "button.ct_102"
+    # pressed once; a second press while it restarts is refused
+    r = await admin.post("/api/sprachmodell/aktion", json={"aktion": "trainer", "trainer": "proxmox", "neustarten": True})
+    assert r.status == 200 and gedrueckt == ["button.ct_102"]
+    d = await (await admin.get("/api/sprachmodell/daten")).json()
+    liste = {t["id"]: t for t in d["trainer"]["liste"]}
+    assert liste["proxmox"]["neustart"] and not liste["proxmox"]["neustart"]["zu_lange"] and liste["pc"]["neustart"] is None
+    assert liste["proxmox"]["neustart_taste"] == "button.ct_102" and liste["pc"]["neustart_taste"] == "button.pc"
+    r = await admin.post("/api/sprachmodell/aktion", json={"aktion": "trainer", "trainer": "proxmox", "neustarten": True})
+    assert r.status == 400 and (await r.json())["message"] == "startet_schon" and len(gedrueckt) == 1
+    # back after the restart: it can be restarted again
+    await client.post("/api/sprachmodell/trainer/status", headers=proxmox, json={"neustart": True, "info": {"art": "docker", "ort": "proxmox"}})
+    assert api.neustart_zustand("proxmox") is None
+    # choosing the old single button for this trainer moves it here for good
+    await api.neustart_taste_setzen("proxmox", "button.ct_102")
+    assert api.opt("trainer_neustart") == "" and api.neustart_taste("proxmox") == "button.ct_102"
+    # waited too long: it says so and the button works again; much later the note goes away
+    from datetime import timedelta
+
+    from custom_components.sprachmodell import zentrale as zm
+
+    api._neustart["proxmox"] = zm.datetime.now(zm.UTC) - timedelta(seconds=zm.NEUSTART_WARTEN_S + 5)
+    assert api.neustart_zustand("proxmox")["zu_lange"]
+    await api.trainer_neustarten("proxmox")
+    api._neustart["proxmox"] = zm.datetime.now(zm.UTC) - timedelta(seconds=4 * zm.NEUSTART_WARTEN_S)
+    assert api.neustart_zustand("proxmox") is None
+
+
+async def test_raumklang_anlernen(hass: HomeAssistant, hass_client_no_auth, admin, gast, api, geraet) -> None:
+    """Claps recorded next to a device: stored, shown, handed to the trainer, kept within limits, deleted."""
+    geraet("kueche", "Kitchen")
+    geraet("bad", "Bath")
+    client = await hass_client_no_auth()
+    kopf = {"X-Sprachmodell-Schluessel": api.schluessel}
+    r = await gast.post("/api/sprachmodell/raum", data=_form(knoten="kueche", datei=wav(0.5)))
+    assert r.status == 403
+    r = await admin.post("/api/sprachmodell/raum", data=_form(knoten="gibts_nicht", datei=wav(0.5)))
+    assert (await r.json())["message"] == "geraet_unbekannt"
+    r = await admin.post("/api/sprachmodell/raum", data=_form(knoten="kueche", datei=wav(3)))
+    assert (await r.json())["message"] == "raum_laenge"
+    r = await admin.post("/api/sprachmodell/raum", data=_form(knoten="kueche", datei=b"kaputt"))
+    assert (await r.json())["message"] == "wav_format"
+    ids = []
+    for i in range(3):
+        r = await admin.post("/api/sprachmodell/raum", data=_form(knoten="kueche", datei=wav(0.5, rate=48000), hall=str(0.3 + i * 0.1), stelle="s1"))
+        d = await r.json()
+        assert r.status == 200, d
+        ids.append(d["id"])
+    assert d["raum"]["n"] == 3 and d["raum"]["stellen"] == 1 and d["raum"]["hall"] == 0.4
+    g = next(g for g in (await (await admin.get("/api/sprachmodell/daten")).json())["geraete"] if g["knoten"] == "kueche")
+    assert g["raum"]["ids"] == ids
+    assert next(g for g in (await (await admin.get("/api/sprachmodell/daten")).json())["geraete"] if g["knoten"] == "bad")["raum"] is None
+    assert (await gast.get(f"/api/sprachmodell/raum/kueche/{ids[0]}")).status == 200
+    assert (await client.get(f"/api/sprachmodell/trainer/raum/kueche/{ids[0]}")).status == 401
+    r = await client.get(f"/api/sprachmodell/trainer/raum/kueche/{ids[0]}", headers=kopf)
+    assert r.status == 200 and (await r.read())[:4] == b"RIFF"
+    assert (await client.get("/api/sprachmodell/trainer/raum/kueche/nix", headers=kopf)).status == 404
+
+    # the trainer gets the claps of the word's devices, of all devices when they have none, nothing when off
+    api.auftrag("hey_lumi", "von_hand")
+    d = await (await client.get("/api/sprachmodell/trainer/auftrag", headers=kopf)).json()
+    assert d["auftrag"]["raeume"] == [{"knoten": "kueche", "id": i} for i in ids]
+    w = api.woerter["hey_lumi"]
+    w.cfg["geraete"] = {"bad": "1"}
+    assert api.raeume.fuer_training(list(w.geraete)) == [{"knoten": "kueche", "id": i} for i in ids]
+    await admin.post("/api/sprachmodell/raum", data=_form(knoten="bad", datei=wav(0.4)))
+    assert [r["knoten"] for r in api.raeume.fuer_training(list(w.geraete))] == ["bad"]
+    assert api.raeume.zustand("bad")["hall"] is None
+    w.cfg["raumklang"] = False
+    assert _auftrag(api, w)["raeume"] == []
+
+    # cache survives a reload, at most JE_GERAET kept (oldest files gone)
+    with patch("custom_components.sprachmodell.raum.JE_GERAET", 2):
+        await admin.post("/api/sprachmodell/raum", data=_form(knoten="kueche", datei=wav(0.5)))
+    assert len(api.raeume.zustand("kueche")["ids"]) == 2
+    assert await hass.async_add_executor_job(api.raeume.datei, "kueche", ids[0]) is None
+    api.raeume.stand = {}
+    await hass.async_add_executor_job(api.raeume.laden)
+    assert api.raeume.zustand("kueche")["n"] == 2
+
+    assert (await gast.delete("/api/sprachmodell/raum?knoten=kueche")).status == 403
+    assert (await admin.delete("/api/sprachmodell/raum?knoten=kueche")).status == 200
+    assert api.raeume.zustand("kueche") is None and api.raeume.knoten() == ["bad"]

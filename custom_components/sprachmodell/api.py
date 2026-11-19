@@ -139,6 +139,8 @@ def _trainer_liste(z: Zentrale) -> list[dict[str, Any]]:
         "dauer": dauer.get(tid),
         "bild_bereit": z.bild_bereit(t["info"]),
         "alt": tid == TRAINER_OHNE_ID,
+        "neustart_taste": z.neustart_taste(tid),
+        "neustart": z.neustart_zustand(tid),
     } for tid, t in z.trainer.items()), key=lambda x: (not x["online"], x["name"]))
 
 
@@ -337,6 +339,51 @@ class AufnahmeAnsicht(HomeAssistantView):
         return self.json({"id": eintrag.get("id"), "stand": wort.speicher.stand})
 
 
+class RaumAnsicht(HomeAssistantView):
+    """Room sound of a device: POST one clap (WAV, cut in the browser), DELETE all of the device."""
+
+    url = "/api/sprachmodell/raum"
+    name = "api:sprachmodell:raum"
+
+    async def post(self, request: web.Request) -> web.Response:
+        z = _zentrale(request)
+        if not _admin(request):
+            return self.json_message("nur_admin", HTTPStatus.FORBIDDEN)
+        hass = request.app[KEY_HASS]
+        felder, inhalt = await _multipart(request, GROESSTE_AUFNAHME)
+        knoten = felder.get("knoten") or ""
+        if knoten not in {g["knoten"] for g in z.geraete_zustand()}:
+            return self.json_message("geraet_unbekannt", HTTPStatus.BAD_REQUEST)
+        try:
+            hall = float(felder["hall"]) if felder.get("hall") else None
+            rid = await hass.async_add_executor_job(z.raeume.hinzufuegen, knoten, inhalt, hall, felder.get("stelle"))
+        except (ValueError, EOFError) as err:
+            return self.json_message(str(err) if str(err).isidentifier() else "ungueltig", HTTPStatus.BAD_REQUEST)
+        return self.json({"id": rid, "raum": z.raeume.zustand(knoten)})
+
+    async def delete(self, request: web.Request) -> web.Response:
+        z = _zentrale(request)
+        if not _admin(request):
+            return self.json_message("nur_admin", HTTPStatus.FORBIDDEN)
+        await request.app[KEY_HASS].async_add_executor_job(z.raeume.loeschen, request.query.get("knoten") or "")
+        return self.json({"ok": True})
+
+
+def _raum_wav(z: Zentrale, knoten: str, rid: str) -> web.StreamResponse:
+    pfad = z.raeume.datei(knoten, rid)
+    if not pfad:
+        raise _fehler(web.HTTPNotFound, "aufnahme_nicht_gefunden")
+    return web.FileResponse(pfad, headers={"Content-Type": "audio/wav", "Cache-Control": "private, max-age=86400"})
+
+
+class RaumAudio(HomeAssistantView):
+    url = "/api/sprachmodell/raum/{knoten}/{rid}"
+    name = "api:sprachmodell:raum:audio"
+
+    async def get(self, request: web.Request, knoten: str, rid: str) -> web.StreamResponse:
+        return _raum_wav(_zentrale(request), knoten, rid)
+
+
 class AktionAnsicht(HomeAssistantView):
     url = "/api/sprachmodell/aktion"
     name = "api:sprachmodell:aktion"
@@ -376,7 +423,15 @@ class AktionAnsicht(HomeAssistantView):
             tid = str(daten["trainer"])
             if tid not in z.trainer:
                 raise ValueError("trainer_unbekannt")
-            await z.trainer_einstellen(tid, pause=bool(daten.get("pause")), vergessen=bool(daten.get("vergessen")))
+            if "taste" in daten:
+                taste = str(daten.get("taste") or "")
+                if taste and not taste.startswith("button."):
+                    raise ValueError("ungueltig")
+                await z.neustart_taste_setzen(tid, taste)
+            elif daten.get("neustarten"):
+                await z.trainer_neustarten(tid)
+            else:
+                await z.trainer_einstellen(tid, pause=bool(daten.get("pause")), vergessen=bool(daten.get("vergessen")))
             return None
         if aktion == "reihe":
             reihe = [w for w in daten.get("reihe") or [] if w in z.woerter]
@@ -454,6 +509,23 @@ class _TrainerAnsicht(HomeAssistantView):
         return z
 
 
+def _auftrag(z: Zentrale, wort: Wort) -> dict[str, Any]:
+    """What a trainer needs for one run of a word."""
+    return {
+        **(wort.speicher.daten["auftrag"] or {}),
+        "wort_id": wort.id,
+        "wort": wort.wort,
+        "sprache": wort.sprache,
+        "modell_id": wort.modell_id,
+        "anzeige": wort.anzeige,
+        "aktiv": wort.speicher.daten["aktiv"],
+        "kandidaten": 3 if wort.cfg.get("gruendlich") else 1,
+        "mitteln": bool(wort.cfg.get("gruendlich") and wort.cfg.get("mitteln")),
+        "geraet": z.opt("geraet"),
+        "raeume": z.raeume.fuer_training(list(wort.geraete)) if wort.cfg.get("raumklang", True) else [],
+    }
+
+
 class TrainerAuftrag(_TrainerAnsicht):
     url = "/api/sprachmodell/trainer/auftrag"
     name = "api:sprachmodell:trainer:auftrag"
@@ -467,18 +539,7 @@ class TrainerAuftrag(_TrainerAnsicht):
         wort = z.naechster_auftrag(tid) if frei else None
         auftrag = None
         if wort is not None:
-            auftrag = {
-                **(wort.speicher.daten["auftrag"] or {}),
-                "wort_id": wort.id,
-                "wort": wort.wort,
-                "sprache": wort.sprache,
-                "modell_id": wort.modell_id,
-                "anzeige": wort.anzeige,
-                "aktiv": wort.speicher.daten["aktiv"],
-                "kandidaten": 3 if wort.cfg.get("gruendlich") else 1,
-                "mitteln": bool(wort.cfg.get("gruendlich") and wort.cfg.get("mitteln")),
-                "geraet": z.opt("geraet"),
-            }
+            auftrag = _auftrag(z, wort)
         vorpruefen = []
         # nothing to train: the trainer may listen to new recordings meanwhile (only one trainer, the one that would
         # get the next run, so two never listen to the same recordings)
@@ -510,6 +571,14 @@ class TrainerAudio(_TrainerAnsicht):
 
     async def get(self, request: web.Request, wid: str, aid: str) -> web.StreamResponse:
         return _wav(_wort(self._pruefen(request), wid), aid)
+
+
+class TrainerRaum(_TrainerAnsicht):
+    url = "/api/sprachmodell/trainer/raum/{knoten}/{rid}"
+    name = "api:sprachmodell:trainer:raum"
+
+    async def get(self, request: web.Request, knoten: str, rid: str) -> web.StreamResponse:
+        return _raum_wav(self._pruefen(request), knoten, rid)
 
 
 class TrainerModell(_TrainerAnsicht):
@@ -651,7 +720,8 @@ def ansichten_anmelden(hass: HomeAssistant) -> None:
     hass.data[_ANGEMELDET] = True
     for ansicht in (
         DatenAnsicht, ListeAnsicht, AudioAnsicht, UrteilAnsicht, HochladenAnsicht, AufnahmeAnsicht,
-        AktionAnsicht, TrainerAuftrag, TrainerListe, TrainerAudio, TrainerModell, TrainerStatus,
+        AktionAnsicht, RaumAnsicht, RaumAudio, TrainerAuftrag, TrainerListe, TrainerAudio, TrainerRaum, TrainerModell,
+        TrainerStatus,
         TrainerErgebnis, TrainerGehoert, ClipsAnsicht, ClipsPing,
     ):
         hass.http.register_view(ansicht())

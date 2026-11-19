@@ -287,6 +287,8 @@ class Lauf:
         # every progress bar running right now (tqdm in the tools, our own steps), each with its own line in HA
         self.balken: dict[str, dict[str, Any]] = {}
         self._schritt_name = ""
+        self.raum_n = 0  # claps of the user's own rooms mixed into this run
+        self.raum_sig = ""  # which claps: cached features are rebuilt once they change
 
     # --- Steuerung --------------------------------------------------------
 
@@ -581,7 +583,7 @@ class Lauf:
         echt = self._echte_aufnahmen()
         tts = self._stimmen(stimmen, gerede)
         anzahl = max(1, min(KANDIDATEN_MAX, int(self.auftrag.get("kandidaten") or 1)))
-        merkmale = self._merkmale(echt, tts, bg, rir, gerede, g, varianten=anzahl > 1)
+        merkmale = self._merkmale(echt, tts, bg, self._raumklang(rir), gerede, g, varianten=anzahl > 1)
         schlank = self._schlanke_negative(neg)
         t_training = time.time()
         echt_test, wahl_echt = echt, None
@@ -598,6 +600,8 @@ class Lauf:
         teile = (wahl or {}).get("teile") or 1
         bericht["modell_teile"] = teile
         bericht["tensor_arena"] = ARENA_JE_MODELL * teile
+        if self.raum_n:
+            bericht["raumklang"] = self.raum_n
         bericht["geraet"] = self.geraet
         if self.geraet_rueckfall:
             bericht["geraet_rueckfall"] = True
@@ -621,6 +625,57 @@ class Lauf:
         if self.schritte:
             self.schritte[-1]["ende"] = round(time.time())
         self.ha.status({"wort_id": self.wort_id, "live": self.live()})
+
+    # --- Raumklang der eigenen Geraete --------------------------------------
+
+    def _raumklang(self, rir: Path) -> Path:
+        """Room impulses for the training: the general set plus the claps recorded next to the user's devices.
+        The own claps are repeated until they make up about half, so the word is learned as the devices really
+        hear it in their rooms, without losing the variety of other rooms. The honest test keeps the general set
+        only, so versions stay comparable."""
+        raeume = [r for r in (self.auftrag.get("raeume") or []) if isinstance(r, dict) and r.get("id")]
+        if not raeume:
+            return rir
+        lager = Path(self.daten) / "raeume"
+        eigene: list[Path] = []
+        for r in raeume:
+            ziel = lager / re.sub(r"[^A-Za-z0-9_-]+", "_", str(r.get("knoten")))[:80] / (
+                re.sub(r"[^A-Za-z0-9_-]+", "_", str(r["id"]))[:80] + ".wav")
+            if not ziel.exists():
+                try:
+                    inhalt = self.ha.raum(str(r.get("knoten")), str(r["id"]))
+                except Exception as err:  # noqa: BLE001 - older studio or network: train without
+                    self.notiz(f"Room sound not available ({err}), general rooms only", "warnung")
+                    return rir
+                if not inhalt:
+                    continue
+                ziel.parent.mkdir(parents=True, exist_ok=True)
+                ziel.with_suffix(".tmp").write_bytes(inhalt)
+                ziel.with_suffix(".tmp").replace(ziel)
+            eigene.append(ziel)
+        if not eigene:
+            return rir
+        mix = self.ordner / "raeume_mix"
+        shutil.rmtree(mix, ignore_errors=True)
+        mix.mkdir(parents=True)
+        allgemein = sorted(rir.glob("*.wav")) if rir.is_dir() else [rir]
+
+        def ablegen(quelle: Path, name: str) -> None:
+            try:
+                os.link(quelle, mix / name)
+            except OSError:
+                shutil.copyfile(quelle, mix / name)
+
+        for f in allgemein:
+            ablegen(f, f.name)
+        wiederholen = max(1, round(len(allgemein) / len(eigene)))
+        for i, f in enumerate(eigene):
+            for k in range(wiederholen):
+                ablegen(f, f"eigen_{i:03d}_{k:03d}.wav")
+        self.raum_n = len(eigene)
+        self.raum_sig = hashlib.sha1("|".join(sorted(f.name for f in eigene)).encode()).hexdigest()[:10]
+        self.notiz(f"Room sound of your devices: {len(eigene)} claps mixed in (about half of the reverb)")
+        return mix
 
     # --- eigene Aufnahmen ---------------------------------------------------
 
@@ -854,7 +909,8 @@ class Lauf:
             abschneiden = name == "abgebrochen"
             # rebuilt when the set changed (more clips than last time) - the marker holds the number of files
             stand = (ziel / "fertig").read_text().strip() if (ziel / "fertig").exists() else None
-            if neu or stand != str(len(dateien)):
+            marke = str(len(dateien)) + (f"/r{self.raum_sig}" if self.raum_sig else "")
+            if neu or stand != marke:
                 shutil.rmtree(ziel, ignore_errors=True)
                 rnd = random.Random(name)
                 dateien = sorted(dateien)
@@ -872,7 +928,7 @@ class Lauf:
                     erledigt += len(auswahl) * wdh
                 if (ziel / "validation").exists():
                     shutil.copytree(ziel / "validation", ziel / "testing", dirs_exist_ok=True)
-                (ziel / "fertig").write_text(str(len(dateien)))
+                (ziel / "fertig").write_text(marke)
             else:
                 erledigt += menge
             aus[name] = {"dir": str(ziel), "wort": ist_wort, "gewicht": gewicht, "strafe": strafe}
