@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.38
+- **Fix: a model could wake in a quiet room.** The gentle recipe of 1.0.37 let the volume of a quarter of its word clips drop almost to silence (the library default of −45 dB). A model trained on that can take a quiet room for the word: on 20.11. a kitchen Echo sent a near miss every few seconds with such a version. The gentle recipe now keeps the word at least as loud as a voice across the room (at most −20 dB); measured on test clips, the share of clips below −35 dBFS dropped from 12 % to 2 %.
+- **Quiet rooms as negatives:** every run (all recipes) learns half an hour of a quiet room as negatives: faint hiss, mains hum, far-away sounds and silence, from about −80 to −35 dBFS. Made once from the noise sets, no download.
+- **Quiet-room test:** the honest test also listens to 20 minutes of a quiet room, the candidate check to 10. A threshold that wakes more than once there does not count, so the device threshold goes up or the candidate loses; a new version that wakes more often in a quiet room than the active one is *really worse* and is not rolled out. The comparison shows it as its own row (*wakes up for nothing, per hour in a quiet room*).
+- After a thorough run of 1.0.37, the next run starts once from scratch instead of training on from the model before (it may have come from the old gentle recipe). That run takes longer than usual.
+
 ## 1.0.37
 - **Thorough runs try a gentle recipe:** the third candidate learns from clips roughened the way the Tater trainer prepares them: background noise always 5–10 dB below the voice (instead of up to 5 dB louder), room sound on 70 % of the clips (instead of half), no volume sweeps, and real noise from inside homes instead of speech as the background. The other two candidates keep the usual recipe (and the cut-off words). The check on your real recordings decides which one stays, so the recipe that suits your word and your home wins, and the studio says which recipe it was. Tests by the WakeSmith author suggest that the data preparation, not the trainer, is what makes the difference.
 - **Real home noise:** the trainer fetches about two hours of CHiME-Home recordings once (kitchen, living room, TV, children, appliances; 400 MB download, 240 MB on disk) for the gentle recipe. If it cannot be fetched, that candidate uses music and noise only and the run goes on.

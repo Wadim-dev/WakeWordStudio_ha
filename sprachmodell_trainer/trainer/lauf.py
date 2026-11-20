@@ -28,7 +28,7 @@ from .bausteine import fehlende_bausteine
 from .grenzen import beschleuniger, kerne
 from .grunddaten import Grunddaten, platz_frei
 from .ha import HA
-from .vergleich import alltag_bei, kandidat_wahl, vergleichen
+from .vergleich import alltag_bei, kandidat_wahl, ruhig_genug, vergleichen
 
 _LOG = logging.getLogger("trainer.lauf")
 
@@ -64,6 +64,7 @@ ABGEBROCHEN = int(3000 * _M)  # cut-off copies of the word, as negatives for one
 ARENA_JE_MODELL = 30000  # device memory (tensor arena) of one model of this architecture
 WAHL_STUNDEN_REDE = 1
 WAHL_STUNDEN_GERAEUSCH = 0.25
+WAHL_STILLE_MINUTEN = 10  # quiet room when choosing (the test: 20 minutes)
 PLATZ_GB = float(os.environ.get("PLATZ_GB", "8"))  # erster Lauf (Grunddaten), danach reichen 3 GB
 
 VOKALE_LATEIN = "aeiouyäöü"
@@ -604,9 +605,10 @@ class Lauf:
         echt = self._echte_aufnahmen()
         tts = self._stimmen(stimmen, gerede)
         anzahl = max(1, min(KANDIDATEN_MAX, int(self.auftrag.get("kandidaten") or 1)))
+        self._alte_basis(g)
         haus = g.hausgeraeusche() if anzahl >= SANFT_AB else None
         merkmale = self._merkmale(echt, tts, bg, self._raumklang(rir), gerede, g, varianten=anzahl > 1,
-                                  sanft=anzahl >= SANFT_AB, haus=haus)
+                                  sanft=anzahl >= SANFT_AB, haus=haus, stille=g.stille(bg))
         schlank = self._schlanke_negative(neg)
         t_training = time.time()
         echt_test, wahl_echt = echt, None
@@ -897,9 +899,18 @@ class Lauf:
 
     # --- Merkmale -----------------------------------------------------------
 
+    def _alte_basis(self, g: Grunddaten) -> None:
+        """A run goes on from the model of the run before. A thorough run of 1.0.37 (it fetched the home noise) may
+        have kept a candidate of the old gentle recipe, which can take a quiet room for the word; such a base is not
+        continued, the next run starts fresh once."""
+        basis = self.ordner / "train"
+        if (basis / "restore").exists() and not (basis / "stand").exists() and (g.o / "bg" / "chime" / "fertig").exists():
+            self.notiz("Starting fresh once: the model before may come from the gentle recipe of 1.0.37", "info")
+            shutil.rmtree(basis, ignore_errors=True)
+
     def _merkmale(self, echt: dict, tts: dict, bg: list[Path], rir: Path, gerede: dict[str, Path],
                   g: Grunddaten, varianten: bool = False, sanft: bool = False,
-                  haus: Path | None = None) -> dict[str, dict]:
+                  haus: Path | None = None, stille: Path | None = None) -> dict[str, dict]:
         basis = self.ordner / "merkmale"
         bgs = [str(p) for p in bg] + [str(gerede["train"])]
         wdh_echt = lambda n: max(3, min(40, 3000 // max(1, n)))  # noqa: E731
@@ -928,6 +939,10 @@ class Lauf:
         if echt["kein_train"]:
             d = [a["datei"] for a in echt["kein_train"]]
             sets.append(("echt_kein", d, wdh_echt(len(d)), False, True, 2.0, 3.0))
+        if stille:
+            # a quiet room (faint hiss, hum, far-away sounds) as negatives in every recipe: a model must not take
+            # silence for the word (seen 20.11.: a kitchen Echo woke every few seconds in a quiet room)
+            sets.append(("stille", self._wavs(stille), 1, False, False, 1.0, 2.0))
         if sanft:
             # thorough runs: every set once more with the gentle recipe (noise well below the voice, more room
             # sound, real home noise instead of speech as background) for the third candidate
@@ -943,8 +958,9 @@ class Lauf:
             ist_sanft = name.startswith("sanft_")
             # rebuilt when the set changed (more clips than last time) - the marker holds the number of files
             stand = (ziel / "fertig").read_text().strip() if (ziel / "fertig").exists() else None
+            # "/s2": gentle recipe with the volume floor of 1.0.38 (older gentle features are rebuilt)
             marke = str(len(dateien)) + (f"/r{self.raum_sig}" if self.raum_sig else "") + \
-                ("/h" if ist_sanft and haus else "")
+                ("/s2" if ist_sanft else "") + ("/h" if ist_sanft and haus else "")
             if neu or stand != marke:
                 shutil.rmtree(ziel, ignore_errors=True)
                 rnd = random.Random(name.removeprefix("sanft_"))  # same validation files in both recipes
@@ -957,7 +973,7 @@ class Lauf:
                     anteil = len(auswahl) * wdh / gesamt
                     self._merkmale_werkzeug({
                         "ziel": str(ziel / teil / f"{name}_mmap"), "dateien": auswahl, "wiederholungen": wdh,
-                        "frames": FRAMES, "trim": True, "bg": bgs_sanft if ist_sanft else bgs, "rir": str(rir),
+                        "frames": FRAMES, "trim": not name.endswith("stille"), "bg": bgs_sanft if ist_sanft else bgs, "rir": str(rir),
                         "snr_min": -5, "prozesse": self.o.get("threads") or None, "abschneiden": abschneiden,
                         "rezept": "sanft" if ist_sanft else "standard",
                     }, erledigt / gesamt, erledigt / gesamt + anteil, "merkmale")
@@ -1096,6 +1112,7 @@ class Lauf:
         modell = train / MODELL_DATEI
         if not modell.exists():
             raise RuntimeError("Training produced no model")
+        (train / "stand").write_text("1.0.38")  # learned with quiet rooms as negatives (see _alte_basis)
         return modell
 
     def _kandidaten(self, anzahl: int, merkmale: dict[str, dict], neg: dict[str, Path], tts: dict,
@@ -1146,7 +1163,7 @@ class Lauf:
             geraeusche += dateien[300:400]  # the test uses the first 300 of each
         auftrag = {"positiv": pos, "negativ": negativ, "gerede": rede,
                    "bg": geraeusche, "rir": str(rir) if rir else None, "max_stunden": WAHL_STUNDEN_REDE,
-                   "max_stunden_bg": WAHL_STUNDEN_GERAEUSCH}
+                   "max_stunden_bg": WAHL_STUNDEN_GERAEUSCH, "stille_minuten": WAHL_STILLE_MINUTEN}
         werte = []
         for k, modell in enumerate(modelle):
             e = self._werkzeug_sicher("pruefen", {**auftrag, "modell": str(modell)}, "training",
@@ -1267,10 +1284,11 @@ class Lauf:
 
     @staticmethod
     def _schwelle(ergebnis: dict, ziel: float) -> tuple[float, dict]:
-        """Niedrigste Schwelle, bei der die Fehlausloeser unter dem Ziel bleiben (sonst die strengste)."""
+        """Niedrigste Schwelle, bei der die Fehlausloeser unter dem Ziel bleiben und das Modell im stillen Raum ruhig
+        bleibt (sonst die strengste)."""
         je = {float(k): v for k, v in ergebnis["je_schwelle"].items()}
         passend = [c for c, v in sorted(je.items())
-                   if v["fehlausloeser_pro_stunde"] is None or v["fehlausloeser_pro_stunde"] <= ziel]
+                   if (v["fehlausloeser_pro_stunde"] is None or v["fehlausloeser_pro_stunde"] <= ziel) and ruhig_genug(v)]
         cut = passend[0] if passend else max(je)
         cut = max(cut, 0.8)  # darunter zu riskant fuer unbekannte Raeume
         if cut not in je:
@@ -1283,5 +1301,8 @@ class Lauf:
             "fehlausloeser_geraeusch_pro_stunde": None if w.get("fehlausloeser_geraeusch_pro_stunde") is None
             else round(w["fehlausloeser_geraeusch_pro_stunde"], 2),
             "fehlausloeser_pro_stunde": None if w["fehlausloeser_pro_stunde"] is None else round(w["fehlausloeser_pro_stunde"], 2),
+            "fehlausloeser_stille_pro_stunde": None if w.get("fehlausloeser_stille_pro_stunde") is None
+            else round(w["fehlausloeser_stille_pro_stunde"], 2),
+            "fehlausloeser_stille_anzahl": w.get("fehlausloeser_stille_anzahl"),
             "gegenbeispiele": w["gegenbeispiele"], "je_person": w["je_person"],
         }

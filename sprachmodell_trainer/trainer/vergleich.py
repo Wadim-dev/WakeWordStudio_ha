@@ -3,7 +3,7 @@
 Both versions are tested on exactly the same audio in the same run. Instead of two numbers at one point the
 comparison looks at the whole picture: everyday hit rate at the same number of false wakes (the usual way to
 compare wake words), a hard test far beyond daily life (so two versions that both hear everything at home can still
-be told apart), every listening condition, false wakes in speech and in music/noise, similar-sounding words
+be told apart), every listening condition, false wakes in speech, in music/noise and in a quiet room, similar-sounding words
 and the weakest person. Small test sets make small differences look big, so a difference only counts when it is
 larger than chance; otherwise both are "as good" and the version on the devices stays.
 
@@ -20,6 +20,15 @@ FA_PUNKTE = (0.5, 1.0, 2.0)
 MIN_SCHWELLE = 0.8  # lower thresholds are too risky in unknown rooms (as when choosing the threshold)
 BEDINGUNGEN = ("ruhig", "leise", "hall", "musik", "gerede")
 SCHWER_LAGEN = 4  # conditions of the hard test (far away, loud TV, loud music, everything at once)
+# wake-ups allowed in the quiet-room test (20 minutes of faint hiss, hum, far-away sounds): a threshold with more
+# does not count, however well it hears (seen 20.11.: a version woke every few seconds in a quiet kitchen)
+STILLE_ERLAUBT = 1
+
+
+def ruhig_genug(v: dict[str, Any]) -> bool:
+    """The version stays quiet in a quiet room at this threshold (tests before 1.0.38 have no such test: True)."""
+    n = v.get("fehlausloeser_stille_anzahl")
+    return n is None or n <= STILLE_ERLAUBT
 
 
 def _je(je: dict[str, Any]) -> list[tuple[float, dict[str, Any]]]:
@@ -32,9 +41,9 @@ def alltag_bei(je: dict[str, Any], fa_max: float, stunden: float | None = None,
     at about fa_max false wakes per hour of speech.
 
     With the hours of speech the limit allows for chance (Poisson: a few hours hold only a handful of false
-    wakes, 2 or 4 is often luck). None if the version never gets that quiet, or was tested before everyday
-    conditions existed - then the false-wake rows decide."""
-    punkte = [(c, v) for c, v in _je(je) if c >= MIN_SCHWELLE and v.get(feld) is not None]
+    wakes, 2 or 4 is often luck). Thresholds that wake in a quiet room do not count. None if the version never
+    gets that quiet, or was tested before everyday conditions existed - then the false-wake rows decide."""
+    punkte = [(c, v) for c, v in _je(je) if c >= MIN_SCHWELLE and v.get(feld) is not None and ruhig_genug(v)]
     if not punkte:
         return None
     if stunden:
@@ -101,6 +110,13 @@ def vergleichen(neu: dict[str, Any], alt: dict[str, Any], cut_neu: float, cut_al
               pa.get("fehlausloeser_geraeusch_pro_stunde"),
               _anzahl_unterschied(pn.get("fehlausloeser_geraeusch_anzahl"), pa.get("fehlausloeser_geraeusch_anzahl")),
               True)
+    if pn.get("fehlausloeser_stille_anzahl") is not None and pa.get("fehlausloeser_stille_anzahl") is not None:
+        n_st, a_st = pn["fehlausloeser_stille_anzahl"], pa["fehlausloeser_stille_anzahl"]
+        u = _anzahl_unterschied(n_st, a_st)
+        if n_st > STILLE_ERLAUBT and n_st > a_st:
+            u = "schlechter"  # waking in a quiet room is never chance
+        zeile("fehlausloeser_stille", pn.get("fehlausloeser_stille_pro_stunde"),
+              pa.get("fehlausloeser_stille_pro_stunde"), u, True)
     for b in BEDINGUNGEN:
         wn, wa = (pn.get("bedingungen") or {}).get(b), (pa.get("bedingungen") or {}).get(b)
         if wn is None and b == "ruhig":

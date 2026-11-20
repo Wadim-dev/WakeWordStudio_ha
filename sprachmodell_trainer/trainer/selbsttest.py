@@ -122,6 +122,25 @@ def main() -> None:
         assert lauf._rezept(satz, "sanft") == {"pos": {"dir": "sanft_pos"}, "gerede": {"dir": "gerede"}}
         print("SELBSTTEST gentle recipe ok", flush=True)
 
+        # a quiet room as negatives: faint, never the level of a voice, and its features are built untrimmed
+        import random
+
+        from .werkzeug import ruhe
+
+        r = random.Random(1)
+        stille = []
+        for i in range(12):
+            x = ruhe(r, RATE * 3, bg)
+            pegel = 20 * np.log10(np.sqrt(np.mean(x.astype(np.float64) ** 2)) / 32768 + 1e-12)
+            assert pegel < -30, f"quiet room too loud: {pegel:.0f} dBFS"
+            stille.append(_wav(o / "stille" / f"{i}.wav", x.astype(np.float64) / 32768))
+        ergebnis = lauf._merkmale_werkzeug({
+            "ziel": str(o / "stille_test" / "stille_mmap"), "dateien": stille, "wiederholungen": 1, "frames": 150,
+            "trim": False, "bg": bg, "rir": rir, "prozesse": 1,
+        }, 0, 1, "merkmale")
+        assert ergebnis.get("merkmale", 0) == len(stille), f"quiet-room features missing: {ergebnis}"
+        print("SELBSTTEST quiet room ok", flush=True)
+
         merkmale = {"pos": {"dir": str(m / "pos"), "wort": True, "gewicht": 1.0, "strafe": 1.0},
                     "neg": {"dir": str(m / "neg"), "wort": False, "gewicht": 1.0, "strafe": 1.0}}
         lang_dir = m / "lang"
@@ -132,6 +151,7 @@ def main() -> None:
         print(f"SELBSTTEST evaluation data ok ({time.time() - t0:.0f} s)", flush=True)
         tflite = lauf._training(merkmale, neg)
         assert tflite.exists() and tflite.stat().st_size > 1000, "no model"
+        assert (lauf.ordner / "train" / "stand").exists(), "base model without its marker"
         # the live learning curve for the studio: one point per evaluation of microWakeWord
         kurve = next(iter(lauf.live()["kurven"].values()), [])
         assert kurve and all(len(p) == 3 and 0 <= p[1] <= 100 for p in kurve), f"no learning curve: {lauf.kurven}"
@@ -139,13 +159,14 @@ def main() -> None:
 
         ergebnis = lauf._werkzeug_sicher("pruefen", {
             "modell": str(tflite), "positiv": [{"datei": f, "person": "A"} for f in pos[20:]], "negativ": neg_wavs[20:],
-            "gerede": lang, "bg": bg, "rir": rir, "max_stunden": 1, "max_stunden_bg": 0.05,
+            "gerede": lang, "bg": bg, "rir": rir, "max_stunden": 1, "max_stunden_bg": 0.05, "stille_minuten": 2,
         }, "test", 0, 1, "test_neu")
         assert ergebnis["positiv"] == 4 and ergebnis["je_schwelle"], f"test result incomplete: {ergebnis}"
         punkt = ergebnis["je_schwelle"]["0.97"]
         assert set(punkt["bedingungen"]) == {"ruhig", "leise", "hall", "musik", "gerede", "alltag"}, punkt
         assert set(punkt["schwer"]) == {"weit", "laut_tv", "laut_musik", "chaos"} and punkt["trefferquote_schwer"] is not None, punkt
         assert punkt["fehlausloeser_geraeusch_pro_stunde"] is not None, punkt
+        assert punkt["fehlausloeser_stille_anzahl"] is not None and ergebnis["stunden_stille"] > 0, punkt
         from .vergleich import vergleichen
 
         v = vergleichen(ergebnis, ergebnis, 0.97, 0.97)  # the same model against itself: as good

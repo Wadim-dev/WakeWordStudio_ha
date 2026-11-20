@@ -42,6 +42,7 @@ FREMD = ("en", "de", "ru", "es", "fr")
 
 
 LADEN_VERSUCHE = 6
+STILLE_ANZAHL = 600  # quiet-room negatives of 3 s (half an hour)
 
 
 def _laden(url: str, ziel: Path) -> Path:
@@ -193,6 +194,31 @@ class Grunddaten:
         except Exception as err:  # noqa: BLE001 - optional data, the run goes on without it
             _LOG.warning("Home noise (CHiME-Home) not available, gentle recipe uses music and noise only: %s", err)
             shutil.rmtree(haus, ignore_errors=True)
+            return None
+
+    def stille(self, bg: list[Path]) -> Path | None:
+        """A quiet room as negatives (werkzeug.ruhe: faint hiss, hum, far-away sounds from the noise sets), made once.
+        Optional: if it fails, the run goes on without it."""
+        ziel = self.o / "bg" / "stille"
+        if (ziel / "fertig").exists():
+            return ziel
+        try:
+            import random
+
+            from .werkzeug import ruhe
+
+            shutil.rmtree(ziel, ignore_errors=True)
+            ziel.mkdir(parents=True, exist_ok=True)
+            dateien = sorted(str(p) for o in bg for p in Path(o).glob("*.wav"))
+            rnd = random.Random(7)
+            quellen = rnd.sample(dateien, min(len(dateien), 2000))
+            for i in range(STILLE_ANZAHL):
+                sf.write(ziel / f"stille{i:04d}.wav", ruhe(rnd, 16000 * 3, quellen), 16000, subtype="PCM_16")
+            (ziel / "fertig").touch()
+            return ziel
+        except Exception as err:  # noqa: BLE001 - optional data, the run goes on without it
+            _LOG.warning("Quiet-room negatives could not be made: %s", err)
+            shutil.rmtree(ziel, ignore_errors=True)
             return None
 
     def raumklang(self) -> Path:

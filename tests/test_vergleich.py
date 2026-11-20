@@ -113,3 +113,28 @@ def test_kandidat_wahl() -> None:
     w[3]["schwer"] = 0.6
     assert vergleich.kandidat_wahl(w) == 3
 
+
+
+def _mit_stille(e: dict, stille: dict[float, int]) -> dict:
+    for c, n in stille.items():
+        e["je_schwelle"][str(c)]["fehlausloeser_stille_anzahl"] = n
+        e["je_schwelle"][str(c)]["fehlausloeser_stille_pro_stunde"] = n * 3
+    return e
+
+
+def test_springt_im_stillen_raum_an_ist_schlechter() -> None:
+    """Like v20 in the kitchen (20.11.): hears well, but wakes in a quiet room - never better, never chance."""
+    besser = {c: min(1.0, q + 0.08) for c, q in QUOTE.items()}
+    neu = _mit_stille(_ergebnis(besser, FA_ALT), {c: 3 for c in SCHWELLEN})
+    alt = _mit_stille(_ergebnis(QUOTE, FA_ALT), {c: 0 for c in SCHWELLEN})
+    v = vergleich.vergleichen(neu, alt, 0.99, 0.99)
+    assert v["urteil"] == "schlechter" and "fehlausloeser_stille" in v["schlechter_in"]
+    # thresholds that wake in a quiet room do not count for the everyday hit rate
+    assert vergleich.alltag_bei(neu["je_schwelle"], 1.0, neu["stunden"]) is None
+
+
+def test_stille_nur_bei_niedrigen_schwellen() -> None:
+    """Quiet at the strict thresholds: only those count, a single wake-up is allowed."""
+    e = _mit_stille(_ergebnis(QUOTE, FA_ALT), {c: (5 if c < 0.95 else 1) for c in SCHWELLEN})
+    assert vergleich.alltag_bei(e["je_schwelle"], 2.0, e["stunden"]) == QUOTE[0.95]
+    assert vergleich.alltag_bei(_ergebnis(QUOTE, FA_ALT)["je_schwelle"], 2.0, 6.0) == QUOTE[0.92]

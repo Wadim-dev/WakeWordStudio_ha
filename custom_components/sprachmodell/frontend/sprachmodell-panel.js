@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.37';
+const VERSION = '1.0.38';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -2165,6 +2165,7 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
       { titel: 'd_hoert_schwer', hin: 'd_mehr', neu: n.trefferquote_schwer, alt: a.trefferquote_schwer, pct: true, u: urteil('schwer_bei_fa', 1) },
       { titel: 'd_fehl_rede', hin: 'd_weniger', neu: n.fehlausloeser_pro_stunde, alt: a.fehlausloeser_pro_stunde, u: urteil('fehlausloeser_rede') },
       { titel: 'd_fehl_geraeusch', hin: 'd_weniger', neu: n.fehlausloeser_geraeusch_pro_stunde, alt: a.fehlausloeser_geraeusch_pro_stunde, u: urteil('fehlausloeser_geraeusch') },
+      { titel: 'd_fehl_stille', hin: 'd_weniger', neu: n.fehlausloeser_stille_pro_stunde, alt: a.fehlausloeser_stille_pro_stunde, u: urteil('fehlausloeser_stille') },
     ].filter((f) => f.neu != null && f.alt != null);
     if (!fragen.length) return '';
     const altName = b.alt_nr ? 'v' + b.alt_nr : this.t('q_vgl_alt');
