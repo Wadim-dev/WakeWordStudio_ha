@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.36';
+const VERSION = '1.0.37';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -2139,7 +2139,7 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
     const w = (k.werte || [])[k.gewaehlt - 1] || {};
     const auf = k.grundlage === 'echt' ? this.t('g_auf_echt', { a: k.wahl_aufnahmen }) : this.t('g_auf_eigen');
     const was = w.rezept === 'gemittelt' ? this.t('g_gewaehlt_mittel', { n: k.anzahl })
-      : this.t('g_gewaehlt', { n: k.anzahl, k: k.gewaehlt }) + (w.rezept === 'abgebrochen' ? ' ' + this.t('g_rezept_abgebrochen') : '');
+      : this.t('g_gewaehlt', { n: k.anzahl, k: k.gewaehlt }) + (w.rezept === 'abgebrochen' ? ' ' + this.t('g_rezept_abgebrochen') : w.rezept === 'sanft' ? ' ' + this.t('g_rezept_sanft') : '');
     return `${was} ${auf}`;
   }
 

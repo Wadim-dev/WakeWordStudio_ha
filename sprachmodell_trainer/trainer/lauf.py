@@ -56,6 +56,7 @@ TEST_STUNDEN_GERAEUSCH = 1
 # "Thorough": several candidates per run, the best one is kept. Runs of the same recipe differ a lot, so the
 # best of three is usually clearly better than a single one. Chosen on its own check data, never on the test.
 KANDIDATEN_MAX = 3
+SANFT_AB = 3  # thorough runs with three candidates: the third one learns from the gentle recipe
 # thorough runs choose among the candidates on half of the real test recordings once there are this many
 # (the other half stays for the report); with fewer, they choose on held-out synthetic voices as before
 WAHL_ECHT_MIN = 20
@@ -603,7 +604,9 @@ class Lauf:
         echt = self._echte_aufnahmen()
         tts = self._stimmen(stimmen, gerede)
         anzahl = max(1, min(KANDIDATEN_MAX, int(self.auftrag.get("kandidaten") or 1)))
-        merkmale = self._merkmale(echt, tts, bg, self._raumklang(rir), gerede, g, varianten=anzahl > 1)
+        haus = g.hausgeraeusche() if anzahl >= SANFT_AB else None
+        merkmale = self._merkmale(echt, tts, bg, self._raumklang(rir), gerede, g, varianten=anzahl > 1,
+                                  sanft=anzahl >= SANFT_AB, haus=haus)
         schlank = self._schlanke_negative(neg)
         t_training = time.time()
         echt_test, wahl_echt = echt, None
@@ -895,7 +898,8 @@ class Lauf:
     # --- Merkmale -----------------------------------------------------------
 
     def _merkmale(self, echt: dict, tts: dict, bg: list[Path], rir: Path, gerede: dict[str, Path],
-                  g: Grunddaten, varianten: bool = False) -> dict[str, dict]:
+                  g: Grunddaten, varianten: bool = False, sanft: bool = False,
+                  haus: Path | None = None) -> dict[str, dict]:
         basis = self.ordner / "merkmale"
         bgs = [str(p) for p in bg] + [str(gerede["train"])]
         wdh_echt = lambda n: max(3, min(40, 3000 // max(1, n)))  # noqa: E731
@@ -924,6 +928,11 @@ class Lauf:
         if echt["kein_train"]:
             d = [a["datei"] for a in echt["kein_train"]]
             sets.append(("echt_kein", d, wdh_echt(len(d)), False, True, 2.0, 3.0))
+        if sanft:
+            # thorough runs: every set once more with the gentle recipe (noise well below the voice, more room
+            # sound, real home noise instead of speech as background) for the third candidate
+            sets += [("sanft_" + s[0], *s[1:]) for s in sets if s[0] != "abgebrochen"]
+        bgs_sanft = [str(p) for p in bg] + ([str(haus)] if haus else [])
         gesamt = sum(len(s[1]) * s[2] for s in sets) or 1
         erledigt = 0
         aus: dict[str, dict] = {}
@@ -931,12 +940,14 @@ class Lauf:
             ziel = basis / name
             menge = len(dateien) * wdh
             abschneiden = name == "abgebrochen"
+            ist_sanft = name.startswith("sanft_")
             # rebuilt when the set changed (more clips than last time) - the marker holds the number of files
             stand = (ziel / "fertig").read_text().strip() if (ziel / "fertig").exists() else None
-            marke = str(len(dateien)) + (f"/r{self.raum_sig}" if self.raum_sig else "")
+            marke = str(len(dateien)) + (f"/r{self.raum_sig}" if self.raum_sig else "") + \
+                ("/h" if ist_sanft and haus else "")
             if neu or stand != marke:
                 shutil.rmtree(ziel, ignore_errors=True)
-                rnd = random.Random(name)
+                rnd = random.Random(name.removeprefix("sanft_"))  # same validation files in both recipes
                 dateien = sorted(dateien)
                 rnd.shuffle(dateien)
                 n_val = max(1, len(dateien) // 10) if len(dateien) >= 10 else 0
@@ -946,8 +957,9 @@ class Lauf:
                     anteil = len(auswahl) * wdh / gesamt
                     self._merkmale_werkzeug({
                         "ziel": str(ziel / teil / f"{name}_mmap"), "dateien": auswahl, "wiederholungen": wdh,
-                        "frames": FRAMES, "trim": True, "bg": bgs, "rir": str(rir), "snr_min": -5,
-                        "prozesse": self.o.get("threads") or None, "abschneiden": abschneiden,
+                        "frames": FRAMES, "trim": True, "bg": bgs_sanft if ist_sanft else bgs, "rir": str(rir),
+                        "snr_min": -5, "prozesse": self.o.get("threads") or None, "abschneiden": abschneiden,
+                        "rezept": "sanft" if ist_sanft else "standard",
                     }, erledigt / gesamt, erledigt / gesamt + anteil, "merkmale")
                     erledigt += len(auswahl) * wdh
                 if (ziel / "validation").exists():
@@ -1104,9 +1116,12 @@ class Lauf:
             if (basis / "restore").exists():
                 shutil.copytree(basis, ziel)  # every candidate continues from the version before
             self._pruefen()
-            rezept = "abgebrochen" if k == 1 and "abgebrochen" in merkmale else "standard"
-            self.notiz(f"Candidate {k + 1} of {anzahl}" + (" (also learns cut-off words)" if rezept != "standard" else ""))
-            m = merkmale if rezept == "abgebrochen" else {n: v for n, v in merkmale.items() if n != "abgebrochen"}
+            rezept = "abgebrochen" if k == 1 and "abgebrochen" in merkmale else \
+                "sanft" if k == 2 and any(n.startswith("sanft_") for n in merkmale) else "standard"
+            self.notiz(f"Candidate {k + 1} of {anzahl}" + {
+                "abgebrochen": " (also learns cut-off words)",
+                "sanft": " (gentle recipe: noise below the voice, more room sound, home noise)"}.get(rezept, ""))
+            m = self._rezept(merkmale, rezept)
             self._training(m, neg, ziel, 0.94 * k / anzahl, 0.94 * (k + 1) / anzahl, f"{k + 1}/{anzahl}")
             ordner.append(ziel)
             rezepte.append(rezept)
@@ -1163,6 +1178,15 @@ class Lauf:
         return tflite, {"anzahl": anzahl, "gewaehlt": beste + 1, "werte": werte, "teile": teile,
                         "grundlage": "echt" if wahl_echt else "kuenstlich",
                         "wahl_aufnahmen": len(wahl_echt["positiv"]) if wahl_echt else 0}
+
+    @staticmethod
+    def _rezept(merkmale: dict[str, dict], rezept: str) -> dict[str, dict]:
+        """Feature sets of one candidate: standard, standard + cut-off words, or the gentle copies of every set
+        (the long speech is the same for all)."""
+        if rezept == "sanft":
+            return {n.removeprefix("sanft_"): v for n, v in merkmale.items() if n.startswith("sanft_") or n == "gerede"}
+        return {n: v for n, v in merkmale.items()
+                if not n.startswith("sanft_") and (n != "abgebrochen" or rezept == "abgebrochen")}
 
     def _mitteln(self, ordner: list[Path]) -> Path | None:
         """One model that averages the candidates (werkzeug mitteln). If that fails the run goes on without it."""
