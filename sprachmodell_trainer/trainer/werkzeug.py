@@ -318,6 +318,9 @@ def _init(opt: dict) -> None:
                 },
                 impulse_paths=[opt["rir"]], background_paths=opt["bg"],
                 background_min_snr_db=5, background_max_snr_db=10,
+                # never fainter than about a normal voice across the room: with the library's default (-45 dB)
+                # a quarter of the words became almost silent, and v20 (20.11.) woke on a quiet kitchen
+                min_gain_db=-20,
                 min_jitter_s=0.10, max_jitter_s=0.21,
             )
             return
@@ -421,6 +424,36 @@ def _laden(f: str) -> np.ndarray:
     return x if x.ndim == 1 else x[:, 0]
 
 
+def ruhe(rnd: random.Random, n: int, bg: list[str]) -> np.ndarray:
+    """n samples of a quiet room without anybody talking: faint hiss, hum or far-away sounds (about -80 to -35
+    dBFS), now and then digital silence. A model must never wake on this (seen 20.11.: a kitchen Echo woke every
+    few seconds on a quiet room). Used as negatives in training and as a test of its own."""
+    art = rnd.random()
+    if art < 0.04:
+        return np.zeros(n, np.int16)
+    if bg and art < 0.5:
+        x = _laden(rnd.choice(bg)).astype(np.float32)
+        if len(x) < n:
+            x = np.tile(x, n // max(1, len(x)) + 1)
+        s = rnd.randrange(0, len(x) - n + 1)
+        x = x[s:s + n]
+        pegel = rnd.uniform(-65, -35)
+    else:
+        g = np.random.default_rng(rnd.randrange(1 << 30))
+        spek = np.fft.rfft(g.standard_normal(n))
+        f = np.fft.rfftfreq(n, 1 / 16000)
+        f[0] = f[1] if len(f) > 1 else 1.0
+        x = np.fft.irfft(spek / f ** rnd.choice((0.0, 0.5, 1.0)), n).astype(np.float32)  # white, pink, brown
+        if rnd.random() < 0.3:  # mains hum of a fridge or a lamp
+            t = np.arange(n) / 16000
+            netz = rnd.choice((50.0, 60.0))
+            brumm = sum(np.sin(2 * np.pi * netz * k * t) / k for k in (1, 2, 3)).astype(np.float32)
+            x = x / (np.sqrt(np.mean(x ** 2)) + 1e-9) + 2 * brumm
+        pegel = rnd.uniform(-80, -45)
+    x = x / (np.sqrt(np.mean(x ** 2)) + 1e-9) * 32768 * 10 ** (pegel / 20)
+    return np.clip(np.round(x), -32768, 32767).astype(np.int16)
+
+
 def _verlauf(m, x: np.ndarray) -> np.ndarray:
     p = np.array(m.predict_clip(x, step_ms=10), dtype=np.float32)
     if len(p) < GLAETTEN:
@@ -454,7 +487,8 @@ def pruefen(a: dict) -> dict:
     Every real test recording is heard six ways, like at home: quiet room, quietly or from far away (-18 dB), in
     another room (reverb), with music, with a TV talking in the background, and all at once. Per threshold:
     hit rate per condition, similar-sounding words that trigger, false wakes per hour of speech and of music/noise
-    (with the counts, so the comparison can tell chance from a real difference)."""
+    and in a quiet room (stille_minuten, default 20) - with the counts, so the comparison can tell chance from a
+    real difference."""
     from microwakeword.inference import Model
 
     m = Model(a["modell"], stride=3)
@@ -552,6 +586,16 @@ def pruefen(a: dict) -> dict:
         if dauer_bg > a.get("max_stunden_bg", 1) * 3600:
             break
     weiter()
+    # a quiet room: faint hiss, hum, far-away sounds - nothing a model may wake on
+    aus_st = {c: 0 for c in CUTOFFS}
+    zuletzt_st = {c: -1e9 for c in CUTOFFS}
+    rnd_st = random.Random(6)
+    dauer_st = t0 = 0.0
+    while dauer_st < a.get("stille_minuten", 20) * 60:
+        x = ruhe(rnd_st, 16000 * 30, bg)
+        _ausloesen(m, x, zuletzt_st, t0, aus_st)
+        dauer_st += 30
+        t0 += 30.3
     stunden, stunden_bg = max(dauer / 3600, 1e-6), max(dauer_bg / 3600, 1e-6)
     arr = {b: np.array(v) for b, v in werte.items()}
     gegen_a = np.array(gegen)
@@ -576,9 +620,12 @@ def pruefen(a: dict) -> dict:
             "fehlausloeser_anzahl": ausloeser[c],
             "fehlausloeser_geraeusch_pro_stunde": aus_bg[c] / stunden_bg if dauer_bg else None,
             "fehlausloeser_geraeusch_anzahl": aus_bg[c],
+            "fehlausloeser_stille_pro_stunde": aus_st[c] / (dauer_st / 3600) if dauer_st else None,
+            "fehlausloeser_stille_anzahl": aus_st[c] if dauer_st else None,
             "je_person": {k: {"trefferquote": round(float(np.mean(v)), 3), "anzahl": len(v)} for k, v in jp.items()},
         }
-    return {"stunden": round(stunden, 2), "stunden_geraeusch": round(dauer_bg / 3600, 2), "positiv": len(werte["ruhig"]),
+    return {"stunden": round(stunden, 2), "stunden_geraeusch": round(dauer_bg / 3600, 2),
+            "stunden_stille": round(dauer_st / 3600, 2), "positiv": len(werte["ruhig"]),
             "negativ": len(gegen), "je_schwelle": je}
 
 
