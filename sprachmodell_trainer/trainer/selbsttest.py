@@ -109,6 +109,19 @@ def main() -> None:
         lauf.auftrag["raeume"], lauf.raum_n, lauf.raum_sig = [], 0, ""
         print("SELBSTTEST room sound ok", flush=True)
 
+        # gentle recipe of thorough runs (third candidate): its own augmentation works, and each candidate gets
+        # exactly its sets
+        ergebnis = lauf._merkmale_werkzeug({
+            "ziel": str(o / "sanft_test" / "pos_mmap"), "dateien": pos[:4], "wiederholungen": 2, "frames": 150,
+            "trim": True, "bg": bg, "rir": rir, "prozesse": 1, "rezept": "sanft",
+        }, 0, 1, "merkmale")
+        assert ergebnis.get("merkmale", 0) > 0, f"no features with the gentle recipe: {ergebnis}"
+        satz = {n: {"dir": n} for n in ("pos", "abgebrochen", "sanft_pos", "gerede")}
+        assert set(lauf._rezept(satz, "standard")) == {"pos", "gerede"}
+        assert set(lauf._rezept(satz, "abgebrochen")) == {"pos", "abgebrochen", "gerede"}
+        assert lauf._rezept(satz, "sanft") == {"pos": {"dir": "sanft_pos"}, "gerede": {"dir": "gerede"}}
+        print("SELBSTTEST gentle recipe ok", flush=True)
+
         merkmale = {"pos": {"dir": str(m / "pos"), "wort": True, "gewicht": 1.0, "strafe": 1.0},
                     "neg": {"dir": str(m / "neg"), "wort": False, "gewicht": 1.0, "strafe": 1.0}}
         lang_dir = m / "lang"

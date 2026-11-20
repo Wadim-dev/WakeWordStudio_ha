@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.37
+- **Thorough runs try a gentle recipe:** the third candidate learns from clips roughened the way the Tater trainer prepares them: background noise always 5–10 dB below the voice (instead of up to 5 dB louder), room sound on 70 % of the clips (instead of half), no volume sweeps, and real noise from inside homes instead of speech as the background. The other two candidates keep the usual recipe (and the cut-off words). The check on your real recordings decides which one stays, so the recipe that suits your word and your home wins, and the studio says which recipe it was. Tests by the WakeSmith author suggest that the data preparation, not the trainer, is what makes the difference.
+- **Real home noise:** the trainer fetches about two hours of CHiME-Home recordings once (kitchen, living room, TV, children, appliances; 400 MB download, 240 MB on disk) for the gentle recipe. If it cannot be fetched, that candidate uses music and noise only and the run goes on.
+- Features of a thorough run take about twice as long (every set is prepared in both recipes); the model itself is built exactly as before and checked for device support like every model.
+
 ## 1.0.36
 - **Training you can follow:** while a word trains, a path shows every real step of the trainer (ingredients, your recordings, voices, sound image, learning, testing, done). Finished steps tick off, the current one glows and fills with its own progress. Below it a small scene shows what happens right now, driven by the real numbers: your recordings flow in one by one, speech bubbles appear for the synthetic voices, similar words are listened to and the ones too close fly out, sound turns into an image column by column, the network brightens while it learns, the test shields fill as the test runs, and the result flies home.
 - **Live learning curve:** the trainer now reports every interim check of microWakeWord (hit rate and false wakes per hour), and the training scene draws it live, one line per candidate in a thorough run.

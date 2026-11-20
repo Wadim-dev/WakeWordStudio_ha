@@ -164,6 +164,37 @@ class Grunddaten:
         ziele.append(aset)
         return ziele
 
+    def hausgeraeusche(self) -> Path | None:
+        """Real noise from inside homes (CHiME-Home: kitchen, living room, TV, children, appliances, about two hours),
+        for the gentle recipe of a thorough run. Optional: if it cannot be fetched, that recipe uses music and
+        AudioSet only and the run goes on."""
+        haus = self.o / "bg" / "chime"
+        if (haus / "fertig").exists():
+            return haus
+        try:
+            self.melden("laden:chime")
+            haus.mkdir(parents=True, exist_ok=True)
+            import pyarrow.parquet as pq
+
+            p = _laden(f"{HF}/datasets/InnaBoby/chime_home/resolve/main/data/train-00000-of-00005.parquet",
+                       self.o / "tmp" / "chime.parquet")
+            n = 0
+            for i, r in enumerate(pq.read_table(p, columns=["audio"]).column("audio").to_pylist()):
+                x = np.asarray(r.get("array") or [], dtype=np.float32)
+                if r.get("sampling_rate") != 16000 or x.size < 16000:
+                    continue
+                sf.write(haus / f"chime{i:05d}.wav", np.clip(x, -1, 1), 16000, subtype="PCM_16")
+                n += 1
+            p.unlink(missing_ok=True)
+            if n < 100:
+                raise RuntimeError(f"only {n} clips")
+            (haus / "fertig").touch()
+            return haus
+        except Exception as err:  # noqa: BLE001 - optional data, the run goes on without it
+            _LOG.warning("Home noise (CHiME-Home) not available, gentle recipe uses music and noise only: %s", err)
+            shutil.rmtree(haus, ignore_errors=True)
+            return None
+
     def raumklang(self) -> Path:
         rir = self.o / "bg" / "rir"
         if not (rir / "fertig").exists():

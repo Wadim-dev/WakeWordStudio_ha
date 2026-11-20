@@ -307,6 +307,20 @@ def _init(opt: dict) -> None:
     if opt.get("wiederholungen"):
         from microwakeword.audio.augmentation import Augmentation
 
+        if opt.get("rezept") == "sanft":
+            # gentle recipe (as the Tater trainer prepares its clips): noise always well below the voice, more
+            # room sound, no volume sweeps; a thorough run trains one candidate on it and real recordings decide
+            _AUG = Augmentation(
+                augmentation_duration_s=3.2,
+                augmentation_probabilities={
+                    "SevenBandParametricEQ": 0.1, "TanhDistortion": 0.05, "PitchShift": 0.15, "BandStopFilter": 0.1,
+                    "AddColorNoise": 0.1, "AddBackgroundNoise": 0.7, "Gain": 0.8, "RIR": 0.7,
+                },
+                impulse_paths=[opt["rir"]], background_paths=opt["bg"],
+                background_min_snr_db=5, background_max_snr_db=10,
+                min_jitter_s=0.10, max_jitter_s=0.21,
+            )
+            return
         _AUG = Augmentation(
             augmentation_duration_s=3.2,
             augmentation_probabilities={
@@ -360,7 +374,8 @@ def _merkmal(f: str) -> list[np.ndarray]:
 
 def merkmale(a: dict) -> dict:
     """a: ziel (…_mmap), ordner [..] oder dateien [..], wiederholungen (0 = lang/unveraendert), frames, trim,
-    bg [..], rir, snr_min, prozesse, abschneiden (the word broken off part-way, as a negative)."""
+    bg [..], rir, snr_min, prozesse, abschneiden (the word broken off part-way, as a negative), rezept ("sanft":
+    gentle recipe)."""
     from concurrent.futures import ProcessPoolExecutor
     from concurrent.futures.process import BrokenProcessPool
 
