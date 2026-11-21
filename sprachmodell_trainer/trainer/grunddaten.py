@@ -21,6 +21,8 @@ import zlib
 from pathlib import Path
 from typing import Callable
 
+from . import __version__
+
 import numpy as np
 import requests
 import soundfile as sf
@@ -152,10 +154,8 @@ class Grunddaten:
         if not (aset / "fertig").exists():
             self.melden("laden:audioset")
             aset.mkdir(parents=True, exist_ok=True)
-            import pyarrow.parquet as pq
-
             p = _laden(f"{HF}/datasets/agkphysics/AudioSet/resolve/main/data/bal_train/00.parquet", self.o / "tmp" / "as.parquet")
-            for i, r in enumerate(pq.read_table(p, columns=["audio"]).to_pylist()):
+            for i, r in enumerate(_zeilen(p, ["audio"])):
                 try:
                     _wav16(r["audio"]["bytes"], aset / f"as{i:05d}.wav")
                 except Exception:  # noqa: BLE001
@@ -172,15 +172,22 @@ class Grunddaten:
         haus = self.o / "bg" / "chime"
         if (haus / "fertig").exists():
             return haus
+        versuch = self.o / "bg" / "chime_versuch"
+        if versuch.exists() and versuch.read_text().strip() == __version__:
+            # this version already started it once and the trainer did not come back (killed, out of memory ...):
+            # never again in a loop, the gentle recipe goes on with music and noise only
+            _LOG.warning("Home noise (CHiME-Home) skipped: the last attempt did not finish")
+            return None
         try:
             self.melden("laden:chime")
+            versuch.parent.mkdir(parents=True, exist_ok=True)
+            versuch.write_text(__version__)
             haus.mkdir(parents=True, exist_ok=True)
-            import pyarrow.parquet as pq
-
             p = _laden(f"{HF}/datasets/InnaBoby/chime_home/resolve/main/data/train-00000-of-00005.parquet",
                        self.o / "tmp" / "chime.parquet")
             n = 0
-            for i, r in enumerate(pq.read_table(p, columns=["audio"]).column("audio").to_pylist()):
+            # a few rows at a time: the whole file as Python lists needed 6.6 GB and killed small trainers (#49)
+            for i, r in enumerate(x["audio"] for x in _zeilen(p, ["audio"])):
                 x = np.asarray(r.get("array") or [], dtype=np.float32)
                 if r.get("sampling_rate") != 16000 or x.size < 16000:
                     continue
@@ -190,10 +197,12 @@ class Grunddaten:
             if n < 100:
                 raise RuntimeError(f"only {n} clips")
             (haus / "fertig").touch()
+            versuch.unlink(missing_ok=True)
             return haus
         except Exception as err:  # noqa: BLE001 - optional data, the run goes on without it
             _LOG.warning("Home noise (CHiME-Home) not available, gentle recipe uses music and noise only: %s", err)
             shutil.rmtree(haus, ignore_errors=True)
+            versuch.unlink(missing_ok=True)  # a plain error (network ...) may be tried again next run
             return None
 
     def stille(self, bg: list[Path]) -> Path | None:
@@ -226,11 +235,9 @@ class Grunddaten:
         if not (rir / "fertig").exists():
             self.melden("laden:rir")
             rir.mkdir(parents=True, exist_ok=True)
-            import pyarrow.parquet as pq
-
             p = _laden(f"{HF}/api/datasets/davidscripka/MIT_environmental_impulse_responses/parquet/default/train/0.parquet",
                        self.o / "tmp" / "rir.parquet")
-            for i, r in enumerate(pq.read_table(p).to_pylist()):
+            for i, r in enumerate(_zeilen(p)):
                 _wav16(r["audio"]["bytes"], rir / f"rir{i:03d}.wav")
             p.unlink()
             (rir / "fertig").touch()
@@ -302,6 +309,14 @@ class Grunddaten:
 
     def aufraeumen(self) -> None:
         shutil.rmtree(self.o / "tmp", ignore_errors=True)
+
+
+def _zeilen(p: Path, spalten: list[str] | None = None):
+    """Rows of a parquet file a few at a time (audio sets are far bigger in memory than on disk)."""
+    import pyarrow.parquet as pq
+
+    for b in pq.ParquetFile(p).iter_batches(batch_size=16, columns=spalten):
+        yield from b.to_pylist()
 
 
 def platz_frei(ordner: str) -> float:

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.39
+- **Fix: thorough runs could hang and restart the trainer over and over at *Downloading chime* (#49).** The trainer read the whole CHiME-Home file into memory at once, which took 6.6 GB; on trainers with less memory the container was killed, restarted, generated voices again and was killed at the same spot all night. It now reads the file a few rows at a time (0.55 GB measured). The music, noise and room sets are read the same way.
+- **No more loops on a download:** if the trainer does not come back from the home-noise download, the next run skips it and the gentle recipe goes on with music and noise only (as when it cannot be fetched). After the next trainer update it is tried once more.
+
 ## 1.0.38
 - **Fix: a model could wake in a quiet room.** The gentle recipe of 1.0.37 let the volume of a quarter of its word clips drop almost to silence (the library default of −45 dB). A model trained on that can take a quiet room for the word: on 20.11. a kitchen Echo sent a near miss every few seconds with such a version. The gentle recipe now keeps the word at least as loud as a voice across the room (at most −20 dB); measured on test clips, the share of clips below −35 dBFS dropped from 12 % to 2 %.
 - **Quiet rooms as negatives:** every run (all recipes) learns half an hour of a quiet room as negatives: faint hiss, mains hum, far-away sounds and silence, from about −80 to −35 dBFS. Made once from the noise sets, no download.

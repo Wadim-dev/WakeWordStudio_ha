@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.38';
+const VERSION = '1.0.39';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
