@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.42
+- **Compare any two versions:** *Quality* has a new card *Compare versions* below the version list. Pick two versions (swap with one tap) and see the same questions as in the run report side by side: hears the word in everyday life and in the hard test, wakes up for nothing in talk, in music/noise and in a quiet room.
+- **Honest about where the figures come from:** if both versions were measured in the same run (a new version against the one on the devices), the card shows that run's verdicts. Otherwise it says the figures come from separate runs on different test recordings and are only roughly comparable.
+- **Fair test:** *Fair test* lets the trainer test both versions on exactly the same recordings, speech and noise, without training (usually 20 to 40 minutes), with the same check for chance as after a training. The result stays with the word and is shown for that pair from then on; *Test again* repeats it. The Training page shows the fair test while it runs.
+- **Trainer update needed (1.0.40)** for the fair test; restart the trainer under *Settings → Trainer*. An older trainer is never handed a fair test (it would train instead).
+
 ## 1.0.41
 - **Version curve shows the newest versions:** the curve on *Training → Previous runs* and *Quality → Versions* now shows the 12 newest trained versions, including those that were not rolled out (small grey points); older ones drop out. Before, it only showed rolled-out versions from the very first one, so newer runs were missing. No trainer update needed.
 

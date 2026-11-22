@@ -20,6 +20,7 @@ token of an administrator, e.g. the one a Home Assistant app gets from the Super
     POST /api/sprachmodell/trainer/status        {wort_id, phase, prozent, schritt, ...}
     POST /api/sprachmodell/trainer/ergebnis?wort= multipart: modell (tflite), bericht (json)
     POST /api/sprachmodell/trainer/gehoert       {wort_id, ergebnisse: {id: heard text}} (pre-review)
+    POST /api/sprachmodell/trainer/vergleich     {wort_id, bericht} (fair comparison of two stored versions)
 
 Devices (header "Authorization: Bearer <trainer key>"), the clip upload format of TECHO5's "Send wake clips to":
     POST /api/sprachmodell/clips                 multipart: audio (16 kHz mono WAV, max 2 MB), meta (JSON: name,
@@ -56,7 +57,7 @@ _ANGEMELDET = f"{DOMAIN}_ansichten"
 # Actions that change the setup or reach the devices: administrators only
 NUR_ADMIN = {
     "einstellungen", "schluessel_neu", "reihe", "wort_neu", "wort_aendern", "wort_loeschen",
-    "einspielen", "auswaehlen", "schwelle", "trainer",
+    "einspielen", "auswaehlen", "schwelle", "trainer", "vergleich_starten",
 }
 
 
@@ -185,6 +186,8 @@ def _wort_daten(z: Zentrale, wort: Wort) -> dict[str, Any]:
         "auftrag": sp.daten["auftrag"],
         "laeufe": list(reversed(sp.daten["laeufe"][-50:])),
         "versionen": sorted(sp.daten["versionen"], key=lambda v: v["nr"], reverse=True),
+        "vergleiche": list(reversed(sp.daten.get("vergleiche") or [])),
+        "kann_vergleichen": z.kann_vergleichen(),
         "aktiv": sp.daten["aktiv"],
         "schwellen": z.schwellen_jetzt(wort),
         "dauer": z.dauer(wort),
@@ -447,6 +450,8 @@ class AktionAnsicht(HomeAssistantView):
             await z.wort_loeschen(wort.id, bool(daten.get("dateien")))
         elif aktion == "training_starten":
             z.auftrag(wort.id, "von_hand")
+        elif aktion == "vergleich_starten":
+            z.vergleich_starten(wort, int(daten["a"]), int(daten["b"]))
         elif aktion == "training_abbrechen":
             z.abbrechen(wort.id)
         elif aktion == "einspielen":
@@ -541,7 +546,8 @@ class TrainerAuftrag(_TrainerAnsicht):
         abbrechen = z.abbruch_fuer(tid)
         wort = z.naechster_auftrag(tid) if frei else None
         auftrag = None
-        if wort is not None:
+        # an older trainer would train instead of comparing: a comparison waits for a newer one
+        if wort is not None and (not (wort.speicher.daten["auftrag"] or {}).get("vergleich") or z.kann_vergleichen(tid)):
             auftrag = _auftrag(z, wort)
         vorpruefen = []
         # nothing to train: the trainer may listen to new recordings meanwhile (only one trainer, the one that would
@@ -636,6 +642,21 @@ class TrainerErgebnis(_TrainerAnsicht):
         return self.json({"version": eintrag["nr"], "status": eintrag["status"]})
 
 
+class TrainerVergleich(_TrainerAnsicht):
+    url = "/api/sprachmodell/trainer/vergleich"
+    name = "api:sprachmodell:trainer:vergleich"
+
+    async def post(self, request: web.Request) -> web.Response:
+        z = self._pruefen(request)
+        daten = await _json(request)
+        wort = _wort(z, daten.get("wort_id"))
+        bericht = daten.get("bericht")
+        if not isinstance(bericht, dict) or "a" not in bericht or "b" not in bericht:
+            return self.json_message("ungueltig", HTTPStatus.BAD_REQUEST)
+        await z.vergleich_ergebnis(wort, bericht)
+        return self.json({"ok": True})
+
+
 class TrainerGehoert(_TrainerAnsicht):
     url = "/api/sprachmodell/trainer/gehoert"
     name = "api:sprachmodell:trainer:gehoert"
@@ -725,6 +746,6 @@ def ansichten_anmelden(hass: HomeAssistant) -> None:
         DatenAnsicht, ListeAnsicht, AudioAnsicht, UrteilAnsicht, HochladenAnsicht, AufnahmeAnsicht,
         AktionAnsicht, RaumAnsicht, RaumAudio, TrainerAuftrag, TrainerListe, TrainerAudio, TrainerRaum, TrainerModell,
         TrainerStatus,
-        TrainerErgebnis, TrainerGehoert, ClipsAnsicht, ClipsPing,
+        TrainerErgebnis, TrainerGehoert, TrainerVergleich, ClipsAnsicht, ClipsPing,
     ):
         hass.http.register_view(ansicht())
