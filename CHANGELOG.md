@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.40
+- **Your own threshold:** *Quality → Threshold* has a field to set the threshold yourself, in addition to the suggestion: steps of 0.01 with − and +, or type a value from 0.50 to 0.99, then *Set*. It applies to all devices of the word. So your value stays, setting it switches the automatic adjustment off for that word (the card says so before you confirm); switch it on again under *Training → Automatic*. The card shows when you set it and to which value. No trainer update needed.
+
 ## 1.0.39
 - **Fix: thorough runs could hang and restart the trainer over and over at *Downloading chime* (#49).** The trainer read the whole CHiME-Home file into memory at once, which took 6.6 GB; on trainers with less memory the container was killed, restarted, generated voices again and was killed at the same spot all night. It now reads the file a few rows at a time (0.55 GB measured). The music, noise and room sets are read the same way.
 - **No more loops on a download:** if the trainer does not come back from the home-noise download, the next run skips it and the gentle recipe goes on with music and noise only (as when it cannot be fetched). After the next trainer update it is tried once more.

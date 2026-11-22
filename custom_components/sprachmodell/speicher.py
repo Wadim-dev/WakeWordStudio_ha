@@ -597,6 +597,7 @@ class Speicher:
             "schwelle_seit": seit,
             "schwelle_basis": {"wort": anzahl_wort, "kein_wort": len(mit_wert) - anzahl_wort},
             "schwelle_auto": self.daten.get("schwelle_auto"),
+            "schwelle_hand": self.daten.get("schwelle_hand"),
             "tabelle": self.tabelle(),
             "verteilung": verteilung,
         }

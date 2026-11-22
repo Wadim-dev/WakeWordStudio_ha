@@ -454,6 +454,8 @@ class AktionAnsicht(HomeAssistantView):
         elif aktion == "auswaehlen":
             return {"gesetzt": await z.auswaehlen(wort)}
         elif aktion == "schwelle":
+            if daten.get("hand"):
+                return {"gesetzt": await z.schwelle_von_hand(wort, float(daten["wert"]))}
             return {"gesetzt": await z.schwelle_setzen(wort, float(daten["wert"]))}
         elif aktion == "schnitt":
             von, bis = daten.get("von"), daten.get("bis")

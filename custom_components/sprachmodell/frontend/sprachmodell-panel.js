@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.39';
+const VERSION = '1.0.40';
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -68,6 +68,9 @@ button.startet{gap:8px}.klein.warn{color:var(--warning-color);margin-top:4px}
 @media (prefers-reduced-motion:reduce){.dreher{animation:none}}
 button.k{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:18px;padding:8px 14px;font:inherit;font-size:14px;cursor:pointer;background:rgba(var(--rgb-primary-text-color,0,0,0),.07);color:var(--primary-text-color)}
 button.k:disabled{opacity:.45;cursor:default}
+button.k.rund{width:36px;height:36px;padding:0;justify-content:center;font-size:18px;border-radius:50%}
+.sw-hand{margin-top:14px;padding-top:12px;border-top:1px solid var(--divider-color,rgba(127,127,127,.2))}
+.sw-hand input.sw-wert{width:76px;text-align:center;font:inherit;font-size:16px;font-variant-numeric:tabular-nums;padding:7px 6px;border-radius:10px;border:1px solid var(--divider-color,rgba(127,127,127,.35));background:var(--card-background-color,transparent);color:var(--primary-text-color)}
 button.k.haupt{background:var(--primary-color);color:var(--text-primary-color,#fff)}
 button.k.gut{background:rgba(var(--rgb-success-color,76,175,80),.2);color:var(--success-color,#4caf50)}
 button.k.schlecht{background:rgba(var(--rgb-error-color,244,67,54),.18);color:var(--error-color,#f44336)}
@@ -2218,13 +2221,23 @@ ${this._tabelle()}
 <ha-card><h2>${esc(this.t('q_alltag'))}</h2>${this._alltag()}</ha-card>
 <ha-card><h2>${esc(this.t('q_schwelle'))}</h2>${this._verteilung(sj, s.schwelle_vorschlag)}
 ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.schwelle_vorschlag != null ? `<div class="zeile weit" style="margin-top:10px"><span>${this.t('q_vorschlag', { w: this._zahl(s.schwelle_vorschlag) })} ${sj != null ? esc(this.t('q_jetzt', { w: this._zahl(sj) })) : ''}</span><button class="k haupt" data-a="schwelle" data-wert="${s.schwelle_vorschlag}" ${!this._admin || (sj != null && Math.abs(sj - s.schwelle_vorschlag) < 0.005) ? 'disabled' : ''}>${esc(this.t('q_uebernehmen'))}</button></div>` : `<div class="klein">${esc(this.t('q_vorschlag_spaeter'))}</div>`}
-<div class="klein" style="margin-top:8px">${esc(this.t('q_legende'))}${(w.einstellungen || {}).schwelle_automatisch ? '' : ' ' + esc(this.t('q_legende_hand'))}</div></ha-card>
+<div class="klein" style="margin-top:8px">${esc(this.t('q_legende'))}${(w.einstellungen || {}).schwelle_automatisch ? '' : ' ' + esc(this.t('q_legende_hand'))}</div>
+${this._admin && Object.keys(w.schwellen || {}).length ? this._schwelleHand(s, sj, (w.einstellungen || {}).schwelle_automatisch) : ''}</ha-card>
 <ha-card><h2>${esc(this.t('q_versionen'))}</h2>${this._kurve(w)}${w.versionen.length ? this._versionen(w) : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>`;
   }
 
   // people as small cards: initial in a coloured circle, a bar and a line (shares 0..1)
   _personen(liste) {
     return `<div class="personen">${liste.map(([name, anteil, text], i) => `<div class="person" style="--pf:${FARBEN[(i + 2) % FARBEN.length]};--n:${i}"><span class="p-kreis">${esc((name || '?').slice(0, 1).toUpperCase())}</span><div class="p-mitte"><div class="zeile weit"><b>${esc(name)}</b><span class="klein">${esc(text)}</span></div><div class="p-spur"><i style="--w:${(Math.max(0, Math.min(1, anteil || 0)) * 100).toFixed(1)}%"></i></div></div></div>`).join('')}</div>`;
+  }
+
+  // your own threshold, in addition to the suggestion: steps of 0.01, setting it switches the automatic adjustment off
+  _schwelleHand(s, sj, auto) {
+    const h = s.schwelle_hand, start = sj != null ? sj : (s.schwelle_vorschlag != null ? s.schwelle_vorschlag : 0.95);
+    const info = auto ? this.t('q_hand_auto') : h ? this.t('q_hand_info', { w: this._zahl(h.wert), z: this._datum(h.zeit) }) : this.t('q_hand_hilfe');
+    return `<div class="sw-hand"><div class="zeile weit" style="gap:10px;flex-wrap:wrap"><span class="zeile" style="gap:8px"><ha-icon icon="mdi:hand-back-right-outline" style="--mdc-icon-size:18px;color:var(--primary-color)"></ha-icon><b>${esc(this.t('q_hand_titel'))}</b></span>
+<span class="zeile" style="gap:6px"><button class="k rund" data-a="sw_schritt" data-d="-1" aria-label="-0.01">−</button><input type="number" class="sw-wert" min="0.5" max="0.99" step="0.01" value="${start.toFixed(2)}" aria-label="${esc(this.t('q_hand_titel'))}"><button class="k rund" data-a="sw_schritt" data-d="1" aria-label="+0.01">+</button><button class="k haupt" data-a="schwelle_hand">${esc(this.t('q_hand_setzen'))}</button></span></div>
+<div class="klein" style="margin-top:6px;line-height:1.5">${esc(info)}</div></div>`;
   }
 
   _schwelleAuto(s, sj) {
@@ -2842,6 +2855,14 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
       } else if (a === 'schwelle') {
         const w = Number(t.dataset.wert);
         if (confirm(this.t('q_schwelle_frage', { w: this._zahl(w) }))) { await this._api('POST', 'aktion', { aktion: 'schwelle', wort: this._wortId, wert: w }); this._meldung(this.t('q_schwelle_ok')); this._laden(); }
+      } else if (a === 'sw_schritt') {
+        const f = this.shadowRoot.querySelector('.sw-wert');
+        if (f) f.value = Math.min(0.99, Math.max(0.5, (Number(f.value) || 0.95) + 0.01 * Number(t.dataset.d))).toFixed(2);
+      } else if (a === 'schwelle_hand') {
+        const f = this.shadowRoot.querySelector('.sw-wert'), w = Math.round(Number(f && f.value) * 100) / 100;
+        if (!(w >= 0.5 && w <= 0.99)) { this._meldung(this.t('q_hand_bereich')); return; }
+        const auto = (this._daten.wort.einstellungen || {}).schwelle_automatisch;
+        if (confirm(this.t(auto ? 'q_hand_frage_auto' : 'q_schwelle_frage', { w: this._zahl(w) }))) { await this._api('POST', 'aktion', { aktion: 'schwelle', wort: this._wortId, wert: w, hand: true }); this._meldung(this.t('q_schwelle_ok')); this._laden(); }
       } else if (a === 'vgl_zeigen') {
         this._vglZeigen(Number(t.dataset.nr));
       } else if (a === 'einspielen') {
