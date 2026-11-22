@@ -10,7 +10,8 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.40';
+const VERSION = '1.0.41';
+const KURVE_VERSIONEN = 12; // how many of the newest versions the curve shows
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
 const PROXMOX = 'https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/sprachmodell_trainer/proxmox.sh';
@@ -481,7 +482,7 @@ button.k.gross-k{padding:11px 20px;font-size:15px;box-shadow:0 4px 16px rgba(var
 .ku-linie{fill:none;stroke:var(--farbe);stroke-width:3;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:2000;stroke-dashoffset:0}
 main:not(.still) .ku-linie{animation:ku-zeichnen 1.6s cubic-bezier(.3,.7,.3,1) both}@keyframes ku-zeichnen{from{stroke-dashoffset:2000}}
 .ku-flaeche{fill:var(--farbe);opacity:.1}main:not(.still) .ku-flaeche{animation:ku-flaeche 1.2s .5s ease-out both}@keyframes ku-flaeche{from{opacity:0}}
-.ku-punkt circle{fill:var(--card-background-color,#1c1c1c);stroke:var(--farbe);stroke-width:3}.ku-punkt circle.aktiv{fill:var(--farbe);filter:drop-shadow(0 0 6px var(--farbe))}
+.ku-punkt circle{fill:var(--card-background-color,#1c1c1c);stroke:var(--farbe);stroke-width:3}.ku-punkt circle.nicht{stroke:var(--secondary-text-color);stroke-width:2;opacity:.8}.ku-punkt circle.aktiv{fill:var(--farbe);filter:drop-shadow(0 0 6px var(--farbe))}
 main:not(.still) .ku-punkt{animation:auftauchen .4s both;animation-delay:calc(.25s + var(--n) * .2s)}
 .kurve text{font-size:13px;fill:var(--primary-text-color);text-anchor:middle}.kurve text.ku-v{fill:var(--secondary-text-color);font-size:12px}
 @media (prefers-reduced-motion:reduce){.kurve *{animation:none!important}}
@@ -1195,9 +1196,9 @@ ${this._weg(w, v)}`;
 <details class="weg-mehr"><summary class="klein">${esc(this.t('ws_mehr'))}</summary><ol class="klein">${erklaerung.map((x) => `<li>${x}</li>`).join('')}</ol></details></ha-card>`;
   }
 
-  // how the word got better: hit rate of every version that was used, drawn in as a line
+  // how the word developed: hit rate of the newest trained versions (old ones drop out), versions that were not rolled out as small grey points
   _kurve(w) {
-    const vs = [...w.versionen].filter((v) => v.bericht && v.bericht.neu && v.bericht.neu.trefferquote != null && v.status !== 'verworfen').sort((a, b) => a.nr - b.nr);
+    const vs = [...w.versionen].filter((v) => v.bericht && v.bericht.neu && v.bericht.neu.trefferquote != null).sort((a, b) => a.nr - b.nr).slice(-KURVE_VERSIONEN);
     if (vs.length < 2) return '';
     const q = vs.map((v) => v.bericht.neu.trefferquote), lo = Math.max(0, Math.min(...q) - 0.05), hi = Math.min(1, Math.max(...q) + 0.02);
     const B = 600, H = 120, x = (i) => 30 + (i / (vs.length - 1)) * (B - 60), y = (v) => 14 + (1 - (v - lo) / ((hi - lo) || 1)) * (H - 44);
@@ -1205,7 +1206,7 @@ ${this._weg(w, v)}`;
     const farbe = this._farbe(this._wortKurz() || {});
     return `<svg class="kurve" viewBox="0 0 ${B} ${H}" style="--farbe:${esc(farbe)}" aria-label="${esc(this.t('ku_titel'))}">
 <polygon class="ku-flaeche" points="${x(0).toFixed(1)},${H - 24} ${pkt} ${x(vs.length - 1).toFixed(1)},${H - 24}"/><polyline class="ku-linie" points="${pkt}"/>
-${vs.map((v, i) => `<g class="ku-punkt" style="--n:${i}"><circle cx="${x(i).toFixed(1)}" cy="${y(q[i]).toFixed(1)}" r="${v.nr === w.aktiv ? 6 : 4}" class="${v.nr === w.aktiv ? 'aktiv' : ''}"/><text x="${x(i).toFixed(1)}" y="${(y(q[i]) - 11).toFixed(1)}">${esc(this._pct(q[i]))}</text><text class="ku-v" x="${x(i).toFixed(1)}" y="${H - 6}">v${v.nr}</text></g>`).join('')}</svg>`;
+${vs.map((v, i) => `<g class="ku-punkt" style="--n:${i}"><circle cx="${x(i).toFixed(1)}" cy="${y(q[i]).toFixed(1)}" r="${v.nr === w.aktiv ? 6 : v.status === 'verworfen' ? 3 : 4}" class="${v.nr === w.aktiv ? 'aktiv' : v.status === 'verworfen' ? 'nicht' : ''}"/><text x="${x(i).toFixed(1)}" y="${(y(q[i]) - 11).toFixed(1)}">${esc(this._pct(q[i]))}</text><text class="ku-v" x="${x(i).toFixed(1)}" y="${H - 6}">v${v.nr}</text></g>`).join('')}</svg>`;
   }
 
   _alltag() {

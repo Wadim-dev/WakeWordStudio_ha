@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.41
+- **Version curve shows the newest versions:** the curve on *Training → Previous runs* and *Quality → Versions* now shows the 12 newest trained versions, including those that were not rolled out (small grey points); older ones drop out. Before, it only showed rolled-out versions from the very first one, so newer runs were missing. No trainer update needed.
+
 ## 1.0.40
 - **Your own threshold:** *Quality → Threshold* has a field to set the threshold yourself, in addition to the suggestion: steps of 0.01 with − and +, or type a value from 0.50 to 0.99, then *Set*. It applies to all devices of the word. So your value stays, setting it switches the automatic adjustment off for that word (the card says so before you confirm); switch it on again under *Training → Automatic*. The card shows when you set it and to which value. No trainer update needed.
 
