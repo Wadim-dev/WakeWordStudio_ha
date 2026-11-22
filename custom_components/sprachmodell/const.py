@@ -120,6 +120,7 @@ PHASE_ZUSTAND = {
 # Automatic threshold: never more than this below the value the version was tested with, never above the maximum
 SCHWELLE_SPIELRAUM = 0.03
 SCHWELLE_MAX = 0.99
+SCHWELLE_MIN = 0.5  # lowest threshold you can set by hand
 
 # Pre-review: at most this many recordings per word and request to the trainer
 VORPRUEFEN_JE_MAL = 40

@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 from homeassistant.core import HomeAssistant
 
+from custom_components.sprachmodell.const import TRAINER_VERSION
 from custom_components.sprachmodell.dauer import schaetzen, ziel_geraet
 from custom_components.sprachmodell.zentrale import trainer_name
 
@@ -122,9 +123,9 @@ async def test_selbst_aktualisieren(hass: HomeAssistant, geladen) -> None:
     z = geladen.runtime_data
     z.trainer_meldet({"info": {"art": "docker", "version": "0.1", "selbst_update": True}}, "pc")
     z.trainer_meldet({"info": {"art": "docker", "version": "0.1"}}, "proxmox")
-    z._bild[z.version] = (True, 1e18)
-    assert z.aktualisieren_fuer("pc") == z.version
+    z._bild[TRAINER_VERSION] = (True, 1e18)
+    assert z.aktualisieren_fuer("pc") == TRAINER_VERSION
     assert z.aktualisieren_fuer("proxmox") is None  # no access to Docker: updated by its restart
-    z._bild[z.version] = (False, 1e18)
+    z._bild[TRAINER_VERSION] = (False, 1e18)
     assert z.aktualisieren_fuer("pc") is None  # image not published yet
     assert z.aktualisieren_fuer("gibtsnicht") is None

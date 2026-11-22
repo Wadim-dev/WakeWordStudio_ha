@@ -48,6 +48,7 @@ from .const import (
     NAME,
     PANEL_URL,
     SCHWELLE_MAX,
+    SCHWELLE_MIN,
     SCHWELLE_SPIELRAUM,
     SIGNAL_NEU,
     SPRACHEN,
@@ -1169,6 +1170,19 @@ class Zentrale:
             await self.hass.services.async_call(
                 "number", "set_value", {"entity_id": ziele, "value": round(wert, 2)}, blocking=True
             )
+        return ziele
+
+    async def schwelle_von_hand(self, wort: Wort, wert: float) -> list[str]:
+        """Your own threshold from the quality page. It stays: the automatic adjustment is switched off for this
+        word (switch it on again to let it follow your answers)."""
+        if not SCHWELLE_MIN <= wert <= SCHWELLE_MAX:
+            raise ValueError("schwelle_bereich")
+        ziele = await self.schwelle_setzen(wort, wert)
+        wort.speicher.daten["schwelle_hand"] = {"wert": round(wert, 2), "zeit": jetzt()}
+        await self.hass.async_add_executor_job(wort.speicher.speichern)
+        if wort.cfg.get("schwelle_automatisch"):
+            await self.wort_aendern(wort.id, {"schwelle_automatisch": False})
+        self.geaendert()
         return ziele
 
     async def _schwelle_auto(self, wort: Wort, wert: float, quelle: str) -> None:

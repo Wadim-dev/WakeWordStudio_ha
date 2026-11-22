@@ -421,28 +421,28 @@ async def test_senden_zustand(hass: HomeAssistant, geladen, geraet) -> None:
 
 async def test_trainer_bild_bereit(hass: HomeAssistant, geladen, aioclient_mock, freezer: FrozenDateTimeFactory) -> None:
     """A Docker trainer older than the integration: the studio knows whether the new image is published yet."""
-    from custom_components.sprachmodell.const import BILD_MANIFEST, BILD_TOKEN
+    from custom_components.sprachmodell.const import BILD_MANIFEST, BILD_TOKEN, TRAINER_VERSION
 
     z = geladen.runtime_data
     z.trainer_info = {"art": "app", "version": "0.1"}
     assert z.bild_tag() is None and z.bild_bereit() is None  # the app builds its own image
-    z.trainer_info = {"art": "docker", "version": z.version}
+    z.trainer_info = {"art": "docker", "version": TRAINER_VERSION}
     assert z.bild_tag() is None  # already current
     z.trainer_info = {"art": "docker", "version": "0.1", "beschleuniger": {"bild": "gpu"}}
-    assert z.bild_tag() == z.version + "-gpu"
+    assert z.bild_tag() == TRAINER_VERSION + "-gpu"
     z.trainer_info = {"art": "docker", "version": "0.1"}
     aioclient_mock.get(BILD_TOKEN, json={"token": "t"})
-    aioclient_mock.head(f"{BILD_MANIFEST}/{z.version}", status=404)
+    aioclient_mock.head(f"{BILD_MANIFEST}/{TRAINER_VERSION}", status=404)
     assert z.bild_bereit() is None  # unknown until the first answer
     await hass.async_block_till_done()
     assert z.bild_bereit() is False
     aioclient_mock.clear_requests()
     aioclient_mock.get(BILD_TOKEN, json={"token": "t"})
-    aioclient_mock.head(f"{BILD_MANIFEST}/{z.version}", status=200)
+    aioclient_mock.head(f"{BILD_MANIFEST}/{TRAINER_VERSION}", status=200)
     assert z.bild_bereit() is False  # not again within 5 minutes
     await hass.async_block_till_done()
     assert not aioclient_mock.mock_calls
-    z._bild[z.version] = (False, 0.0)  # 5 minutes later
+    z._bild[TRAINER_VERSION] = (False, 0.0)  # 5 minutes later
     z.bild_bereit()
     await hass.async_block_till_done()
     assert z.bild_bereit() is True
@@ -479,3 +479,23 @@ async def test_modell_das_am_geraet_nicht_laeuft(hass: HomeAssistant, geladen) -
     assert gut["status"] == "aktiv" and w.speicher.daten["aktiv"] == gut["nr"]
     assert "laeuft_nicht" not in gut["bericht"]
     assert w.speicher.daten["laeufe"][-1]["ergebnis"] == "eingespielt"
+
+
+async def test_schwelle_von_hand(hass: HomeAssistant, geladen, geraet) -> None:
+    """Your own threshold on the quality page: set on the devices, kept (automatic adjustment off), range checked."""
+    z = geladen.runtime_data
+    geraet("kueche", "Kitchen")
+    w = await z.wort_neu({"wort": "Hey Lumi", "geraete": {"kueche": "1"}})
+    assert w.cfg.get("schwelle_automatisch")
+    num = async_mock_service(hass, "number", "set_value")
+    with pytest.raises(ValueError):
+        await z.schwelle_von_hand(w, 0.3)
+    assert not num
+    await z.schwelle_von_hand(w, 0.931)
+    assert num[-1].data["value"] == 0.93
+    assert w.speicher.daten["schwelle_hand"]["wert"] == 0.93 and not w.cfg.get("schwelle_automatisch")
+    assert w.speicher.statistik()["schwelle_hand"]["wert"] == 0.93
+    # the hourly follow-up leaves it alone now
+    anzahl = len(num)
+    await z.schwelle_pruefen()
+    assert len(num) == anzahl
