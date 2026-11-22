@@ -59,6 +59,8 @@ from .const import (
     TRAINER_ONLINE_S,
     TRAINER_VERGESSEN_S,
     TRAINER_VERSION,
+    VERGLEICH_AB,
+    VERGLEICHE_MAX,
 )
 from .dauer import schaetzen
 from .raum import Raeume
@@ -137,6 +139,16 @@ def _live_pruefen(live: dict[str, Any]) -> dict[str, Any]:
     return {"protokoll": zeilen, "schritte": schritte, "system": system, "balken": balken, "kurven": kurven,
             "start": start if isinstance(start, int | float) else None, "zeit": jetzt()}
 
+
+
+def version_ab(version: Any, mindestens: str) -> bool:
+    """True if version (like "1.0.40") is at least mindestens; unknown versions are not."""
+    def teile(v: str) -> tuple[int, ...]:
+        return tuple(int(x) for x in str(v).split("-")[0].split("."))
+    try:
+        return teile(version) >= teile(mindestens)
+    except (TypeError, ValueError):
+        return False
 
 class Wort:
     """Ein eigenes Aktivierungswort mit eigenen Aufnahmen und Versionen."""
@@ -785,8 +797,9 @@ class Zentrale:
             return
         _LOGGER.warning("Trainer lost the run for %s, starting it again with less memory (%s/%s)",
                         wort.wort, n, MAX_NEUSTARTS)
+        vergleich = wort.speicher.daten["training"].get("vergleich")
         wort.speicher.daten["training"] = {"phase": "bereit"}
-        self.auftrag(wort.id, "fortsetzen", sparsam=n)
+        self.auftrag(wort.id, "fortsetzen", sparsam=n, vergleich=vergleich)
 
     @callback
     def reparaturen_pruefen(self) -> None:
@@ -894,14 +907,17 @@ class Zentrale:
         return [wid for wid in self.daten.get("reihe", []) if wid in self.woerter]
 
     @callback
-    def auftrag(self, wid: str, grund: str, sparsam: int = 0) -> None:
-        """Queue a run. sparsam > 0: resumed after the trainer restarted mid-run, the trainer uses less memory."""
+    def auftrag(self, wid: str, grund: str, sparsam: int = 0, vergleich: dict[str, int] | None = None) -> None:
+        """Queue a run. sparsam > 0: resumed after the trainer restarted mid-run, the trainer uses less memory.
+        vergleich {a, b}: no training, the trainer tests two stored versions on the same recordings."""
         wort = self.woerter[wid]
         self._abgeholt.pop(wid, None)  # a new request may be taken at once
-        wort.speicher.daten["auftrag"] = {"grund": grund, "zeit": jetzt(), **({"sparsam": sparsam} if sparsam else {})}
+        extra = {"vergleich": dict(vergleich)} if vergleich else {}
+        wort.speicher.daten["auftrag"] = {"grund": grund, "zeit": jetzt(), **({"sparsam": sparsam} if sparsam else {}),
+                                          **extra}
         if wort.speicher.daten["training"].get("phase") in ("bereit", "fertig", "fehler", None):
             wort.speicher.daten["training"] = {"phase": "wartet", "grund": grund, "seit": jetzt(),
-                                               **({"neustarts": sparsam} if sparsam else {})}
+                                               **({"neustarts": sparsam} if sparsam else {}), **extra}
         if wid not in self.daten["reihe"]:
             self.daten["reihe"].append(wid)
         self.hass.async_add_executor_job(wort.speicher.speichern)
@@ -1039,6 +1055,7 @@ class Zentrale:
                 wort.speicher.daten["laeufe"].append({
                     "start": alt.get("start"), "ende": jetzt(), "ergebnis": "fehler",
                     "hinweis": neu.get("schritt") or neu.get("hinweis"),
+                    **({"vergleich": alt["vergleich"]} if alt.get("vergleich") else {}),
                 })
             wort.speicher.daten["training"] = {**alt, **neu}
             self.hass.async_add_executor_job(wort.speicher.speichern)
@@ -1093,6 +1110,45 @@ class Zentrale:
             await self.einspielen(wort, eintrag["nr"])
             lauf["ergebnis"] = "eingespielt"
             await self.hass.async_add_executor_job(sp.speichern)
+        self.geaendert()
+        return eintrag
+
+    # --- Fairer Vergleich zweier Versionen ---------------------------------
+
+    def kann_vergleichen(self, tid: str | None = None) -> bool:
+        """A trainer (this one, else any online one) is new enough to compare two stored versions."""
+        ids = [tid] if tid else [t for t in self.trainer if self.ist_online(t)]
+        return any(version_ab(((self.trainer.get(t) or {}).get("info") or {}).get("version"), VERGLEICH_AB)
+                   for t in ids)
+
+    def vergleich_starten(self, wort: Wort, a: int, b: int) -> None:
+        """Queue a fair comparison: the trainer tests both versions on exactly the same recordings."""
+        if a == b:
+            raise ValueError("gleiche_version")
+        for nr in (a, b):
+            if wort.speicher.version(nr) is None or not os.path.isfile(wort.speicher.modell_datei(nr)):
+                raise ValueError("version_fehlt")
+        if wort.speicher.daten["training"].get("phase") in (*LAEUFT, "wartet"):
+            raise ValueError("laeuft_schon")
+        if not self.kann_vergleichen():
+            raise ValueError("trainer_zu_alt")
+        self.auftrag(wort.id, "vergleich", vergleich={"a": a, "b": b})
+
+    async def vergleich_ergebnis(self, wort: Wort, bericht: dict[str, Any]) -> dict[str, Any]:
+        """Result of a fair comparison: kept with the word (the newest VERGLEICHE_MAX), the word is free again."""
+        sp = wort.speicher
+        a, b = int(bericht["a"]), int(bericht["b"])
+        eintrag = {
+            "a": a, "b": b, "zeit": jetzt(),
+            **{k: bericht.get(k) for k in ("neu", "alt", "vergleich", "cutoff", "test_quelle", "test_positiv",
+                                           "test_negativ", "test_stunden", "test_stunden_geraeusch", "dauer_min")},
+        }
+        liste = [v for v in sp.daten.get("vergleiche") or [] if {v.get("a"), v.get("b")} != {a, b}]
+        sp.daten["vergleiche"] = [*liste, eintrag][-VERGLEICHE_MAX:]
+        if sp.daten["training"].get("vergleich"):
+            sp.daten["training"] = {"phase": "bereit", "vergleich_fertig": {"a": a, "b": b}, "seit": jetzt()}
+        sp.daten["auftrag"] = None
+        await self.hass.async_add_executor_job(sp.speichern)
         self.geaendert()
         return eintrag
 

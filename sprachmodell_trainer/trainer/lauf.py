@@ -604,6 +604,9 @@ class Lauf:
 
         echt = self._echte_aufnahmen()
         tts = self._stimmen(stimmen, gerede)
+        if self.auftrag.get("vergleich"):
+            self._vergleichen(dict(self.auftrag["vergleich"]), echt, tts, bg, gerede, rir)
+            return
         anzahl = max(1, min(KANDIDATEN_MAX, int(self.auftrag.get("kandidaten") or 1)))
         self._alte_basis(g)
         haus = g.hausgeraeusche() if anzahl >= SANFT_AB else None
@@ -651,6 +654,31 @@ class Lauf:
         self.letzter = {"wort_id": self.wort_id}  # HA now shows the result; the heartbeat must not report "testing" again
         _LOG.info("Done: %s", json.dumps(bericht, ensure_ascii=False))
         self.notiz("Done, result sent to Home Assistant")
+        if self.schritte:
+            self.schritte[-1]["ende"] = round(time.time())
+        self.ha.status({"wort_id": self.wort_id, "live": self.live()})
+
+    def _vergleichen(self, v: dict, echt: dict, tts: dict, bg: list[Path], gerede: dict[str, Path], rir: Path) -> None:
+        """Fair comparison of two stored versions: no training, both are tested on exactly the same recordings,
+        speech and noise, the same way a new version is compared with the active one."""
+        a, b = int(v["a"]), int(v["b"])
+        dateien = {}
+        for nr in (a, b):
+            inhalt = self.ha.modell(self.wort_id, nr)
+            if not inhalt:
+                raise RuntimeError(f"Version {nr} not found in Home Assistant")
+            dateien[nr] = self.ordner / f"vergleich_v{nr}.tflite"
+            dateien[nr].write_bytes(inhalt)
+        self.notiz(f"Comparing v{a} with v{b} on the same recordings")
+        bericht = self._test(dateien[a], echt, tts, bg, gerede, rir, alt_datei=dateien[b], alt_name=f"v{b}")
+        for d in dateien.values():
+            d.unlink(missing_ok=True)
+        bericht = {k: w for k, w in bericht.items() if k not in ("je_schwelle", "alt_je_schwelle")}
+        bericht.update({"a": a, "b": b})
+        self._abschnitt("test", 1, "senden", True)
+        self.ha.vergleich(self.wort_id, bericht)
+        self.letzter = {"wort_id": self.wort_id}
+        self.notiz("Done, comparison sent to Home Assistant")
         if self.schritte:
             self.schritte[-1]["ende"] = round(time.time())
         self.ha.status({"wort_id": self.wort_id, "live": self.live()})
@@ -1227,7 +1255,8 @@ class Lauf:
     # --- ehrlicher Test -----------------------------------------------------
 
     def _test(self, tflite: Path, echt: dict, tts: dict, bg: list[Path], gerede: dict[str, Path],
-              rir: Path | None = None, getrennt: bool = False) -> dict:
+              rir: Path | None = None, getrennt: bool = False, alt_datei: Path | None = None,
+              alt_name: str = "the version on the devices") -> dict:
         """getrennt: candidates were chosen on the odd synthetic clips and FLEURS dev, so the test leaves those out."""
         halb = slice(0, None, 2) if getrennt else slice(None)
         positiv = echt["wort_test"]
@@ -1250,10 +1279,10 @@ class Lauf:
 
         neu = self._werkzeug_sicher("pruefen", {**auftrag, "modell": str(tflite)}, "test", 0, 0.5, "test_neu")
         alt = None
-        alt_bytes = self.ha.modell(self.wort_id) if self.auftrag.get("aktiv") else None
-        if alt_bytes:
+        if alt_datei is None and self.auftrag.get("aktiv") and (alt_bytes := self.ha.modell(self.wort_id)):
             alt_datei = self.ordner / "alt.tflite"
             alt_datei.write_bytes(alt_bytes)
+        if alt_datei is not None:
             alt = self._werkzeug_sicher("pruefen", {**auftrag, "modell": str(alt_datei)}, "test", 0.5, 1.0,
                                  "test_alt")
         ziel = float(self.o.get("ziel_fehlausloeser") or 1.0)
@@ -1274,7 +1303,7 @@ class Lauf:
             bericht["vergleich"] = vergleichen(neu, alt, cut_neu, cut_alt)
             bericht["besser"] = bericht["vergleich"]["urteil"] == "besser"
             v = bericht["vergleich"]
-            self.notiz(f"Comparison with the version on the devices: {v['urteil']} "
+            self.notiz(f"Comparison with {alt_name}: {v['urteil']} "
                        f"(better in {', '.join(v['besser_in']) or '-'}, worse in {', '.join(v['schlechter_in']) or '-'})",
                        "info")
         else:

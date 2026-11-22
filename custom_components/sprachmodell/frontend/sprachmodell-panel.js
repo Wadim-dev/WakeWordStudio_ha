@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.41';
+const VERSION = '1.0.42';
 const KURVE_VERSIONEN = 12; // how many of the newest versions the curve shows
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
@@ -482,7 +482,10 @@ button.k.gross-k{padding:11px 20px;font-size:15px;box-shadow:0 4px 16px rgba(var
 .ku-linie{fill:none;stroke:var(--farbe);stroke-width:3;stroke-linejoin:round;stroke-linecap:round;stroke-dasharray:2000;stroke-dashoffset:0}
 main:not(.still) .ku-linie{animation:ku-zeichnen 1.6s cubic-bezier(.3,.7,.3,1) both}@keyframes ku-zeichnen{from{stroke-dashoffset:2000}}
 .ku-flaeche{fill:var(--farbe);opacity:.1}main:not(.still) .ku-flaeche{animation:ku-flaeche 1.2s .5s ease-out both}@keyframes ku-flaeche{from{opacity:0}}
-.ku-punkt circle{fill:var(--card-background-color,#1c1c1c);stroke:var(--farbe);stroke-width:3}.ku-punkt circle.nicht{stroke:var(--secondary-text-color);stroke-width:2;opacity:.8}.ku-punkt circle.aktiv{fill:var(--farbe);filter:drop-shadow(0 0 6px var(--farbe))}
+.ku-punkt circle{fill:var(--card-background-color,#1c1c1c);stroke:var(--farbe);stroke-width:3}.vf-wahl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.vf-wahl select{flex:1 1 160px;min-width:0}
+.vf-hinweis{display:flex;gap:6px;align-items:flex-start;margin:6px 0 10px}.vf-hinweis ha-icon{--mdc-icon-size:18px;color:var(--success-color,#43a047);flex:none}.vf-hinweis.grob ha-icon{color:var(--warning-color,#ffa000)}
+.vf-fuss{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}.vf-fuss ha-icon{--mdc-icon-size:18px}.vf-lauf{display:flex;gap:8px;align-items:center;margin:6px 0;font-weight:500}.vf-lauf ha-icon{color:var(--primary-color)}
+.ku-punkt circle.nicht{stroke:var(--secondary-text-color);stroke-width:2;opacity:.8}.ku-punkt circle.aktiv{fill:var(--farbe);filter:drop-shadow(0 0 6px var(--farbe))}
 main:not(.still) .ku-punkt{animation:auftauchen .4s both;animation-delay:calc(.25s + var(--n) * .2s)}
 .kurve text{font-size:13px;fill:var(--primary-text-color);text-anchor:middle}.kurve text.ku-v{fill:var(--secondary-text-color);font-size:12px}
 @media (prefers-reduced-motion:reduce){.kurve *{animation:none!important}}
@@ -605,6 +608,7 @@ class SprachmodellPanel extends HTMLElement {
   constructor() {
     super();
     this._vglOffen = new Set();
+    this._vglWahl = {};
     this.attachShadow({ mode: 'open' });
     this._daten = null;
     this._liste = null;
@@ -2054,6 +2058,8 @@ ${aktiv}${last}
     return `${!tr.online && !tr.kontakt ? `<div class="hinweis"><b>${esc(this.t('t_kein_trainer'))}</b><br>${this.t('t_kein_trainer_text')}</div>` : ''}
 <ha-card class="${laeuft ? 'laeuft' : ''} ${feier ? 'gefeiert' : ''}"><div class="zeile weit"><h2 style="margin:0">${esc(this.t('p_' + t.phase))}</h2><span class="klein"><span class="punkt ${tr.online ? 'an' : ''}"></span>${esc(tr.online ? this.t('t_trainer_an') : tr.kontakt ? this.t('t_trainer_zuletzt', { z: this._zeit(tr.kontakt) }) : this.t('t_trainer_nie'))}</span></div>
 ${laeuft ? `${this._zauber(w)}<div class="fortschritt"><i style="width:${t.prozent ?? 3}%"></i></div><div class="zeile weit klein"><span>${esc(this._schritt(t.schritt))}</span><span>${t.prozent != null ? Math.round(t.prozent) + ' %' : ''}${t.restzeit_min != null ? ' · ' + esc(this.t('t_noch', { z: this._dauer(t.restzeit_min) })) : ''}</span></div>${t.restzeit_min != null ? `<div class="klein" style="text-align:right">${esc(this._fertigText(t))}</div>` : ''}${t.start ? `<div class="klein">${esc(this.t('t_gestartet', { z: this._zeit(t.start) }))}</div>` : ''}` : ''}
+${t.vergleich && (laeuft || t.phase === 'wartet') ? `<p class="vf-lauf"><ha-icon icon="mdi:scale-balance"></ha-icon>${esc(this.t('vf_titel_lauf', { a: t.vergleich.a, b: t.vergleich.b }))}</p>` : ''}
+${t.phase === 'bereit' && t.vergleich_fertig ? `<p class="klein"><ha-icon icon="mdi:scale-balance" style="--mdc-icon-size:16px;vertical-align:-3px"></ha-icon> ${esc(this.t('vf_fertig', { a: t.vergleich_fertig.a, b: t.vergleich_fertig.b }))} <button class="link" data-reiter="qualitaet">${esc(this.t('vf_ansehen'))}</button></p>` : ''}
 ${t.phase === 'wartet' ? `<p class="klein">${esc(this.t('t_auftrag', { g: this.t('grund_' + (t.grund || 'von_hand')) }))} ${esc(tr.online ? this.t('t_holt') : this.t('t_holt_nicht'))} ${platz > 0 ? esc(this.t('t_platz', { n: platz + 1 })) : ''}</p>` : ''}
 ${feier ? this._konfetti() : ''}${t.phase === 'fertig' && t.version ? `<p>v${t.version}: ${t.besser ? `<span class="gruen">${esc(this.t('t_besser'))}</span>` : `<span class="gelb">${esc(this.t(t.gleich ? 't_gleich' : 't_nicht_besser'))}</span>`}.</p>` : ''}
 ${t.phase === 'fehler' ? `<p class="rot">${esc(this._schritt(t.schritt || t.hinweis) || this.t('p_fehler'))}</p>` : ''}
@@ -2159,7 +2165,7 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
   }
 
   // two bars per question, this version against the one before: the three things that matter in daily life
-  _duell(b, nr) {
+  _duell(b, nr, hinweis = true) {
     const n = b.neu || {}, a = b.alt;
     if (!a) return '';
     const vg = b.vergleich, urteil = (k, fa) => { const z = vg && vg.zeilen.find((r) => r.kennzahl === k && (fa == null || r.fa === fa)); return z ? z.urteil : null; };
@@ -2180,7 +2186,7 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
       const max = f.pct ? 1 : Math.max(1, f.neu, f.alt) * 1.1;
       const marke = f.u ? `<div class="d-fuss"><span class="d-urteil u-${f.u}"><ha-icon icon="${icon[f.u]}"></ha-icon>${esc(this.t('d_u_' + f.u))}</span></div>` : '';
       return `<div class="d-frage"><div class="d-kopf"><span>${esc(this.t(f.titel))}</span><span class="klein">${esc(this.t(f.hin))}</span></div>${balken('v' + nr, f.neu, f, max, 'neu')}${balken(altName, f.alt, f, max, 'alt')}${marke}</div>`;
-    }).join('')}${vg ? '' : `<div class="klein">${esc(this.t('d_alter_test'))}</div>`}</div>`;
+    }).join('')}${vg || !hinweis ? '' : `<div class="klein">${esc(this.t('d_alter_test'))}</div>`}</div>`;
   }
 
   // the active version at a glance: how it hears in every condition and, next to it, the duel against the version before
@@ -2224,7 +2230,85 @@ ${this._tabelle()}
 ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.schwelle_vorschlag != null ? `<div class="zeile weit" style="margin-top:10px"><span>${this.t('q_vorschlag', { w: this._zahl(s.schwelle_vorschlag) })} ${sj != null ? esc(this.t('q_jetzt', { w: this._zahl(sj) })) : ''}</span><button class="k haupt" data-a="schwelle" data-wert="${s.schwelle_vorschlag}" ${!this._admin || (sj != null && Math.abs(sj - s.schwelle_vorschlag) < 0.005) ? 'disabled' : ''}>${esc(this.t('q_uebernehmen'))}</button></div>` : `<div class="klein">${esc(this.t('q_vorschlag_spaeter'))}</div>`}
 <div class="klein" style="margin-top:8px">${esc(this.t('q_legende'))}${(w.einstellungen || {}).schwelle_automatisch ? '' : ' ' + esc(this.t('q_legende_hand'))}</div>
 ${this._admin && Object.keys(w.schwellen || {}).length ? this._schwelleHand(s, sj, (w.einstellungen || {}).schwelle_automatisch) : ''}</ha-card>
-<ha-card><h2>${esc(this.t('q_versionen'))}</h2>${this._kurve(w)}${w.versionen.length ? this._versionen(w) : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>`;
+<ha-card><h2>${esc(this.t('q_versionen'))}</h2>${this._kurve(w)}${w.versionen.length ? this._versionen(w) : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>
+${this._vglFrei(w)}`;
+  }
+
+  // compare any two versions: pick both, see the questions side by side
+  _vglKandidaten(w) {
+    return [...w.versionen].filter((v) => v.bericht && v.bericht.neu).sort((a, b) => b.nr - a.nr);
+  }
+
+  _vglPaar(w) {
+    const vs = this._vglKandidaten(w), nrs = vs.map((v) => v.nr), wahl = this._vglWahl[this._wortId] || {};
+    let a = nrs.includes(wahl.a) ? wahl.a : nrs[0];
+    let b = nrs.includes(wahl.b) ? wahl.b : (nrs.includes(w.aktiv) && w.aktiv !== a ? w.aktiv : nrs.find((n) => n !== a));
+    if (a === b) b = nrs.find((n) => n !== a);
+    return { vs, a: vs.find((v) => v.nr === a), b: vs.find((v) => v.nr === b) };
+  }
+
+  _vglFrei(w) {
+    const { vs, a, b } = this._vglPaar(w);
+    if (vs.length < 2 || !a || !b) return '';
+    const wahl = (seite, nr) => `<select data-vglwahl="${seite}" aria-label="${esc(this.t('vf_version'))}">${vs.map((v) => `<option value="${v.nr}" ${v.nr === nr ? 'selected' : ''}>v${v.nr}${v.nr === w.aktiv ? ' · ' + esc(this.t('vf_aktiv')) : ''} · ${esc(this._datum(v.zeit))}</option>`).join('')}</select>`;
+    return `<ha-card><h2>${esc(this.t('vf_titel'))}</h2><div class="klein" style="margin:-4px 0 10px">${esc(this.t('vf_hilfe'))}</div>
+<div class="vf-wahl">${wahl('a', a.nr)}<button class="k rund" data-a="vgl_tauschen" title="${esc(this.t('vf_tauschen'))}"><ha-icon icon="mdi:swap-horizontal"></ha-icon></button>${wahl('b', b.nr)}</div>
+<div class="vf-inhalt">${this._vglFreiInhalt(w, a, b)}</div></ha-card>`;
+  }
+
+  // a measurement of y against x turned around, so that x stays on top; the verdicts turn with it
+  _vglUmdrehen(neu, alt, vg, altNr) {
+    const um = { besser: 'schlechter', schlechter: 'besser', gleich: 'gleich' };
+    const liste = (ks) => ks || [];
+    return { neu: alt, alt: neu, alt_nr: altNr, vergleich: vg ? { ...vg, urteil: um[vg.urteil] || vg.urteil, besser_in: liste(vg.schlechter_in), schlechter_in: liste(vg.besser_in), grund: vg.grund === 'besser_in' ? 'schlechter_in' : vg.grund === 'schlechter_in' ? 'besser_in' : vg.grund, zeilen: vg.zeilen.map((z) => ({ ...z, neu: z.alt, alt: z.neu, urteil: um[z.urteil] || z.urteil })) } : undefined };
+  }
+
+  _vglFreiInhalt(w, a, b) {
+    // best first: a fair test of exactly this pair, then a run that measured both on the same audio, else the stored figures
+    const fair = (w.vergleiche || []).find((f) => (f.a === a.nr && f.b === b.nr) || (f.a === b.nr && f.b === a.nr));
+    const gleicherLauf = (x, y) => x.bericht.alt_nr === y.nr && x.bericht.alt;
+    let bericht, hinweis, sicher = true;
+    if (fair) {
+      bericht = fair.a === a.nr ? { neu: fair.neu, alt: fair.alt, alt_nr: b.nr, vergleich: fair.vergleich } : this._vglUmdrehen(fair.neu, fair.alt, fair.vergleich, b.nr);
+      hinweis = this.t('vf_fair', { z: this._zeit(fair.zeit), n: fair.test_positiv ?? '–' });
+    } else if (gleicherLauf(a, b)) { bericht = a.bericht; hinweis = this.t('vf_gleich_lauf', { v: a.nr }); }
+    else if (gleicherLauf(b, a)) { bericht = this._vglUmdrehen(b.bericht.neu, b.bericht.alt, b.bericht.vergleich, b.nr); hinweis = this.t('vf_gleich_lauf', { v: b.nr }); }
+    else { bericht = { neu: a.bericht.neu, alt: b.bericht.neu, alt_nr: b.nr }; hinweis = this.t('vf_getrennt', { a: a.nr, b: b.nr }); sicher = false; }
+    const nr = a.nr, duell = this._duell(bericht, nr, false);
+    const na = bericht.neu || {}, nb = bericht.alt || {};
+    const zeile = (titel, ka, kb, f) => `<tr><td>${esc(titel)}</td><td class="z">${f(ka)}</td><td class="z">${f(kb)}</td></tr>`;
+    const pct = (x) => this._pct(x);
+    const tab = `<table class="vgl-tab"><tr><th></th><th class="z">v${a.nr}</th><th class="z">v${b.nr}</th></tr>
+${zeile(this.t('vf_ruhig'), na.trefferquote, nb.trefferquote, pct)}
+${fair ? '' : zeile(this.t('vf_schwelle'), a.bericht.cutoff, b.bericht.cutoff, (x) => x == null ? '–' : this._zahl(x))}${fair ? '' : zeile(this.t('vf_testaufnahmen'), a.bericht.test_positiv, b.bericht.test_positiv, (x) => x == null ? '–' : String(x))}</table>`;
+    return `${bericht.vergleich ? this._vglUrteil(bericht.vergleich, a.nr, b.nr) : ''}<div class="klein vf-hinweis ${sicher ? '' : 'grob'}"><ha-icon icon="${sicher ? 'mdi:check-decagram-outline' : 'mdi:information-outline'}"></ha-icon><span>${esc(hinweis)}</span></div>${duell}${tab}${this._vglFairKnopf(w, a, b, fair)}`;
+  }
+
+  // the verdict in plain words for any pair (the run's own line speaks of taking a version over)
+  _vglUrteil(vg, a, b) {
+    const icon = { besser: 'mdi:check-circle', schlechter: 'mdi:close-circle', gleich: 'mdi:approximately-equal' };
+    const liste = (ks) => [...new Set(ks || [])].map((k) => this.t(k === 'alltag_bei_fa' ? 'k_alltag_kurz' : k === 'schwer_bei_fa' ? 'k_schwer_kurz' : 'k_' + k)).join(', ');
+    const text = vg.urteil === 'besser' ? this.t('vf_u_besser', { a, k: liste(vg.besser_in) })
+      : vg.urteil === 'schlechter' ? this.t('vf_u_schlechter', { a, k: liste(vg.schlechter_in) }) : this.t('vf_u_gleich', { a, b });
+    return `<div class="vgl-urteil u-${vg.urteil}"><ha-icon icon="${icon[vg.urteil] || 'mdi:information'}"></ha-icon><span>${esc(text)}</span></div>`;
+  }
+
+  _vglFairKnopf(w, a, b, fair) {
+    if (!this._admin) return '';
+    const t = w.training || {}, v = t.vergleich, aktiv = LAEUFT.includes(t.phase) || t.phase === 'wartet';
+    if (aktiv && v && ((v.a === a.nr && v.b === b.nr) || (v.a === b.nr && v.b === a.nr))) {
+      return `<div class="vf-fuss"><span class="klein"><ha-icon icon="mdi:timer-sand"></ha-icon> ${esc(this.t(t.phase === 'wartet' ? 'vf_wartet' : 'vf_laeuft_jetzt', { a: v.a, b: v.b }))}</span><button class="link" data-reiter="training">${esc(this.t('vf_zum_training'))}<ha-icon icon="mdi:chevron-right"></ha-icon></button></div>`;
+    }
+    const grund = !w.kann_vergleichen ? this.t('vf_trainer_alt') : aktiv ? this.t('vf_belegt') : '';
+    return `<div class="vf-fuss"><button class="k ${fair ? '' : 'haupt'}" data-a="vgl_fair" ${grund ? 'disabled' : ''}><ha-icon icon="mdi:scale-balance"></ha-icon>${esc(this.t(fair ? 'vf_neu_testen' : 'vf_fair_testen'))}</button><span class="klein">${esc(grund || this.t('vf_fair_hilfe'))}</span></div>`;
+  }
+
+  _vglFreiNeu() {
+    const w = this._daten.wort, box = this.shadowRoot.querySelector('.vf-inhalt');
+    if (!box) return;
+    const { a, b } = this._vglPaar(w);
+    this.shadowRoot.querySelectorAll('select[data-vglwahl]').forEach((s) => { s.value = String(s.dataset.vglwahl === 'a' ? a.nr : b.nr); });
+    box.innerHTML = this._vglFreiInhalt(w, a, b);
   }
 
   // people as small cards: initial in a coloured circle, a bar and a line (shares 0..1)
@@ -2864,6 +2948,12 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
         if (!(w >= 0.5 && w <= 0.99)) { this._meldung(this.t('q_hand_bereich')); return; }
         const auto = (this._daten.wort.einstellungen || {}).schwelle_automatisch;
         if (confirm(this.t(auto ? 'q_hand_frage_auto' : 'q_schwelle_frage', { w: this._zahl(w) }))) { await this._api('POST', 'aktion', { aktion: 'schwelle', wort: this._wortId, wert: w, hand: true }); this._meldung(this.t('q_schwelle_ok')); this._laden(); }
+      } else if (a === 'vgl_tauschen') {
+        const { a: x, b: y } = this._vglPaar(this._daten.wort);
+        this._vglWahl[this._wortId] = { a: y.nr, b: x.nr }; this._vglFreiNeu();
+      } else if (a === 'vgl_fair') {
+        const { a: x, b: y } = this._vglPaar(this._daten.wort);
+        if (confirm(this.t('vf_frage', { a: x.nr, b: y.nr }))) { t.disabled = true; await this._api('POST', 'aktion', { aktion: 'vergleich_starten', wort: this._wortId, a: x.nr, b: y.nr }); this._meldung(this.t('vf_gestartet')); this._laden(); }
       } else if (a === 'vgl_zeigen') {
         this._vglZeigen(Number(t.dataset.nr));
       } else if (a === 'einspielen') {
@@ -2954,6 +3044,12 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
     if (t.id === 'datei') { this._hochladen([...t.files]); t.value = ''; return; }
     if (t.id === 'autoplay') { this._autoplay = t.checked; this._merk('autoplay', t.checked ? '1' : '0'); return; }
     if (t.id === 'recnotiz') { this._rec.notiz = t.value; return; }
+    if (t.dataset.vglwahl) {
+      const { a, b } = this._vglPaar(this._daten.wort), nr = Number(t.value);
+      const neu = { a: a.nr, b: b.nr, [t.dataset.vglwahl]: nr }, andere = t.dataset.vglwahl === 'a' ? 'b' : 'a';
+      if (neu[andere] === nr) neu[andere] = t.dataset.vglwahl === 'a' ? b.nr === nr ? a.nr : b.nr : a.nr === nr ? b.nr : a.nr;
+      this._vglWahl[this._wortId] = neu; this._vglFreiNeu(); return;
+    }
     if (t.dataset.feld && this._entwurf) { this._entwurf[t.dataset.feld] = t.value; this._entwurf._geaendert = true; this._neuStand(); return; }
     if (t.dataset.platz !== undefined && this._entwurf) {
       const g = { ...(this._entwurf.geraete || {}) };

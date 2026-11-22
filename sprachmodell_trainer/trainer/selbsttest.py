@@ -27,12 +27,21 @@ class _HA:
 
     def __init__(self) -> None:
         self.klatscher: dict[str, bytes] = {}
+        self.modelle: dict[int, bytes] = {}
+        self.vergleiche: list[dict] = []
 
     def status(self, daten: dict) -> None:
         pass
 
     def raum(self, knoten: str, rid: str) -> bytes | None:
         return self.klatscher.get(rid)
+
+    def modell(self, wort: str, nr: int | None = None) -> bytes | None:
+        return self.modelle.get(nr or 0)
+
+    def vergleich(self, wort: str, bericht: dict) -> dict:
+        self.vergleiche.append(bericht)
+        return {"ok": True}
 
 
 def _wav(pfad: Path, x: np.ndarray) -> str:
@@ -230,6 +239,15 @@ def main() -> None:
         p2 = np.array(Model(e["datei"], stride=3).predict_clip(x, step_ms=10))
         assert len(p1) == len(p2) and float(np.abs(p1 - p2).max()) <= 0.02, (p1[:10], p2[:10])
         print("SELBSTTEST averaged model reads like a single one", flush=True)
+
+        # fair comparison of two stored versions: no training, both tested on the same audio, result to HA
+        lauf.ha.modelle = {1: einzel.read_bytes(), 2: gemittelt.read_bytes()}
+        lauf._vergleichen({"a": 2, "b": 1}, echt, tts, [o / "bg"], {"test": o / "lang", "dev": o / "lang"}, Path(rir))
+        v = lauf.ha.vergleiche[-1]
+        assert (v["a"], v["b"]) == (2, 1) and v["neu"] and v["alt"] and v["vergleich"]["urteil"] in (
+            "besser", "schlechter", "gleich"), v
+        assert "je_schwelle" not in v and not list(lauf.ordner.glob("vergleich_v*.tflite")), v.keys()
+        print(f"SELBSTTEST fair comparison ok ({time.time() - t0:.0f} s, {v['vergleich']['urteil']})", flush=True)
     print("SELBSTTEST OK", flush=True)
 
 

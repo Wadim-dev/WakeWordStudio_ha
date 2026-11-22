@@ -130,8 +130,9 @@ class HA:
         r.raise_for_status()
         return r.content
 
-    def modell(self, wort: str) -> bytes | None:
-        r = self._get("modell", params={"wort": wort})
+    def modell(self, wort: str, nr: int | None = None) -> bytes | None:
+        """The active version, or version nr."""
+        r = self._get("modell", params={"wort": wort, **({"nr": nr} if nr else {})})
         return r.content if r.status_code == 200 else None
 
     def status(self, daten: dict[str, Any]) -> None:
@@ -146,6 +147,12 @@ class HA:
             files={"modell": ("modell.tflite", tflite, "application/octet-stream"),
                    "bericht": ("bericht.json", json.dumps(bericht), "application/json")},
         )
+        r.raise_for_status()
+        return r.json()
+
+    def vergleich(self, wort: str, bericht: dict[str, Any]) -> dict[str, Any]:
+        """Result of a fair comparison of two stored versions."""
+        r = self._anfrage("POST", "vergleich", json={"wort_id": wort, "bericht": bericht}, timeout=60)
         r.raise_for_status()
         return r.json()
 
