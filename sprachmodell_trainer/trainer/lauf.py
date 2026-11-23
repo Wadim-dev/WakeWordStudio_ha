@@ -111,6 +111,9 @@ KURVE_MAX = 60  # points of a live learning curve sent to HA
 # Anteil am Gesamtfortschritt je Abschnitt
 ANTEILE = {"vorbereiten": (0, 8), "daten": (8, 12), "stimmen": (12, 35), "merkmale": (35, 50),
            "training": (50, 92), "test": (92, 100)}
+# a fair comparison of two stored versions has no training: the two tests are most of the work
+ANTEILE_VERGLEICH = {"vorbereiten": (0, 6), "daten": (6, 12), "stimmen": (12, 18), "merkmale": (18, 18),
+                     "training": (18, 18), "test": (18, 100)}
 
 
 def _zuerst_opfern() -> None:
@@ -294,6 +297,9 @@ class Lauf:
         self._schritt_name = ""
         # learning curve per training step (candidate): [step, recall %, false wakes per hour] from each evaluation
         self.kurven: dict[str, list[list[float]]] = {}
+        # interim figures of the tests running in this run, per step (test of the new and of the old version)
+        self.pruef_live: dict[str, dict[str, Any]] = {}
+        self.anteile = ANTEILE_VERGLEICH if auftrag.get("vergleich") else ANTEILE
         self.raum_n = 0  # claps of the user's own rooms mixed into this run
         self.raum_sig = ""  # which claps: cached features are rebuilt once they change
 
@@ -360,7 +366,7 @@ class Lauf:
             del self.balken[k]
         return {"protokoll": list(self.protokoll), "schritte": self.schritte, "system": auslastung(self.daten),
                 "start": round(self.start), "geraet": self.geraet, "balken": sorted(self.balken.values(), key=lambda b: b["name"] != self._schritt_name)[:BALKEN_MAX],
-                "kurven": self.kurven}
+                "kurven": self.kurven, "pruefen": self.pruef_live}
 
     def _kurve(self, schritt: str, nr: int, zeile: str) -> None:
         """One evaluation of microWakeWord (recall and false wakes per hour) as a point of the live learning curve."""
@@ -386,7 +392,7 @@ class Lauf:
     def _abschnitt(self, name: str, anteil: float, schritt: str, sofort: bool = False, **mehr: Any) -> None:
         phase = {"stimmen": "daten"}.get(name, name)
         self.phase = phase
-        von, bis = ANTEILE[name]
+        von, bis = self.anteile[name]
         self.melden(phase, von + (bis - von) * max(0.0, min(1.0, anteil)), schritt, sofort, **mehr)
 
     def _werkzeug(self, befehl: str, auftrag: dict, abschnitt: str, von: float, bis: float, schritt: str,
@@ -442,6 +448,12 @@ class Lauf:
                 a, _, b = rest.partition("|")
                 if a.isdigit() and b.isdigit():
                     self.balken_setzen(name, 100 * int(a) / max(1, int(b)), n=a, gesamt=b)
+                continue
+            elif zeile.startswith("LIVE "):
+                try:
+                    self.pruef_live[schritt[:40]] = json.loads(zeile[5:])
+                except ValueError:
+                    pass
                 continue
             elif zeile.startswith("ERGEBNIS "):
                 ergebnis = json.loads(zeile[9:])
@@ -663,6 +675,7 @@ class Lauf:
         speech and noise, the same way a new version is compared with the active one."""
         a, b = int(v["a"]), int(v["b"])
         dateien = {}
+        self._abschnitt("test", 0, "vgl_modelle", True)
         for nr in (a, b):
             inhalt = self.ha.modell(self.wort_id, nr)
             if not inhalt:
@@ -670,12 +683,13 @@ class Lauf:
             dateien[nr] = self.ordner / f"vergleich_v{nr}.tflite"
             dateien[nr].write_bytes(inhalt)
         self.notiz(f"Comparing v{a} with v{b} on the same recordings")
-        bericht = self._test(dateien[a], echt, tts, bg, gerede, rir, alt_datei=dateien[b], alt_name=f"v{b}")
+        bericht = self._test(dateien[a], echt, tts, bg, gerede, rir, alt_datei=dateien[b], alt_name=f"v{b}",
+                             schritte=("vgl_a", "vgl_b"))
         for d in dateien.values():
             d.unlink(missing_ok=True)
         bericht = {k: w for k, w in bericht.items() if k not in ("je_schwelle", "alt_je_schwelle")}
         bericht.update({"a": a, "b": b})
-        self._abschnitt("test", 1, "senden", True)
+        self._abschnitt("test", 1, "vgl_urteil", True)
         self.ha.vergleich(self.wort_id, bericht)
         self.letzter = {"wort_id": self.wort_id}
         self.notiz("Done, comparison sent to Home Assistant")
@@ -1256,7 +1270,7 @@ class Lauf:
 
     def _test(self, tflite: Path, echt: dict, tts: dict, bg: list[Path], gerede: dict[str, Path],
               rir: Path | None = None, getrennt: bool = False, alt_datei: Path | None = None,
-              alt_name: str = "the version on the devices") -> dict:
+              alt_name: str = "the version on the devices", schritte: tuple[str, str] = ("test_neu", "test_alt")) -> dict:
         """getrennt: candidates were chosen on the odd synthetic clips and FLEURS dev, so the test leaves those out."""
         halb = slice(0, None, 2) if getrennt else slice(None)
         positiv = echt["wort_test"]
@@ -1277,14 +1291,14 @@ class Lauf:
         auftrag = {"positiv": positiv, "negativ": negativ, "gerede": rede, "bg": geraeusche,
                    "rir": str(rir) if rir else None, "max_stunden": TEST_STUNDEN_REDE, "max_stunden_bg": TEST_STUNDEN_GERAEUSCH}
 
-        neu = self._werkzeug_sicher("pruefen", {**auftrag, "modell": str(tflite)}, "test", 0, 0.5, "test_neu")
+        neu = self._werkzeug_sicher("pruefen", {**auftrag, "modell": str(tflite)}, "test", 0, 0.5, schritte[0])
         alt = None
         if alt_datei is None and self.auftrag.get("aktiv") and (alt_bytes := self.ha.modell(self.wort_id)):
             alt_datei = self.ordner / "alt.tflite"
             alt_datei.write_bytes(alt_bytes)
         if alt_datei is not None:
             alt = self._werkzeug_sicher("pruefen", {**auftrag, "modell": str(alt_datei)}, "test", 0.5, 1.0,
-                                 "test_alt")
+                                 schritte[1])
         ziel = float(self.o.get("ziel_fehlausloeser") or 1.0)
         cut_neu, werte_neu = self._schwelle(neu, ziel)
         bericht: dict[str, Any] = {

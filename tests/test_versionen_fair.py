@@ -10,7 +10,7 @@ from homeassistant.setup import async_setup_component
 import pytest
 
 from custom_components.sprachmodell.const import VERGLEICH_AB
-from custom_components.sprachmodell.zentrale import version_ab
+from custom_components.sprachmodell.zentrale import _pruefen_live, version_ab
 
 MODELLE = os.path.join(os.path.dirname(__file__), "modelle")
 
@@ -18,6 +18,20 @@ MODELLE = os.path.join(os.path.dirname(__file__), "modelle")
 def _modell() -> bytes:
     with open(os.path.join(MODELLE, "laeuft.tflite"), "rb") as datei:
         return datei.read()
+
+
+def test_pruefen_live_bereinigt() -> None:
+    """Live figures of the comparison come from the trainer: only numbers pass, a few steps, short names."""
+    assert _pruefen_live(None) == {} and _pruefen_live([1]) == {}
+    roh = {f"s{i}": {"teil": "stille", "n": 3, "gesamt": 4} for i in range(6)}
+    roh["vgl_b"] = {"teil": "<b>gerede" * 5, "n": 5, "gesamt": "x", "hoert": {"ruhig": 4, "boese": "<script>", **{f"k{i}": i for i in range(20)}},
+                    "fehl": [1], "min": {"gerede": 12.5}}
+    aus = _pruefen_live(roh)
+    assert len(aus) == 4 and "vgl_b" in aus and "s0" not in aus
+    b = aus["vgl_b"]
+    assert len(b["teil"]) == 16 and b["n"] == 5 and "gesamt" not in b
+    assert b["hoert"]["ruhig"] == 4 and "boese" not in b["hoert"] and len(b["hoert"]) <= 12
+    assert b["fehl"] == {} and b["min"] == {"gerede": 12.5} and b["max_min"] == {}
 
 
 def test_version_ab() -> None:
