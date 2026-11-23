@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.42';
+const VERSION = '1.0.43';
 const KURVE_VERSIONEN = 12; // how many of the newest versions the curve shows
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
@@ -455,6 +455,8 @@ main:not(.still) .ziel-ring .vorn{animation:ring-fuellen 1.1s cubic-bezier(.3,.8
 ha-card.abschnitt{padding:0}
 .abschnitt summary{display:flex;align-items:center;gap:14px;padding:16px;cursor:pointer;list-style:none;border-radius:var(--ha-card-border-radius,12px)}
 .abschnitt summary::-webkit-details-marker{display:none}
+.inklapp{margin-top:12px}.inklapp>summary{display:inline-flex;align-items:center;gap:6px;cursor:pointer;list-style:none;color:var(--primary-color);font-size:14px;padding:6px 10px 6px 4px;border-radius:999px}.inklapp>summary::-webkit-details-marker{display:none}
+.inklapp>summary ha-icon{--mdc-icon-size:20px;transition:transform .25s}.inklapp[open]>summary ha-icon{transform:rotate(180deg)}.inklapp[open]>summary~*{animation:aufklappen .35s ease-out}
 .abschnitt summary:hover{background:rgba(var(--rgb-primary-text-color,0,0,0),.03)}
 .ab-ikon{width:40px;height:40px;flex:none;border-radius:12px;display:flex;align-items:center;justify-content:center;background:rgba(var(--rgb-primary-color,3,169,244),.14);color:var(--primary-color);transition:transform .35s}
 .abschnitt details[open] .ab-ikon{transform:rotate(-8deg) scale(1.05)}
@@ -491,6 +493,30 @@ main:not(.still) .ku-punkt{animation:auftauchen .4s both;animation-delay:calc(.2
 @media (prefers-reduced-motion:reduce){.kurve *{animation:none!important}}
 /* Training: path of the spell and one live scene per step (1.0.36) */
 .zauber{color:var(--farbe,var(--primary-color));margin:4px 0 6px}
+.vz-duell{padding:12px 12px 10px;color:var(--primary-text-color)}.vz-oben{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center}
+.vz-kopf{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px;border-radius:12px;background:rgba(var(--rgb-primary-text-color,0,0,0),.04);transition:box-shadow .4s}
+.vz-kopf b{font-size:20px;color:var(--primary-text-color)}.vz-kopf.an{box-shadow:0 0 0 2px var(--farbe),0 0 18px color-mix(in srgb,var(--farbe) 45%,transparent)}
+main:not(.still) .vz-kopf.an{animation:zp-puls 2.2s ease-in-out infinite}
+.vz-mitte{display:flex;flex-direction:column;align-items:center;text-align:center}.vz-waage{width:140px;height:72px;overflow:visible}
+.vz-waage .fuss,.vz-waage line,.vz-waage .schale path{stroke:var(--secondary-text-color);stroke-width:2.5;fill:none;stroke-linecap:round}
+.vz-waage .schale path:last-of-type{fill:color-mix(in srgb,var(--farbe) 30%,transparent);stroke:var(--farbe)}.vz-waage text{font-size:12px;fill:var(--secondary-text-color);text-anchor:middle}
+.vz-waage .achse{fill:var(--farbe)}.vz-waage .balken{transform-origin:80px 30px;transform:rotate(calc(var(--neig) * -1));transition:transform 1.2s cubic-bezier(.3,1.4,.5,1)}
+main:not(.still) .vz-duell:not(.fertig) .vz-waage .balken{animation:vz-wippen 3s ease-in-out infinite}@keyframes vz-wippen{50%{transform:rotate(calc(var(--neig) * -1 + 2deg))}}
+.vz-kette{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:10px 0 6px}
+.vz-glied{position:relative;overflow:hidden;font-size:12px;padding:3px 10px;border-radius:999px;background:rgba(var(--rgb-primary-text-color,0,0,0),.05);color:var(--secondary-text-color)}
+.vz-glied i{position:absolute;inset:0 auto 0 0;width:var(--f);background:color-mix(in srgb,var(--farbe) 30%,transparent);transition:width .8s}.vz-glied.durch{color:var(--primary-text-color);background:color-mix(in srgb,var(--farbe) 22%,transparent)}
+.vz-glied.jetzt{color:var(--primary-text-color);box-shadow:inset 0 0 0 1.5px var(--farbe)}.vz-glied{isolation:isolate}.vz-glied i{z-index:-1}
+.vz-tab{display:grid;gap:3px;margin-top:6px;align-content:start}.vz-z{display:grid;grid-template-columns:minmax(90px,1.3fr) 1fr 1fr;gap:10px;align-items:center;font-size:13px}
+.vz-z.vz-zk{margin-top:8px;font-weight:500;color:var(--secondary-text-color);font-size:12px}.vz-z.vz-zk span:not(:first-child){text-align:center}
+.vz-zelle{display:grid;grid-template-columns:1fr 46px;gap:6px;align-items:center}.vz-zelle i{display:block;height:8px;border-radius:4px;background:rgba(var(--rgb-primary-text-color,0,0,0),.08);position:relative;overflow:hidden}
+.vz-zelle i::after{content:'';position:absolute;inset:0 auto 0 0;width:var(--w,0);background:var(--farbe);border-radius:4px;transition:width .9s cubic-bezier(.3,.7,.3,1)}
+.vz-zelle span{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.vz-zelle.vz-leer span{color:var(--secondary-text-color)}
+.vz-fehl{text-align:center;font-variant-numeric:tabular-nums}.vz-fehl.vz-leer{color:var(--secondary-text-color)}.vz-fehl.rot{color:var(--error-color,#db4437)}
+.vz-fuss{margin-top:8px;text-align:center}
+.vz-datei rect{fill:color-mix(in srgb,var(--farbe) 20%,transparent);stroke:var(--farbe);stroke-width:2}.vz-datei text{fill:var(--primary-text-color);font-size:18px;text-anchor:middle}
+main:not(.still) .vz-datei{animation:vz-holen 2.4s ease-in-out infinite;animation-delay:calc(var(--d0) + var(--i) * .6s)}@keyframes vz-holen{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.vz-ha rect{fill:rgba(var(--rgb-primary-text-color,0,0,0),.06);stroke:var(--secondary-text-color);stroke-width:2}.vz-ha path{fill:none;stroke:var(--farbe);stroke-width:3;stroke-linecap:round}
+@media (max-width:520px){.vz-z{grid-template-columns:minmax(70px,1fr) 1fr 1fr;gap:6px;font-size:12px}.vz-zelle{grid-template-columns:1fr 40px}.vz-waage{width:100px;height:56px}}
 .zp{display:flex;align-items:flex-start;gap:0;margin:2px 0 10px}
 .zp-st{display:flex;flex-direction:column;align-items:center;gap:5px;flex:none;width:58px;text-align:center}
 .zp-punkt{position:relative;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(var(--rgb-primary-text-color,0,0,0),.07);color:var(--secondary-text-color);transition:background .4s,color .4s}
@@ -631,7 +657,7 @@ class SprachmodellPanel extends HTMLElement {
   get _spr() { const l = String((this._hass && ((this._hass.locale && this._hass.locale.language) || this._hass.language)) || navigator.language || 'en'); return l.slice(0, 2) === 'de' ? 'de' : 'en'; }
   get _loc() { return this._spr === 'de' ? 'de-DE' : ((this._hass && this._hass.locale && this._hass.locale.language) || 'en'); }
   t(k, v) { let s = (TEXTE[this._spr] && TEXTE[this._spr][k]) ?? TEXTE.en[k] ?? k; if (v) for (const [a, b] of Object.entries(v)) s = s.split('{' + a + '}').join(b); return s; }
-  _schritt(x) { if (!x) return ''; const i = x.indexOf(':'), k = i < 0 ? x : x.slice(0, i), d = i < 0 ? '' : x.slice(i + 1); const s = this.t('s_' + k, { d }); return s === 's_' + k ? x : (k === 'aufnahmen' && d ? s + ' (' + d + ')' : s); }
+  _schritt(x) { if (!x) return ''; const i = x.indexOf(':'), k = i < 0 ? x : x.slice(0, i), d = i < 0 ? '' : x.slice(i + 1); const tr = ((this._daten || {}).wort || {}).training || {}, v = tr.vergleich || tr.vergleich_fertig || {}; const s = this.t('s_' + k, { d, a: v.a ?? '?', b: v.b ?? '?' }); return s === 's_' + k ? x : (k === 'aufnahmen' && d ? s + ' (' + d + ')' : s); }
   _zahl(x, n = 2) { return typeof x === 'number' ? x.toLocaleString(this._loc, { minimumFractionDigits: n, maximumFractionDigits: n }) : '–'; }
   _pct(x, n = 0) { return typeof x === 'number' ? this._zahl(x * 100, n) + ' %' : '–'; }
   _zeit(iso) {
@@ -1893,7 +1919,8 @@ ${l.seiten > 1 ? `<div class="zeile" style="justify-content:center;margin-top:12
     if (!l || !(l.protokoll || []).length && !(l.schritte || []).length) return '';
     const jetzt = Date.now() / 1000, fehler = w.training.phase === 'fehler', schritte = l.schritte || [];
     const aktuell = schritte.length ? schritte[schritte.length - 1] : null;
-    const reihe = LAEUFT.slice(LAEUFT.indexOf(aktuell ? aktuell.phase : 'vorbereiten') + 1);
+    const phasen = w.training.vergleich ? ['vorbereiten', 'daten', 'test'] : LAEUFT;
+    const reihe = phasen.slice(phasen.indexOf(aktuell ? aktuell.phase : 'vorbereiten') + 1);
     const zeilen = schritte.map((x, i) => {
       const letzte = i === schritte.length - 1, offen = letzte && laeuft && !x.ende;
       const icon = offen ? '<ha-icon class="drehen" icon="mdi:loading"></ha-icon>' : letzte && fehler ? '<ha-icon class="rot" icon="mdi:close-circle"></ha-icon>' : '<ha-icon class="gruen" icon="mdi:check-circle"></ha-icon>';
@@ -1922,9 +1949,8 @@ ${s.platz_frei_gb != null ? `<span>${esc(this.t('t_platz_frei'))}</span><span></
     }).join('')}</div></ha-card>` : '';
     return `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('t_ablauf'))}</h2><span class="klein">${l.start ? esc(this.t('t_laeuft_seit', { z: this._spanne((aktuell && !laeuft && aktuell.ende ? aktuell.ende : jetzt) - l.start) })) : ''}</span></div><div class="ablauf" style="margin-top:10px">${zeilen}</div></ha-card>
 ${aktiv}${last}
-<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('t_protokoll'))}</h2><span class="klein">${l.zeit ? esc(this.t('t_stand', { z: this._zeit(l.zeit) })) : ''}</span></div>
-<div class="zeile weit" style="margin-top:8px;flex-wrap:wrap;gap:6px"><div class="zeile" style="gap:6px">${chips}</div><span class="klein">${esc(this.t('t_log_zeilen', { n: gezeigt.length, g: alle.length }))} <button class="k leise" data-a="log_kopieren">${esc(this.t('es_kopieren'))}</button></span></div>
-<div class="protokoll" style="margin-top:8px">${log || esc(this.t('t_protokoll_leer'))}</div></ha-card>`;
+${this._klapp('k_protokoll', 'mdi:text-box-outline', this.t('t_protokoll'), [this.t('t_log_zeilen', { n: gezeigt.length, g: alle.length }), l.zeit ? this.t('t_stand', { z: this._zeit(l.zeit) }) : ''].filter(Boolean).join(' · '), `<div class="zeile weit" style="flex-wrap:wrap;gap:6px"><div class="zeile" style="gap:6px">${chips}</div><span class="klein">${esc(this.t('t_log_zeilen', { n: gezeigt.length, g: alle.length }))} <button class="k leise" data-a="log_kopieren">${esc(this.t('es_kopieren'))}</button></span></div>
+<div class="protokoll" style="margin-top:8px">${log || esc(this.t('t_protokoll_leer'))}</div>`)}`;
   }
 
   // training at work: sound flows into a small network that fires layer by layer, the result lights up.
@@ -1953,6 +1979,7 @@ ${aktiv}${last}
   // Training as a spell that you can follow: a path with one station per real step of the trainer, and below it a
   // scene for the step running now, driven by its real numbers (recordings, voices, training steps, learning curve).
   _zauber(w) {
+    if (w.training.vergleich) return this._zauberVgl(w);
     const t = w.training, l = w.live || {}, bs = l.balken || [], schl = (x) => String(x || '').split(':')[0];
     const jetzt = schl(t.schritt), b = bs.find((x) => schl(x.name) === jetzt) || bs[0] || null;
     const stationen = [['vorbereiten', 'mdi:package-variant'], ['aufnahmen', 'mdi:microphone-message'], ['stimmen', 'mdi:account-voice'],
@@ -1975,6 +2002,83 @@ ${aktiv}${last}
         ? `<svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" class="h"/><circle cx="18" cy="18" r="15" class="v" style="stroke-dasharray:${u.toFixed(1)};stroke-dashoffset:${(u * (1 - anteil)).toFixed(1)}"/></svg>` : ''}<ha-icon icon="${i < nr ? 'mdi:check' : icon}"></ha-icon></span><span class="zp-name">${esc(this.t('zp_' + k))}</span></div>`;
     }).join('');
     return `<div class="zauber" style="--farbe:${esc(w.farbe || this._farbe(this._wortKurz() || {}))}"><div class="zp">${pfad}</div>${this._szene(stationen[nr][0], jetzt, det, anteil, n, g, w)}</div>`;
+  }
+
+  // the path as a row of stations: done ones ticked, the running one with a ring that fills with its progress
+  _pfad(stationen, nr, anteil, name) {
+    const u = 2 * Math.PI * 15;
+    return stationen.map(([k, icon], i) => {
+      const art = i < nr ? 'durch' : i === nr ? 'jetzt' : '';
+      return `${i ? `<div class="zp-linie ${i <= nr ? 'durch' : ''}"><i></i></div>` : ''}<div class="zp-st ${art}" style="--n:${i}"><span class="zp-punkt">${i === nr
+        ? `<svg viewBox="0 0 36 36"><circle cx="18" cy="18" r="15" class="h"/><circle cx="18" cy="18" r="15" class="v" style="stroke-dasharray:${u.toFixed(1)};stroke-dashoffset:${(u * (1 - anteil)).toFixed(1)}"/></svg>` : ''}<ha-icon icon="${i < nr ? 'mdi:check' : icon}"></ha-icon></span><span class="zp-name">${esc(name(k))}</span></div>`;
+    }).join('');
+  }
+
+  // A fair test of two stored versions: no training, its own path (data, both models, test A, test B, verdict) and a
+  // live duel board fed by the interim figures of both tests (what each version hears so far, false wakes so far)
+  _zauberVgl(w) {
+    const t = w.training, v = t.vergleich, l = w.live || {}, bs = l.balken || [], schl = (x) => String(x || '').split(':')[0];
+    const jetzt = schl(t.schritt), b = bs.find((x) => schl(x.name) === jetzt) || null;
+    const stationen = [['vorbereiten', 'mdi:package-variant'], ['aufnahmen', 'mdi:microphone-message'], ['pruefdaten', 'mdi:database-check-outline'],
+      ['modelle', 'mdi:download'], ['a', 'mdi:alpha-a-circle-outline'], ['b', 'mdi:alpha-b-circle-outline'], ['urteil', 'mdi:scale-balance']];
+    const zu = { grunddaten: 0, laden: 0, aufnahmen: 1, stimmen: 2, aehnlich_pruefen: 2, stimmen_omni: 2, omni_wort: 2, omni_gerede: 2,
+      vgl_modelle: 3, vgl_a: 4, vgl_b: 5, vgl_urteil: 6 };
+    const nr = zu[jetzt] ?? (t.phase === 'test' ? 4 : t.phase === 'daten' ? 1 : 0);
+    const det = String(t.schritt || '').split(':')[1] || '';
+    let anteil = b ? b.prozent / 100 : null;
+    if (anteil == null && /^\d+\/\d+$/.test(det)) { const [n, g] = det.split('/'); anteil = Number(n) / Math.max(1, Number(g)); }
+    anteil = Math.max(0, Math.min(1, anteil ?? 0));
+    const name = (k) => k === 'a' ? `v${v.a}` : k === 'b' ? `v${v.b}` : this.t('vz_' + k);
+    const pfad = this._pfad(stationen, nr, anteil, name);
+    const st = stationen[nr][0];
+    let szene;
+    if (st === 'a' || st === 'b' || st === 'urteil') szene = this._vglDuell(w, v, st, l.pruefen || {});
+    else if (st === 'modelle') {
+      const d0 = `-${((Date.now() % 12000) / 1000).toFixed(2)}s`;
+      szene = `<div class="szene sz-modelle" style="--d0:${d0}"><svg viewBox="0 0 640 110" aria-hidden="true">${[v.a, v.b].map((x, i) => `<g class="vz-datei" style="--i:${i}"><rect x="${150 + i * 260}" y="22" width="80" height="64" rx="10"/><text x="${190 + i * 260}" y="62">v${x}</text></g>`).join('')}<g class="vz-ha"><rect x="296" y="36" width="48" height="36" rx="8"/><path d="M308 60 l12 -12 l12 12"/></g></svg><div class="sz-text">${esc(this.t('vz_s_modelle', { a: v.a, b: v.b }))}</div></div>`;
+    } else {
+      const station = st === 'pruefdaten' ? 'stimmen' : st;
+      const n = b && b.n, g = b && b.gesamt;
+      szene = this._szene(station, jetzt, det, anteil, n, g, w);
+      if (st === 'pruefdaten') szene = szene.replace(/<div class="sz-text">[\s\S]*?<\/div>/, `<div class="sz-text">${esc(this.t('vz_s_pruefdaten'))}</div>`);
+    }
+    return `<div class="zauber vz" style="--farbe:${esc(w.farbe || this._farbe(this._wortKurz() || {}))}"><div class="zp">${pfad}</div>${szene}</div>`;
+  }
+
+  // live duel: both versions on the same recordings, A first, then B; the scale leans towards the one ahead so far
+  _vglDuell(w, v, st, pr) {
+    const A = pr.vgl_a || null, B = pr.vgl_b || null, BED = ['ruhig', 'leise', 'hall', 'musik', 'gerede', 'alltag'], SCHW = ['weit', 'laut_tv', 'laut_musik', 'chaos'];
+    const quote = (x, ks) => x && x.n ? ks.reduce((s, k) => s + ((x.hoert || {})[k] || 0), 0) / (ks.length * x.n) : null;
+    const qa = quote(A, BED), qb = quote(B, BED);
+    const neigung = qa != null && qb != null ? Math.max(-14, Math.min(14, (qa - qb) * 140)) : 0;
+    const vorn = qa == null || qb == null ? this.t(st === 'a' ? 'vz_a_laeuft' : 'vz_b_wartet', { a: v.a, b: v.b })
+      : Math.abs(qa - qb) < 0.01 ? this.t('vz_gleichauf') : this.t('vz_vorn', { v: qa > qb ? v.a : v.b });
+    const teile = ['lagen', 'aehnlich', 'gerede', 'geraeusch', 'stille'];
+    const lauf = st === 'a' ? A : st === 'b' ? B : null, teil = lauf ? lauf.teil : '';
+    const kette = st === 'urteil' ? '' : `<div class="vz-kette">${teile.map((k, i) => {
+      const idx = teile.indexOf(teil), art = i < idx ? 'durch' : i === idx ? 'jetzt' : '';
+      const fort = lauf && k === teil ? (k === 'lagen' ? lauf.n / Math.max(1, lauf.gesamt) : k === 'aehnlich' ? (lauf.aehnlich_n || 0) / Math.max(1, lauf.aehnlich_gesamt || 1)
+        : ((lauf.min || {})[k] || 0) / Math.max(0.1, (lauf.max_min || {})[k] || 1)) : 0;
+      return `<span class="vz-glied ${art}" style="--f:${Math.round(Math.min(1, fort) * 100)}%"><i></i>${esc(this.t('vz_t_' + k))}</span>`;
+    }).join('')}</div>`;
+    const spalte = (x, nr, aktiv) => `<div class="vz-kopf ${aktiv ? 'an' : ''}"><b>v${nr}</b><span class="klein">${esc(x ? (x.n >= x.gesamt && x.teil === 'stille' && !aktiv ? this.t('vz_fertig') : this.t('vz_gehoert', { n: x.n, g: x.gesamt })) : this.t('vz_wartet'))}</span></div>`;
+    const zelle = (x, k) => {
+      if (!x || !x.n) return '<div class="vz-zelle vz-leer"><i></i><span>–</span></div>';
+      const q = ((x.hoert || {})[k] || 0) / x.n;
+      return `<div class="vz-zelle"><i style="--w:${(q * 100).toFixed(1)}%"></i><span>${this._pct(q)}</span></div>`;
+    };
+    const fehl = (x, k) => {
+      if (!x || !(x.min || {})[k]) return '<div class="vz-fehl vz-leer">–</div>';
+      return `<div class="vz-fehl ${(x.fehl || {})[k] ? 'rot' : ''}">${esc(this.t('vz_fehl_wert', { n: (x.fehl || {})[k] || 0, m: this._zahl((x.min || {})[k], 0) }))}</div>`;
+    };
+    const zeilen = (ks) => ks.map((k) => `<div class="vz-z"><span>${esc(this.t('b_' + k))}</span>${zelle(A, k)}${zelle(B, k)}</div>`).join('');
+    const waage = `<svg class="vz-waage" viewBox="0 0 160 80" aria-hidden="true"><path class="fuss" d="M80 30 V72 M60 74 H100"/><g class="balken" style="--neig:${neigung.toFixed(1)}deg"><line x1="22" y1="30" x2="138" y2="30"/><g class="schale"><path d="M22 30 L10 52 M22 30 L34 52"/><path d="M6 52 Q22 62 38 52 Z"/><text x="22" y="74">v${v.a}</text></g><g class="schale"><path d="M138 30 L126 52 M138 30 L150 52"/><path d="M122 52 Q138 62 154 52 Z"/><text x="138" y="74">v${v.b}</text></g></g><circle cx="80" cy="30" r="5" class="achse"/></svg>`;
+    return `<div class="szene vz-duell ${st === 'urteil' ? 'fertig' : ''}">
+<div class="vz-oben">${spalte(A, v.a, st === 'a')}<div class="vz-mitte">${waage}<div class="klein">${esc(vorn)}</div></div>${spalte(B, v.b, st === 'b')}</div>${kette}
+<div class="vz-tab"><div class="vz-z vz-zk"><span>${esc(this.t('vz_hoert'))}</span><span>v${v.a}</span><span>v${v.b}</span></div>${zeilen(BED)}
+<div class="vz-z vz-zk"><span>${esc(this.t('vz_hart'))}</span><span></span><span></span></div>${zeilen(SCHW)}
+<div class="vz-z vz-zk"><span>${esc(this.t('vz_springt'))}</span><span></span><span></span></div>${['gerede', 'geraeusch', 'stille'].map((k) => `<div class="vz-z"><span>${esc(this.t('vz_f_' + k))}</span>${fehl(A, k)}${fehl(B, k)}</div>`).join('')}</div>
+<div class="klein vz-fuss">${esc(this.t(st === 'urteil' ? 'vz_s_urteil' : 'vz_vorlaeufig'))}</div></div>`;
   }
 
   _szene(station, schritt, det, anteil, n, g, w) {
@@ -2065,8 +2169,7 @@ ${feier ? this._konfetti() : ''}${t.phase === 'fertig' && t.version ? `<p>v${t.v
 ${t.phase === 'fehler' ? `<p class="rot">${esc(this._schritt(t.schritt || t.hinweis) || this.t('p_fehler'))}</p>` : ''}
 <div class="zeile" style="margin-top:12px">${laeuft || t.phase === 'wartet' ? `<button class="k schlecht" data-a="abbrechen"><ha-icon icon="mdi:stop"></ha-icon>${esc(this.t('t_abbrechen'))}</button>` : `<button class="k haupt" data-a="trainieren"><ha-icon icon="mdi:play"></ha-icon>${esc(this.t('t_jetzt'))}</button><span class="klein">${esc(w.neu_seit_lauf > 0 ? this.t('t_neue', { n: w.neu_seit_lauf }) : this.t('t_keine_neuen'))}</span>`}</div></ha-card>
 ${this._details(w, laeuft)}
-<ha-card><h2>${esc(this.t('t_auto'))}</h2>
-<div class="schalter-raster">
+${this._klapp('k_auto', 'mdi:robot-outline', this.t('t_auto'), this._autoKurz(e, d), `<div class="schalter-raster">
 ${this._kachelSchalter('nachts', 'mdi:weather-night', 'sw_nachts', 'sw_nachts_text', e.nachts, { zusatz: String(d.einstellungen.uhrzeit).slice(0, 5) })}
 ${this._kachelSchalter('automatisch_einspielen', 'mdi:rocket-launch-outline', 'sw_einspielen', 'sw_einspielen_text', e.automatisch_einspielen)}
 ${this._kachelSchalter('schwelle_automatisch', 'mdi:tune-vertical', 'sw_schwelle', 'sw_schwelle_text', e.schwelle_automatisch)}
@@ -2075,8 +2178,8 @@ ${this._kachelSchalter('gruendlich', 'mdi:podium-gold', 'sw_gruendlich', 'sw_gru
 ${this._raumSchalter(e)}
 </div>
 ${this._gruendlichInfo(w, e)}
-<p class="klein">${esc(this.t('t_besser_heisst'))}</p></ha-card>
-<ha-card><h2>${esc(this.t('t_laeufe'))}</h2>${this._kurve(w)}${w.laeufe.length ? `<div class="laeufe">${w.laeufe.map((l, i) => {
+<p class="klein">${esc(this.t('t_besser_heisst'))}</p>`)}
+${this._klapp('k_laeufe', 'mdi:history', this.t('t_laeufe'), this._laeufeKurz(w), `${this._kurve(w)}${w.laeufe.length ? `<div class="laeufe">${w.laeufe.map((l, i) => {
   const art = l.ergebnis === 'eingespielt' ? 'gut' : l.ergebnis === 'fehler' ? 'rot' : l.ergebnis === 'besser' ? 'gut2' : '';
   const icon = { eingespielt: 'mdi:rocket-launch', besser: 'mdi:trending-up', fehler: 'mdi:alert-circle', gleich: 'mdi:approximately-equal' }[l.ergebnis] || 'mdi:minus-circle-outline';
   const wert = (b) => b ? `<b>${this._pct(b.trefferquote)}</b> <span class="klein">· ${this._zahl(b.fehlausloeser_pro_stunde, 1)}/${esc(this.t('std'))}</span>` : '<span class="klein">–</span>';
@@ -2084,7 +2187,19 @@ ${this._gruendlichInfo(w, e)}
   return `<div class="lauf ${art}" style="--n:${Math.min(i, 8)}"><span class="l-punkt"><ha-icon icon="${icon}"></ha-icon></span><div class="l-inhalt"><div class="zeile weit"><span class="l-titel">${esc(this._ergebnisText(l.ergebnis))}${l.version ? ` <span class="l-v">v${esc(String(l.version))}</span>` : ''}</span><span class="klein">${this._datum(l.ende)}</span></div>
 <div class="l-werte"><span>${esc(this.t('t_vorher'))} ${wert(l.alt)}</span><ha-icon icon="mdi:arrow-right"></ha-icon><span>${esc(this.t('t_nachher'))} ${wert(l.neu)}</span></div>
 ${l.hinweis || extra.length ? `<div class="klein">${esc([l.hinweis, ...extra].filter(Boolean).join(' · '))}</div>` : ''}</div></div>`;
-}).join('')}</div>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}</ha-card>`;
+}).join('')}</div>` : `<div class="klein">${esc(this.t('t_kein_lauf'))}</div>`}`)}`;
+  }
+
+  _autoKurz(e, d) {
+    const an = [['nachts', 'sw_nachts'], ['automatisch_einspielen', 'sw_einspielen'], ['schwelle_automatisch', 'sw_schwelle'], ['vorpruefen', 'sw_vorpruefen'], ['gruendlich', 'sw_gruendlich']]
+      .filter(([k]) => e[k]).map(([k, t]) => this.t(t) + (k === 'nachts' ? ' ' + String(d.einstellungen.uhrzeit).slice(0, 5) : ''));
+    return an.length ? this.t('kl_an', { l: an.join(' · ') }) : this.t('kl_alles_aus');
+  }
+
+  _laeufeKurz(w) {
+    const l = w.laeufe[0];
+    if (!l) return this.t('t_kein_lauf');
+    return this.t('kl_laeufe', { n: w.laeufe.length, e: this._ergebnisText(l.ergebnis) + (l.version ? ' v' + l.version : ''), z: this._datum(l.ende) });
   }
 
   // ---------- Qualität ----------
@@ -2109,10 +2224,10 @@ ${l.hinweis || extra.length ? `<div class="klein">${esc([l.hinweis, ...extra].fi
     }).join('');
     const echos = Object.keys(tb.zeilen).filter((k) => k);
     const auffAnz = ['wort', 'kein_wort'].reduce((a, zeile) => a + (z[zeile] || []).reduce((x, anz, i) => x + (auffaellig(zeile, i) ? anz : 0), 0), 0);
-    return `<ha-card><div class="zeile weit"><h2 style="margin:0">${esc(this.t('tb_titel'))}</h2>${echos.length > 1 ? `<div class="zeile"><button class="chip ${!echo ? 'an' : ''}" data-tbecho="">${esc(this.t('pr_alle'))}</button>${echos.map((e) => `<button class="chip ${echo === e ? 'an' : ''}" data-tbecho="${esc(e)}">${esc(e)}</button>`).join('')}</div>` : ''}</div>
+    return this._klapp('k_tabelle', 'mdi:table-eye', this.t('tb_titel'), summe ? (auffAnz ? this.t('tb_auff', { n: auffAnz }) : this.t('tb_keine_auff')) : this.t('tb_leer'), `<div class="zeile weit">${echos.length > 1 ? `<div class="zeile"><button class="chip ${!echo ? 'an' : ''}" data-tbecho="">${esc(this.t('pr_alle'))}</button>${echos.map((e) => `<button class="chip ${echo === e ? 'an' : ''}" data-tbecho="${esc(e)}">${esc(e)}</button>`).join('')}</div>` : ''}</div>
 <p class="klein" style="line-height:1.5">${esc(this.t('tb_hilfe'))}</p>
 ${summe ? `<div class="tb-rahmen"><table class="tb"><tr><th class="tb-r klein">${esc(this.t('tb_ecke'))}</th>${kopf}</tr>${reihen}</table></div>
-<div class="zeile klein" style="margin-top:8px;gap:14px">${auffAnz ? `<span><span class="tb-muster auff"></span>${esc(this.t('tb_auff', { n: auffAnz }))}</span>` : `<span class="gruen">${esc(this.t('tb_keine_auff'))}</span>`}${sw != null ? `<span><span class="tb-muster sw"></span>${esc(this.t('tb_schwelle', { w: this._zahl(sw) }))}</span>` : ''}</div>` : `<div class="klein">${esc(this.t('tb_leer'))}</div>`}</ha-card>`;
+<div class="zeile klein" style="margin-top:8px;gap:14px">${auffAnz ? `<span><span class="tb-muster auff"></span>${esc(this.t('tb_auff', { n: auffAnz }))}</span>` : `<span class="gruen">${esc(this.t('tb_keine_auff'))}</span>`}${sw != null ? `<span><span class="tb-muster sw"></span>${esc(this.t('tb_schwelle', { w: this._zahl(sw) }))}</span>` : ''}</div>` : `<div class="klein">${esc(this.t('tb_leer'))}</div>`}`);
   }
 
   _lagen(bed, schwer) {
@@ -2198,6 +2313,8 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
   }
 
   _vglZeigen(nr) {
+    const karte = this.shadowRoot.querySelector('details[data-abschnitt="k_versionen"]');
+    if (karte && !karte.open) karte.open = true;
     const zeile = this.shadowRoot.querySelector(`tr[data-vgl="${nr}"]`), det = this.shadowRoot.querySelector(`[data-vgldetail="${nr}"]`);
     if (!zeile || !det) return;
     if (det.hidden) this._vglUmschalten(nr, zeile);
@@ -2221,16 +2338,16 @@ ${this._stat({ icon: 'mdi:account-voice-off', titel: this.t('q_fehl'), wert: thi
 ${neu.fehlausloeser_geraeusch_pro_stunde != null ? this._stat({ icon: 'mdi:music-note-off-outline', titel: this.t('q_fehl_geraeusch'), wert: this._zahl(neu.fehlausloeser_geraeusch_pro_stunde, 1), ton: neu.fehlausloeser_geraeusch_pro_stunde > 0.5 ? 'gelb' : 'gruen', n: 5 }) : ''}
 ${this._stat({ icon: 'mdi:shield-off-outline', titel: this.t('q_gegen'), wert: this._pct(neu.gegenbeispiele), ton: neu.gegenbeispiele > 0.05 ? 'gelb' : '', n: 6 })}</div>
 ${frisch ? `<div class="klein" style="margin-top:8px"><ha-icon icon="mdi:refresh" style="--mdc-icon-size:16px"></ha-icon> ${esc(this.t('q_frisch', { z: this._zeit(frisch.zeit), n: frisch.nr }))}</div>` : ''}
-${this._aktivBlick(v, b, frisch ? neu : null)}
-${Object.keys(personen).length ? `<h3>${esc(this.t('q_je_person'))}</h3>${this._personen(Object.entries(personen).map(([p, x]) => [p, x.trefferquote, this.t('q_person_info', { q: this._pct(x.trefferquote), n: x.anzahl })]))}` : ''}
+<details class="inklapp" data-abschnitt="k_aktiv_mehr" ${this._merk('abschnitt.k_aktiv_mehr') === '1' ? 'open' : ''}><summary><ha-icon icon="mdi:chevron-down"></ha-icon>${esc(this.t('kl_einzelwerte'))}</summary>${this._aktivBlick(v, b, frisch ? neu : null)}
+${Object.keys(personen).length ? `<h3>${esc(this.t('q_je_person'))}</h3>${this._personen(Object.entries(personen).map(([p, x]) => [p, x.trefferquote, this.t('q_person_info', { q: this._pct(x.trefferquote), n: x.anzahl })]))}` : ''}</details>
 <div class="klein" style="margin-top:10px">${esc(this.t('ue_eingespielt', { z: this._zeit(v.eingespielt) }))}${b.cutoff ? ' · ' + esc(this.t('q_modell_schwelle', { w: this._zahl(b.cutoff) })) : ''}${herkunft ? ' · ' + esc(herkunft) : ''}</div>` : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>
 ${this._tabelle()}
 <ha-card><h2>${esc(this.t('q_alltag'))}</h2>${this._alltag()}</ha-card>
-<ha-card><h2>${esc(this.t('q_schwelle'))}</h2>${this._verteilung(sj, s.schwelle_vorschlag)}
+${this._klapp('k_schwelle', 'mdi:tune-vertical', this.t('q_schwelle'), [sj != null ? this.t('kl_jetzt', { w: this._zahl(sj) }) : '', s.schwelle_vorschlag != null ? this.t('kl_vorschlag', { w: this._zahl(s.schwelle_vorschlag) }) : '', this.t((w.einstellungen || {}).schwelle_automatisch ? 'kl_auto' : s.schwelle_hand ? 'kl_hand' : 'kl_fest')].filter(Boolean).join(' · '), `${this._verteilung(sj, s.schwelle_vorschlag)}
 ${(w.einstellungen || {}).schwelle_automatisch ? this._schwelleAuto(s, sj) : s.schwelle_vorschlag != null ? `<div class="zeile weit" style="margin-top:10px"><span>${this.t('q_vorschlag', { w: this._zahl(s.schwelle_vorschlag) })} ${sj != null ? esc(this.t('q_jetzt', { w: this._zahl(sj) })) : ''}</span><button class="k haupt" data-a="schwelle" data-wert="${s.schwelle_vorschlag}" ${!this._admin || (sj != null && Math.abs(sj - s.schwelle_vorschlag) < 0.005) ? 'disabled' : ''}>${esc(this.t('q_uebernehmen'))}</button></div>` : `<div class="klein">${esc(this.t('q_vorschlag_spaeter'))}</div>`}
 <div class="klein" style="margin-top:8px">${esc(this.t('q_legende'))}${(w.einstellungen || {}).schwelle_automatisch ? '' : ' ' + esc(this.t('q_legende_hand'))}</div>
-${this._admin && Object.keys(w.schwellen || {}).length ? this._schwelleHand(s, sj, (w.einstellungen || {}).schwelle_automatisch) : ''}</ha-card>
-<ha-card><h2>${esc(this.t('q_versionen'))}</h2>${this._kurve(w)}${w.versionen.length ? this._versionen(w) : `<div class="klein">${esc(this.t('q_keine'))}</div>`}</ha-card>
+${this._admin && Object.keys(w.schwellen || {}).length ? this._schwelleHand(s, sj, (w.einstellungen || {}).schwelle_automatisch) : ''}`)}
+${this._klapp('k_versionen', 'mdi:source-branch', this.t('q_versionen'), w.versionen.length ? this.t('kl_versionen', { n: w.versionen.length, a: w.aktiv ? 'v' + w.aktiv : '–', z: 'v' + Math.max(...w.versionen.map((x) => x.nr)) }) : this.t('q_keine'), `${this._kurve(w)}${w.versionen.length ? this._versionen(w) : `<div class="klein">${esc(this.t('q_keine'))}</div>`}`)}
 ${this._vglFrei(w)}`;
   }
 
@@ -2251,9 +2368,11 @@ ${this._vglFrei(w)}`;
     const { vs, a, b } = this._vglPaar(w);
     if (vs.length < 2 || !a || !b) return '';
     const wahl = (seite, nr) => `<select data-vglwahl="${seite}" aria-label="${esc(this.t('vf_version'))}">${vs.map((v) => `<option value="${v.nr}" ${v.nr === nr ? 'selected' : ''}>v${v.nr}${v.nr === w.aktiv ? ' · ' + esc(this.t('vf_aktiv')) : ''} · ${esc(this._datum(v.zeit))}</option>`).join('')}</select>`;
-    return `<ha-card><h2>${esc(this.t('vf_titel'))}</h2><div class="klein" style="margin:-4px 0 10px">${esc(this.t('vf_hilfe'))}</div>
-<div class="vf-wahl">${wahl('a', a.nr)}<button class="k rund" data-a="vgl_tauschen" title="${esc(this.t('vf_tauschen'))}"><ha-icon icon="mdi:swap-horizontal"></ha-icon></button>${wahl('b', b.nr)}</div>
-<div class="vf-inhalt">${this._vglFreiInhalt(w, a, b)}</div></ha-card>`;
+    const t = w.training || {}, laeuft = t.vergleich && (LAEUFT.includes(t.phase) || t.phase === 'wartet');
+    const kurz = laeuft ? this.t(t.phase === 'wartet' ? 'vf_wartet' : 'vf_laeuft_jetzt', { a: t.vergleich.a, b: t.vergleich.b })
+      : (w.vergleiche || []).length ? this.t('kl_fair', { n: w.vergleiche.length }) : this.t('vf_hilfe');
+    return this._klapp('k_vergleich', 'mdi:scale-balance', this.t('vf_titel'), kurz, `<div class="vf-wahl">${wahl('a', a.nr)}<button class="k rund" data-a="vgl_tauschen" title="${esc(this.t('vf_tauschen'))}"><ha-icon icon="mdi:swap-horizontal"></ha-icon></button>${wahl('b', b.nr)}</div>
+<div class="vf-inhalt">${this._vglFreiInhalt(w, a, b)}</div>`);
   }
 
   // a measurement of y against x turned around, so that x stays on top; the verdicts turn with it
@@ -2855,6 +2974,13 @@ ${this._abschnitt('trainer', 'mdi:school-outline', 'es_trainer', '', `<p class="
 ${this._sendenKarte(tr, basis)}
 ${this._abschnitt('ablage', 'mdi:folder-outline', 'es_ablage', 'es_ablage_kurz', `<p class="klein" style="line-height:1.6">${this.t('es_ablage_text', { a: esc(d.ablage) })}</p>`)}
 <div class="klein">${esc(this.t('es_info', { v: d.version_integration, a: d.ablage }))}</div>`;
+  }
+
+  // a large card that folds open and closed, closed by default; a short line says what is inside, and which ones are
+  // open is remembered in this browser
+  _klapp(id, icon, titel, kurz, inhalt, rechts = '') {
+    const auf = this._merk('abschnitt.' + id) === '1';
+    return `<ha-card class="abschnitt klapp"><details data-abschnitt="${id}" ${auf ? 'open' : ''}><summary><span class="ab-ikon"><ha-icon icon="${icon}"></ha-icon></span><span class="ab-titel"><h2>${esc(titel)}</h2>${kurz ? `<span class="klein">${esc(kurz)}</span>` : ''}</span>${rechts}<ha-icon class="ab-pfeil" icon="mdi:chevron-down"></ha-icon></summary><div class="ab-inhalt">${inhalt}</div></details></ha-card>`;
   }
 
   // a settings section that folds open and closed; which ones are open is remembered in this browser

@@ -31,6 +31,14 @@ def _balken(name: str, i: int, n: int) -> None:
     print(f"BALKEN {name}|{i}|{n}", flush=True)
 
 
+LIVE_CUTOFF = 0.9  # threshold for the running interim figures of a test (the report uses the tested threshold)
+
+
+def _live(daten: dict) -> None:
+    """Interim figures of a running test for the live view in Home Assistant."""
+    print("LIVE " + json.dumps(daten, separators=(",", ":")), flush=True)
+
+
 def _dateien(ordner: list[str]) -> list[str]:
     return sorted(f for d in ordner for f in glob.glob(os.path.join(d, "*.wav")))
 
@@ -539,6 +547,13 @@ def pruefen(a: dict) -> dict:
 
     werte: dict[str, list[float]] = {b: [] for b in BEDINGUNGEN + SCHWER}
     personen = []
+    max_min = {"gerede": round(a.get("max_stunden", 3) * 60, 1), "geraeusch": round(a.get("max_stunden_bg", 1) * 60, 1),
+               "stille": float(a.get("stille_minuten", 20))}
+    live = {"teil": "lagen", "n": 0, "gesamt": len(a["positiv"]), "hoert": {b: 0 for b in BEDINGUNGEN + SCHWER},
+            "aehnlich": 0, "aehnlich_n": 0, "aehnlich_gesamt": len(a["negativ"]),
+            "fehl": {"gerede": 0, "geraeusch": 0, "stille": 0}, "min": {"gerede": 0.0, "geraeusch": 0.0, "stille": 0.0},
+            "max_min": max_min}
+    _live(live)
     for p in a["positiv"]:
         x = np.concatenate([pause, _laden(p["datei"]), pause])
         fassungen = {
@@ -556,12 +571,22 @@ def pruefen(a: dict) -> dict:
         fassungen["chaos"] = mischen(leiser(hall(x), 18), bg if rnd.random() < 0.5 else rede_dateien, 3)
         for b in BEDINGUNGEN + SCHWER:
             werte[b].append(float(_verlauf(m, fassungen[b]).max()))
+            live["hoert"][b] += werte[b][-1] >= LIVE_CUTOFF
             weiter()
         personen.append(p.get("person") or "")
+        live["n"] += 1
+        _live(live)
     gegen = []
+    live["teil"] = "aehnlich"
     for f in a["negativ"]:
         gegen.append(float(_verlauf(m, np.concatenate([pause, _laden(f), pause])).max()))
+        live["aehnlich"] += gegen[-1] >= LIVE_CUTOFF
+        live["aehnlich_n"] += 1
+        if live["aehnlich_n"] % 5 == 0 or live["aehnlich_n"] == len(a["negativ"]):
+            _live(live)
         weiter()
+    live["teil"] = "gerede"
+    _live(live)
 
     ausloeser = {c: 0 for c in CUTOFFS}
     zuletzt = {c: -1e9 for c in CUTOFFS}
@@ -572,8 +597,15 @@ def pruefen(a: dict) -> dict:
         dauer += len(x) / 16000
         t0 += len(x) / 16000 + 0.3
         weiter()
+        if int(dauer / 60) != int(live["min"]["gerede"]):
+            live["min"]["gerede"], live["fehl"]["gerede"] = round(dauer / 60, 1), ausloeser[LIVE_CUTOFF]
+            _live(live)
         if dauer > a.get("max_stunden", 3) * 3600:
             break
+    live["min"]["gerede"], live["fehl"]["gerede"] = round(dauer / 60, 1), ausloeser[LIVE_CUTOFF]
+    live["max_min"]["gerede"] = live["min"]["gerede"]  # less speech than the limit: the test ends here
+    live["teil"] = "geraeusch"
+    _live(live)
     # music and everyday noise without anybody talking: a wake-up here is just as annoying
     aus_bg = {c: 0 for c in CUTOFFS}
     zuletzt_bg = {c: -1e9 for c in CUTOFFS}
@@ -583,8 +615,15 @@ def pruefen(a: dict) -> dict:
         _ausloesen(m, x, zuletzt_bg, t0, aus_bg)
         dauer_bg += len(x) / 16000
         t0 += len(x) / 16000 + 0.3
+        if int(dauer_bg / 60) != int(live["min"]["geraeusch"]):
+            live["min"]["geraeusch"], live["fehl"]["geraeusch"] = round(dauer_bg / 60, 1), aus_bg[LIVE_CUTOFF]
+            _live(live)
         if dauer_bg > a.get("max_stunden_bg", 1) * 3600:
             break
+    live["min"]["geraeusch"], live["fehl"]["geraeusch"] = round(dauer_bg / 60, 1), aus_bg[LIVE_CUTOFF]
+    live["max_min"]["geraeusch"] = live["min"]["geraeusch"]
+    live["teil"] = "stille"
+    _live(live)
     weiter()
     # a quiet room: faint hiss, hum, far-away sounds - nothing a model may wake on
     aus_st = {c: 0 for c in CUTOFFS}
@@ -596,6 +635,8 @@ def pruefen(a: dict) -> dict:
         _ausloesen(m, x, zuletzt_st, t0, aus_st)
         dauer_st += 30
         t0 += 30.3
+        live["min"]["stille"], live["fehl"]["stille"] = round(dauer_st / 60, 1), aus_st[LIVE_CUTOFF]
+        _live(live)
     stunden, stunden_bg = max(dauer / 3600, 1e-6), max(dauer_bg / 3600, 1e-6)
     arr = {b: np.array(v) for b, v in werte.items()}
     gegen_a = np.array(gegen)

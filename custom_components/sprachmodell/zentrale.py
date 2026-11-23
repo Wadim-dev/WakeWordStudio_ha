@@ -137,7 +137,29 @@ def _live_pruefen(live: dict[str, Any]) -> dict[str, Any]:
     } if isinstance(live.get("kurven"), dict) else {}
     start = live.get("start")
     return {"protokoll": zeilen, "schritte": schritte, "system": system, "balken": balken, "kurven": kurven,
+            "pruefen": _pruefen_live(live.get("pruefen")),
             "start": start if isinstance(start, int | float) else None, "zeit": jetzt()}
+
+
+def _pruefen_live(daten: Any) -> dict[str, Any]:
+    """Interim figures of the tests running now (trainer 1.0.41+): step name -> how far, what it hears so far."""
+    if not isinstance(daten, dict):
+        return {}
+
+    def zahlen(x: Any) -> dict[str, float]:
+        return {str(k)[:20]: v for k, v in list(x.items())[:12] if isinstance(v, int | float)} if isinstance(x, dict) else {}
+
+    aus = {}
+    for name, d in list(daten.items())[-4:]:
+        if not isinstance(d, dict):
+            continue
+        aus[str(name)[:40]] = {
+            "teil": str(d.get("teil") or "")[:16],
+            **{k: d[k] for k in ("n", "gesamt", "aehnlich", "aehnlich_n", "aehnlich_gesamt")
+               if isinstance(d.get(k), int | float)},
+            **{k: zahlen(d.get(k)) for k in ("hoert", "fehl", "min", "max_min")},
+        }
+    return aus
 
 
 

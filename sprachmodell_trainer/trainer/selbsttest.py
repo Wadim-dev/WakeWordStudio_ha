@@ -247,6 +247,11 @@ def main() -> None:
         assert (v["a"], v["b"]) == (2, 1) and v["neu"] and v["alt"] and v["vergleich"]["urteil"] in (
             "besser", "schlechter", "gleich"), v
         assert "je_schwelle" not in v and not list(lauf.ordner.glob("vergleich_v*.tflite")), v.keys()
+        # live interim figures of both tests: every part of the test reached, counts within their totals
+        for k in ("vgl_a", "vgl_b"):
+            lv = lauf.live()["pruefen"].get(k) or {}
+            assert lv.get("teil") == "stille" and lv["n"] == lv["gesamt"] > 0, lv
+            assert all(0 <= x <= lv["n"] for x in lv["hoert"].values()) and lv["min"]["stille"] > 0, lv
         print(f"SELBSTTEST fair comparison ok ({time.time() - t0:.0f} s, {v['vergleich']['urteil']})", flush=True)
     print("SELBSTTEST OK", flush=True)
 

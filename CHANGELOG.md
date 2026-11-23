@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.43
+- **The fair test has its own live view:** while two versions are tested, the *Training* page no longer shows the path of a training. It shows the stations of the comparison (ingredients → recordings → check data → fetch versions → version A → version B → verdict) and, while they are tested, a live duel: both versions side by side, a balance that leans towards the one ahead so far, the part being tested right now (everyday conditions, similar words, talk, music/noise, quiet room) with its progress, how often each version hears the word in every condition and the hard test, and how often it woke for nothing so far ("3 in 480 min"). The figures are live interim figures at threshold 0.90; the verdict at the end is worked out as before.
+- **Large cards fold away:** *Automatic* and *Previous runs* on *Training*, the answer table, *Threshold*, *Versions* and *Compare versions* on *Quality*, the live log, and the detailed figures of the active version (bars, comparison with the version before, per person) are closed by default and show a one-line summary; tap to open. Which ones you opened is remembered in this browser.
+- **Trainer update needed (1.0.41)** for the live figures of the fair test; restart the trainer under *Settings → Trainer*. With an older trainer the comparison path still shows, without figures.
+
 ## 1.0.42
 - **Compare any two versions:** *Quality* has a new card *Compare versions* below the version list. Pick two versions (swap with one tap) and see the same questions as in the run report side by side: hears the word in everyday life and in the hard test, wakes up for nothing in talk, in music/noise and in a quiet room.
 - **Honest about where the figures come from:** if both versions were measured in the same run (a new version against the one on the devices), the card shows that run's verdicts. Otherwise it says the figures come from separate runs on different test recordings and are only roughly comparable.
