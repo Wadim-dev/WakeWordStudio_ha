@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.45
+- **Far fewer recordings to review:** with *Pre-review* on, a near miss from a device with a score below 0.80, in which speech recognition heard neither the word nor anything that sounds like it, counts as *not said* by itself (marked *auto*, it still teaches the model as a negative, and you can change it in *History → Reviewed*). Near misses above 0.80 and anything that sounds like the word stay for you. Open near misses that were already listened to are sorted out once when Home Assistant starts. No trainer update needed.
+
 ## 1.0.44
 - **Check your answers again:** *History → Reviewed* now shows how many recordings you marked *said* and *not said* (*All / Said / Not said* filters with counts) and can sort by *Doubtful first*: the answers the device disagreed with most come first (*said* with a low score, *not said* with a high one). Recordings where the device clearly disagreed are marked (*said* with a score below 0.20, *not said* although the device woke up), so possible mistakes are easy to find and change right there. No trainer update needed.
 

@@ -137,6 +137,28 @@ def test_entscheidungen_zweifel_zuerst(s: Speicher) -> None:
     assert [e["id"] for e in nur["eintraege"]] == ["e1", "e5", "e0", "e4"] and nur["anzahl"]["kein_wort"] == 2
 
 
+def test_beinahe_unter_08_selbst_nicht_gesagt(s: Speicher) -> None:
+    """Pre-review: low near misses in which speech recognition heard neither the word nor anything like it."""
+    faelle = {"tv": ("nearmiss", 0.6, "привет как дела"), "still": ("nearmiss", 0.7, ""),
+              "knapp": ("nearmiss", 0.85, ""), "lisa": ("nearmiss", 0.6, "Лиза, иди сюда"),
+              "wort": ("nearmiss", 0.6, "Алиса включи свет"), "wake": ("wake", 0.6, ""),
+              "ohne_score": ("nearmiss", None, "")}
+    for aid, (art, score, _) in faelle.items():
+        s.aufnahme_neu({"id": aid, "quelle": "echo", "echo": "Kitchen", "art": art, "score": score}, wav())
+    s.aufnahme_neu({"id": "offen", "quelle": "echo", "art": "nearmiss", "score": 0.5}, wav())  # not heard yet
+    n = s.gehoert_setzen({k: v[2] for k, v in faelle.items()}, "Алиса", True)
+    a = s.daten["aufnahmen"]
+    assert a["tv"]["urteil"] == "kein_wort" and a["tv"]["auto"] and a["still"]["urteil"] == "kein_wort"
+    assert a["wort"]["urteil"] == "wort" and n == 3
+    for aid in ("knapp", "lisa", "wake", "ohne_score", "offen"):
+        assert not a[aid].get("urteil"), aid
+    # switched off: nothing decided by itself; afterwards the sweep catches up
+    s.urteilen(["tv"], None, None)
+    s.daten["aufnahmen"]["tv"].pop("auto", None)
+    assert s.gehoert_setzen({"tv": "привет"}, "Алиса", False) == 0 and not a["tv"].get("urteil")
+    assert s.beinahe_nachziehen("Алиса") == 1 and a["tv"]["urteil"] == "kein_wort"
+
+
 def test_statistik_mit_schwelle(s: Speicher) -> None:
     for i in range(12):
         s.aufnahme_neu({"id": f"w{i}", "quelle": "echo", "echo": "Kitchen", "art": "wake", "score": 0.97 + i * 0.002, "urteil": "wort"}, wav())

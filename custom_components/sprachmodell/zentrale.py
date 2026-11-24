@@ -295,6 +295,8 @@ class Zentrale:
             wort = Wort(self, wid, cfg)
             wort.speicher.laden()
             wort.speicher.vorschlaege()
+            if wort.cfg.get("vorpruefen"):
+                wort.speicher.beinahe_nachziehen(wort.wort)
             self.woerter[wid] = wort
         for tid, t in (daten.get("trainer") or {}).items():
             try:

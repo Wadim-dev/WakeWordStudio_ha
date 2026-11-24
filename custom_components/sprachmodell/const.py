@@ -124,6 +124,8 @@ SCHWELLE_MIN = 0.5  # lowest threshold you can set by hand
 
 # Pre-review: at most this many recordings per word and request to the trainer
 VORPRUEFEN_JE_MAL = 40
+# pre-review: a near miss below this score in which speech recognition did not hear the word counts as "not said"
+BEINAHE_AUTO_UNTER = 0.8
 
 # Version of the trainer this studio works with (sprachmodell_trainer/: config.yaml and trainer/__init__.py). It only
 # moves when the trainer itself changes, so a release that only changes the studio does not ask for a trainer restart.
