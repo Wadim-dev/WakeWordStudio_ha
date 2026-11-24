@@ -521,7 +521,11 @@ class Speicher:
         if sortierung == "zweifel":
             # your answer against the device's confidence: "said" with a low score, "not said" with a high one first;
             # recordings without a score go last (stable sort keeps them newest first)
-            alle.sort(key=lambda a: -_zweifel(a) if _zweifel(a) is not None else 2.0)
+            def rang(a: dict[str, Any]) -> float:
+                z = _zweifel(a)
+                return 2.0 if z is None else -z
+
+            alle.sort(key=rang)
         return {
             "anzahl": anzahl,
             "gesamt": len(alle),
