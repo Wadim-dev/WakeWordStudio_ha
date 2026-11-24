@@ -57,6 +57,15 @@ TABELLE_GRENZEN = [0.0, 0.5, 0.7, 0.8, 0.85, 0.9, 0.93, 0.95, 0.97, 0.99, 1.01]
 TABELLE_ZEILEN = ("wort", "verpasst", "kein_wort", "offen")
 
 
+def _zweifel(a: dict[str, Any]) -> float | None:
+    """How much the device disagreed with your answer: 0 = it agreed fully, 1 = it was sure of the opposite."""
+    score = a.get("score")
+    if not isinstance(score, int | float) or a.get("urteil") not in (WORT, KEIN_WORT):
+        return None
+    score = min(1.0, max(0.0, float(score)))
+    return 1.0 - score if a["urteil"] == WORT else score
+
+
 def _zeile(a: dict[str, Any]) -> str | None:
     """Row of a device recording in the table: said the word (woke up), missed it, did not say it, not reviewed."""
     if a.get("quelle") != "echo":
@@ -486,7 +495,8 @@ class Speicher:
         ]
 
     def liste(self, filter_: str, echo: str | None, art: str | None,
-              seite: int, je_seite: int = 60, zelle: tuple[str, float, float] | None = None) -> dict[str, Any]:
+              seite: int, je_seite: int = 60, zelle: tuple[str, float, float] | None = None,
+              sortierung: str | None = None) -> dict[str, Any]:
         alle = list(self.daten["aufnahmen"].values())
         if zelle:  # one cell of the table on the quality page: row and score range
             zeile, von, bis = zelle
@@ -504,10 +514,16 @@ class Speicher:
             alle = [a for a in alle if a.get("urteil") in (WORT, KEIN_WORT) and a.get("test")]
         if echo:
             alle = [a for a in alle if a.get("echo") == echo]
+        anzahl = {u: sum(1 for a in alle if a.get("urteil") == u) for u in (WORT, KEIN_WORT)}
         if art:
             alle = [a for a in alle if a.get("art") == art or a.get("urteil") == art]
         alle.sort(key=lambda a: _zeit(a["zeit"]), reverse=filter_ != "offen")
+        if sortierung == "zweifel":
+            # your answer against the device's confidence: "said" with a low score, "not said" with a high one first;
+            # recordings without a score go last (stable sort keeps them newest first)
+            alle.sort(key=lambda a: -_zweifel(a) if _zweifel(a) is not None else 2.0)
         return {
+            "anzahl": anzahl,
             "gesamt": len(alle),
             "seite": seite,
             "seiten": max(1, -(-len(alle) // je_seite)),
