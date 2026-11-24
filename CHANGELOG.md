@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.44
+- **Check your answers again:** *History → Reviewed* now shows how many recordings you marked *said* and *not said* (*All / Said / Not said* filters with counts) and can sort by *Doubtful first*: the answers the device disagreed with most come first (*said* with a low score, *not said* with a high one). Recordings where the device clearly disagreed are marked (*said* with a score below 0.20, *not said* although the device woke up), so possible mistakes are easy to find and change right there. No trainer update needed.
+
 ## 1.0.43
 - **The fair test has its own live view:** while two versions are tested, the *Training* page no longer shows the path of a training. It shows the stations of the comparison (ingredients → recordings → check data → fetch versions → version A → version B → verdict) and, while they are tested, a live duel: both versions side by side, a balance that leans towards the one ahead so far, the part being tested right now (everyday conditions, similar words, talk, music/noise, quiet room) with its progress, how often each version hears the word in every condition and the hard test, and how often it woke for nothing so far ("3 in 480 min"). The figures are live interim figures at threshold 0.90; the verdict at the end is worked out as before.
 - **Large cards fold away:** *Automatic* and *Previous runs* on *Training*, the answer table, *Threshold*, *Versions* and *Compare versions* on *Quality*, the live log, and the detailed figures of the active version (bars, comparison with the version before, per person) are closed by default and show a one-line summary; tap to open. Which ones you opened is remembered in this browser.

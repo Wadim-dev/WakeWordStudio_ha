@@ -121,6 +121,22 @@ def test_vorschlaege_und_urteile(s: Speicher) -> None:
     assert s.bekannt("k-0") and not s.bekannt("x")
 
 
+def test_entscheidungen_zweifel_zuerst(s: Speicher) -> None:
+    """History -> reviewed: counts of said / not said, and the answers the device disagreed with first."""
+    for i, (u, score) in enumerate([("wort", 0.99), ("wort", 0.05), ("kein_wort", 0.2), ("kein_wort", 0.98),
+                                    ("wort", None), ("wort", 0.6)]):
+        s.aufnahme_neu({"id": f"e{i}", "quelle": "echo", "echo": "Kitchen", "art": "wake", "score": score,
+                        "urteil": u, "zeit": f"2026-11-2{i}T10:00:00+00:00"}, wav())
+    s.aufnahme_neu({"id": "offen", "quelle": "echo", "art": "nearmiss", "score": 0.9}, wav())
+    alle = s.liste("bewertet", None, None, 0)
+    assert alle["anzahl"] == {"wort": 4, "kein_wort": 2} and alle["gesamt"] == 6
+    assert [e["id"] for e in alle["eintraege"]][:2] == ["e5", "e4"]  # newest first by default
+    z = s.liste("bewertet", None, None, 0, sortierung="zweifel")
+    assert [e["id"] for e in z["eintraege"]] == ["e3", "e1", "e5", "e2", "e0", "e4"]  # no score last
+    nur = s.liste("bewertet", None, "wort", 0, sortierung="zweifel")
+    assert [e["id"] for e in nur["eintraege"]] == ["e1", "e5", "e0", "e4"] and nur["anzahl"]["kein_wort"] == 2
+
+
 def test_statistik_mit_schwelle(s: Speicher) -> None:
     for i in range(12):
         s.aufnahme_neu({"id": f"w{i}", "quelle": "echo", "echo": "Kitchen", "art": "wake", "score": 0.97 + i * 0.002, "urteil": "wort"}, wav())

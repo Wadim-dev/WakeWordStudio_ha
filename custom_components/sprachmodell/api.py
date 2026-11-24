@@ -3,7 +3,7 @@
 Panel (Home Assistant login; changing words, settings, the trainer key, rolling out and
 deleting need an administrator). "wort" = id of the word:
     GET  /api/sprachmodell/daten?wort=           Zentrale + Einzelheiten eines Worts
-    GET  /api/sprachmodell/liste?wort=           Aufnahmen (filter, echo, art, seite)
+    GET  /api/sprachmodell/liste?wort=           Aufnahmen (filter, echo, art, seite, sort=zweifel)
     GET  /api/sprachmodell/audio/<wort>/<id>     WAV einer Aufnahme
     POST /api/sprachmodell/urteil                {wort, ids, urteil | person | loeschen}
     POST /api/sprachmodell/hochladen             multipart: wort, person, datei (Zip)
@@ -230,7 +230,7 @@ class ListeAnsicht(HomeAssistantView):
                 return self.json_message("ungueltig", HTTPStatus.BAD_REQUEST)
         return self.json(wort.speicher.liste(
             q.get("filter", "offen"), q.get("echo") or None, q.get("art") or None,
-            max(0, int(q.get("seite", 0) or 0)), zelle=zelle,
+            max(0, int(q.get("seite", 0) or 0)), zelle=zelle, sortierung=q.get("sort") or None,
         ))
 
 

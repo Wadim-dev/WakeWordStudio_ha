@@ -78,7 +78,7 @@ export const TEXTE = {
     pr_unbrauchbar_t: 'Zu leise, kaputt oder unklar – wird gelöscht', pr_abspielen: 'Abspielen', pr_hochgeladen: 'hochgeladen',
     pr_aufgenommen: 'aufgenommen', pr_alle_frage: 'Alle {n} Vorschläge so übernehmen, ohne sie anzuhören?',
     // Verlauf
-    v_bewertet: 'Bewertet', v_hochgeladen: 'Hochgeladen', v_test: 'Testsatz', v_alle: 'Alle', v_anzahl: '{n} Aufnahmen',
+    v_alle_urteile: 'Alle ({n})', v_gesagt: 'Gesagt ({n})', v_nicht: 'Nicht gesagt ({n})', v_sort_neu: 'Neueste zuerst', v_sort_zweifel: 'Zweifelhafte zuerst', v_zweifel_hilfe: 'Oben stehen die Aufnahmen, bei denen das Gerät anderer Meinung war als du: „gesagt“ mit niedrigem Wert, „nicht gesagt“ mit hohem Wert. Dort stecken mögliche Fehler. Anhören und bei Bedarf direkt umentscheiden.', v_zweifel_wort: 'Gerät war anderer Meinung: Wert nur {w}, trotzdem „gesagt“', v_zweifel_nicht: 'Gerät ist aufgewacht (Wert {w}), du sagst „nicht gesagt“', v_bewertet: 'Bewertet', v_hochgeladen: 'Hochgeladen', v_test: 'Testsatz', v_alle: 'Alle', v_anzahl: '{n} Aufnahmen',
     v_hilfe: 'Falsch getippt? Hier einfach neu bewerten. „Testsatz“ = Aufnahmen, die der Trainer nie lernt, nur für den ehrlichen Test (jede fünfte).',
     v_leer: 'Keine Aufnahmen.', zurueck: 'Zurück', weiter: 'Weiter', seite: 'Seite {a} von {b}',
     // Aufnehmen
@@ -297,7 +297,7 @@ export const TEXTE = {
     pr_vorschlag: 'Suggestion', pr_gesagt: '“{w}” said', pr_nicht: 'not said', pr_nicht_k: 'Not said', pr_wort_k: 'Word',
     pr_unbrauchbar_t: 'Too quiet, broken or unclear – will be deleted', pr_abspielen: 'Play', pr_hochgeladen: 'uploaded',
     pr_aufgenommen: 'recorded', pr_alle_frage: 'Accept all {n} suggestions without listening?',
-    v_bewertet: 'Reviewed', v_hochgeladen: 'Uploaded', v_test: 'Test set', v_alle: 'All', v_anzahl: '{n} recordings',
+    v_alle_urteile: 'All ({n})', v_gesagt: 'Said ({n})', v_nicht: 'Not said ({n})', v_sort_neu: 'Newest first', v_sort_zweifel: 'Doubtful first', v_zweifel_hilfe: 'At the top are the recordings where the device disagreed with you: “said” with a low score, “not said” with a high one. That is where mistakes hide. Listen and change your answer right there if needed.', v_zweifel_wort: 'The device disagreed: score only {w}, yet “said”', v_zweifel_nicht: 'The device woke up (score {w}), you say “not said”', v_bewertet: 'Reviewed', v_hochgeladen: 'Uploaded', v_test: 'Test set', v_alle: 'All', v_anzahl: '{n} recordings',
     v_hilfe: 'Tapped wrong? Just review it again here. “Test set” = recordings the trainer never learns, only for the honest test (every fifth).',
     v_leer: 'No recordings.', zurueck: 'Back', weiter: 'Next', seite: 'Page {a} of {b}',
     au_titel: 'Record in the browser', au_wort: 'The word', au_gegen: 'Negative examples',
