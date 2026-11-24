@@ -27,7 +27,7 @@ import wave
 import zipfile
 
 from .bausteine import KeinModell, fehlende_bausteine
-from .const import KEIN_WORT, NAME, REPO, URTEILE, VERWORFEN, WORT
+from .const import BEINAHE_AUTO_UNTER, KEIN_WORT, NAME, REPO, URTEILE, VERWORFEN, WORT
 
 DATEI = "daten.json"
 VERSION = 1
@@ -98,6 +98,28 @@ def _normal(text: str) -> str:
 def wort_gehoert(gehoert: str, wort: str) -> bool:
     w = _normal(wort)
     return bool(w) and w in _normal(gehoert)
+
+
+def wort_aehnlich(gehoert: str, wort: str) -> bool:
+    """Something in what was heard sounds close to the word (e.g. "Лиза" for "Алиса"): leave it for you."""
+    import difflib
+
+    w = _normal(wort)
+    if not w:
+        return False
+    teile = [t for t in (_normal(x) for x in str(gehoert).split()) if t]
+    n = max(1, len(str(wort).split()))
+    kandidaten = ["".join(teile[i:i + k]) for k in range(1, n + 2) for i in range(len(teile) - k + 1)]
+    return any(difflib.SequenceMatcher(None, w, x).ratio() >= 0.6 for x in kandidaten)
+
+
+def beinahe_nicht(a: dict[str, Any], wort: str) -> bool:
+    """An open near miss from a device, well below the threshold, in which speech recognition heard neither the
+    word nor anything like it: not the word (pre-review marks it auto, you can change it in History)."""
+    score = a.get("score")
+    return (not a.get("urteil") and a.get("quelle") == "echo" and a.get("art") == "nearmiss"
+            and isinstance(score, int | float) and score < BEINAHE_AUTO_UNTER and "gehoert" in a
+            and not wort_gehoert(a["gehoert"], wort) and not wort_aehnlich(a["gehoert"], wort))
 
 
 def wav_dauer(daten: bytes) -> float:
@@ -313,6 +335,18 @@ class Speicher:
                     a["urteil"], a["bewertet"], a["auto"] = WORT, jetzt(), True
                     n += 1
             self.speichern()
+        return n + (self.beinahe_nachziehen(wort) if bestaetigen else 0)
+
+    def beinahe_nachziehen(self, wort: str) -> int:
+        """Mark open low near misses without the word as "not said" (auto). Returns how many."""
+        n = 0
+        with self._sperre:
+            for a in self.daten["aufnahmen"].values():
+                if beinahe_nicht(a, wort):
+                    a["urteil"], a["bewertet"], a["auto"] = KEIN_WORT, jetzt(), True
+                    n += 1
+            if n:
+                self.speichern()
         return n
 
     def schnitt_setzen(self, aid: str, von: float | None, bis: float | None) -> dict[str, Any]:
