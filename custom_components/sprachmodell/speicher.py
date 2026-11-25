@@ -604,6 +604,9 @@ class Speicher:
                 return 2.0 if z is None else -z
 
             alle.sort(key=rang)
+        # a page that no longer exists (the list got shorter while you worked in it) becomes the last one
+        seiten = max(1, -(-len(alle) // je_seite))
+        seite = max(0, min(seite, seiten - 1))
         return {
             "anzahl": anzahl,
             "echos": echos,
@@ -613,7 +616,7 @@ class Speicher:
             "nichts_offen": nichts_offen,
             "gesamt": len(alle),
             "seite": seite,
-            "seiten": max(1, -(-len(alle) // je_seite)),
+            "seiten": seiten,
             "eintraege": alle[seite * je_seite:(seite + 1) * je_seite],
         }
 

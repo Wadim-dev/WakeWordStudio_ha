@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.48
+- **Room sound → Listen works in every browser** (#61): the clap response is brought to the browser's own sample rate before it goes into the reverb. Firefox refused it with *Buffer sample rate (16000) does not match AudioContext sample rate (48000)*. If no reviewed recording of the word can be loaded, the clap alone is played instead of an error.
+- **Review no longer ends in a dead end** (#60): when the chosen device is done but others still have recordings, the device chips stay and *Show all …* is offered, instead of *Nothing to review*.
+- **The trim editor stays open:** new recordings, the pre-review or a trainer report no longer redraw the page while you trim, pick *Other word*, type in a field or have a list open; the refresh is caught up when you are done. After a redraw the editor comes back with your selection.
+- **Switching words on the same page** now shows the other word at once (before, the page of the previous word could stay until something refreshed). Filters and recordings you made but did not save yet stay with the word they belong to.
+- A page that no longer exists after your answers (History) becomes the last page instead of an empty list.
+- No trainer update needed.
+
 ## 1.0.47
 - **History, one category at a time** (thanks to the ideas in discussion #58): chips above the list filter by device, kind (*Woke up*, *Woke up, then cancelled*, *Near miss*, *Noise*, uploaded, recorded), person and *Nothing clear heard*. Each chip counts what you will see after tapping it, and they combine.
 - **Play next right away in History:** the same switch as in *Review*; after an answer the next recording starts by itself. The keys (*Space*, *1*, *2*, *0*, *3*, *↑ ↓*) now work in History too.
