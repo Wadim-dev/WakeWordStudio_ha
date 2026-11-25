@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.46';
+const VERSION = '1.0.47';
 const KURVE_VERSIONEN = 12; // how many of the newest versions the curve shows
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
@@ -115,7 +115,7 @@ button.k kbd{font:11px monospace;opacity:.6;border:1px solid currentColor;border
 .vorschlag{font-size:13px;margin:6px 0 8px;color:var(--secondary-text-color)}
 .vorschlag strong{color:var(--primary-text-color)}
 .gehoert{margin:4px 0 2px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.v-entscheid{margin-bottom:8px;flex-wrap:wrap;gap:6px}.v-trenn{width:1px;height:20px;background:var(--divider-color);margin:0 4px}
+.v-entscheid{margin-bottom:8px;flex-wrap:wrap;gap:6px}.v-auto{margin-left:auto}.v-weg{min-height:32px;padding:4px 12px}.v-trenn{width:1px;height:20px;background:var(--divider-color);margin:0 4px}
 .e-zweifel{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--warning-color,#ff9800);margin-top:6px}.e-zweifel ha-icon{--mdc-icon-size:18px}
 .marke{border-radius:999px;padding:1px 8px;background:color-mix(in srgb,var(--primary-color) 14%,transparent);color:var(--primary-text-color);font-size:11px}
 .schnitt:empty{display:none}
@@ -640,7 +640,7 @@ class SprachmodellPanel extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this._daten = null;
     this._liste = null;
-    this._filter = { echo: '', verlauf: 'bewertet', seite: 0, urteil: '', sort: '' };
+    this._filter = { echo: '', verlauf: 'bewertet', seite: 0, urteil: '', sort: '', typ: '', person: '', nichts: false };
     this._person = this._merk('person') || '';
     this._autoplay = this._merk('autoplay') !== '0';
     this._blobs = new Map();
@@ -788,7 +788,7 @@ class SprachmodellPanel extends HTMLElement {
       const ew = this._wortId ? '&wort=' + encodeURIComponent(this._wortId) : '';
       const ef = this._filter.echo ? '&echo=' + encodeURIComponent(this._filter.echo) : '';
       if (this._daten.wort && this._reiter === 'pruefen') this._liste = await this._api('GET', 'liste?filter=offen' + ew + ef);
-      if (this._daten.wort && this._reiter === 'verlauf') { const z = this._filter.zelle; this._liste = await this._api('GET', (z ? `liste?filter=alle&zeile=${z.zeile}&von=${z.von}&bis=${z.bis}&seite=${this._filter.seite}` : `liste?filter=${this._filter.verlauf}&seite=${this._filter.seite}${this._filter.verlauf === 'bewertet' ? (this._filter.urteil ? '&art=' + this._filter.urteil : '') + (this._filter.sort ? '&sort=' + this._filter.sort : '') : ''}`) + ew + (z ? (z.echo ? '&echo=' + encodeURIComponent(z.echo) : '') : ef)); }
+      if (this._daten.wort && this._reiter === 'verlauf') { const z = this._filter.zelle; this._liste = await this._api('GET', (z ? `liste?filter=alle&zeile=${z.zeile}&von=${z.von}&bis=${z.bis}&seite=${this._filter.seite}` : `liste?filter=${this._filter.verlauf}&seite=${this._filter.seite}${this._filter.verlauf === 'bewertet' ? (this._filter.urteil ? '&art=' + this._filter.urteil : '') + (this._filter.sort ? '&sort=' + this._filter.sort : '') : ''}${this._verlaufFilter()}`) + ew + (z ? (z.echo ? '&echo=' + encodeURIComponent(z.echo) : '') : ef)); }
       this._fehler = null;
     } catch (e) { this._fehler = this._fehlerText(e); }
     this._kopfZeichnen();
@@ -818,7 +818,10 @@ class SprachmodellPanel extends HTMLElement {
     this._gezeigt = seite;
     main.innerHTML = f.call(this);
     const logNeu = main.querySelector('.protokoll'); if (logNeu) logNeu.scrollTop = oben ? 0 : logPos;
-    if (this._reiter === 'pruefen') this._markieren(false);
+    if (this._reiter === 'pruefen' || this._reiter === 'verlauf') {
+      this._aktiv = Math.max(0, Math.min(this._aktiv, this.shadowRoot.querySelectorAll('.eintrag:not(.weg)').length - 1));
+      this._markieren(false);
+    }
     if (main.querySelector('[data-welle]')) this._wellen(main);
     if (this._reiter === 'aufnehmen') this._recZeichnen();
     if (!main.classList.contains('still')) this._hochzaehlen(main);
@@ -1269,7 +1272,8 @@ ${this._stat({ icon: 'mdi:target', titel: this.t('al_genau'), wert: quote == nul
     return `
 <div class="pr-kopf"><div class="pr-ring">${this._zielRing(fertig, Math.max(1, alle))}</div>
 <div class="pr-text"><b>${esc(this.t('pr_kopf_offen', { n: s.offen }))}</b><span class="klein">${esc(fertig ? this.t('pr_kopf_fertig', { n: fertig }) : this.t('pr_kopf_los'))}</span></div>
-${mitVorschlag ? `<button class="k haupt pr-alle" data-a="alle_vorschlaege"><ha-icon icon="mdi:creation"></ha-icon>${esc(this.t('pr_vorschlaege', { n: mitVorschlag }))}</button>` : ''}</div>
+${mitVorschlag ? `<button class="k haupt pr-alle" data-a="alle_vorschlaege"><ha-icon icon="mdi:creation"></ha-icon>${esc(this.t('pr_vorschlaege', { n: mitVorschlag }))}</button>` : ''}
+${l.nichts_offen ? `<button class="k pr-alle" data-a="nichts_verwerfen" data-n="${l.nichts_offen}" title="${esc(this.t('v_nichts_weg_t'))}"><ha-icon icon="mdi:delete-outline"></ha-icon>${esc(this.t('v_nichts_weg', { n: l.nichts_offen }))}</button>` : ''}</div>
 <div class="zeile weit pr-leiste"><div class="zeile"><button class="chip ${!this._filter.echo ? 'an' : ''}" data-echo="">${esc(this.t('pr_alle'))} · ${s.offen}</button>${echoChips}</div>
 <label class="pr-auto klein"><input type="checkbox" id="autoplay" ${this._autoplay ? 'checked' : ''}><span class="pr-auto-s"></span>${esc(this.t('pr_autoplay'))}</label></div>
 <div class="klein pr-tasten">${this._andere().length ? this.t('pr_tasten') : this.t('pr_tasten').replace(/ · <b>3<\/b>[^·]*/, '')}</div>
@@ -1528,7 +1532,7 @@ ${this._andere().length && !a.zu_wort && !a.von_wort ? `<button class="k leise" 
   _tastatur(e) {
     if (this._raumD && e.key === 'Escape') { this._raumSchliessen(); return; }
     if (this._raumD) return;
-    if (this._reiter !== 'pruefen' || e.ctrlKey || e.metaKey || e.altKey) return;
+    if ((this._reiter !== 'pruefen' && this._reiter !== 'verlauf') || e.ctrlKey || e.metaKey || e.altKey) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes((e.composedPath()[0] || {}).tagName)) return;
     const alle = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')];
     if (!alle.length) return;
@@ -1683,7 +1687,17 @@ ${this._andere().length && !a.zu_wort && !a.von_wort ? `<button class="k leise" 
       // stamp with the answer, then the tile slides away and the list closes the gap
       const icon = { wort: 'mdi:check-circle', kein_wort: 'mdi:close-circle', verworfen: 'mdi:delete' }[urteil] || 'mdi:check';
       this._wegGleiten(zeile, id, `<div class="stempel u-${esc(urteil)}"><ha-icon icon="${icon}"></ha-icon>${esc(this.t('u_' + urteil))}${urteil === 'wort' && person ? ' · ' + esc(person) : ''}</div>`);
-    } else this._laden();
+    } else {
+      // history: with "play next right away" the recording below starts as soon as the list is back
+      let danach = zeile && zeile.nextElementSibling;
+      while (danach && !danach.classList.contains('eintrag')) danach = danach.nextElementSibling;
+      const nid = this._reiter === 'verlauf' && this._autoplay && danach ? danach.dataset.id : null;
+      await this._laden();
+      if (nid) {
+        const alle = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')], e = alle.find((x) => x.dataset.id === nid);
+        if (e) { this._aktiv = alle.indexOf(e); this._markieren(); this._spielen(nid); }
+      }
+    }
   }
 
   // the ring at the top fills with every decision, without drawing the page again
@@ -1862,11 +1876,36 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
   }
 
   // ---------- Verlauf ----------
+  _verlaufFilter() {
+    const f = this._filter;
+    return (f.typ ? '&typ=' + encodeURIComponent(f.typ) : '') + (f.person ? '&person=' + encodeURIComponent(f.person) : '') + (f.nichts ? '&nichts=1' : '');
+  }
+
+  // device, kind, person and "nothing clear heard": one category at a time; counts come with the list
+  _artZeile(l) {
+    const f = this._filter, arten = l.arten || {}, personen = l.personen || {}, echos = l.echos || {};
+    const chip = (attr, wert, an, text) => `<button class="chip ${an ? 'an' : ''}" ${attr}="${esc(wert)}">${esc(text)}</button>`;
+    const reihe = ['wake', 'mistake', 'nearmiss', 'noise', 'aufnahme', 'browser'].filter((k) => arten[k] || f.typ === k);
+    const summe = Object.values(arten).reduce((x, n) => x + n, 0);
+    const pn = Object.keys(personen).sort((a, b) => a.localeCompare(b));
+    const typen = reihe.length > 1 || f.typ ? `${chip('data-vtyp', '', !f.typ, this.t('v_alle_arten', { n: summe }))}${reihe.map((k) => chip('data-vtyp', k, f.typ === k, this.t('a_' + k) + ' (' + (arten[k] || 0) + ')')).join('')}` : '';
+    const leute = pn.length || f.person ? `${chip('data-vperson', '', !f.person, this.t('v_alle_personen'))}${pn.map((n) => chip('data-vperson', n, f.person === n, n + ' (' + personen[n] + ')')).join('')}` : '';
+    const nichts = l.nichts || f.nichts ? `${leute ? '<span class="v-trenn"></span>' : ''}<button class="chip ${f.nichts ? 'an' : ''}" data-vnichts="1"><ha-icon icon="mdi:ear-hearing-off" style="--mdc-icon-size:16px"></ha-icon>${esc(this.t('v_nichts', { n: l.nichts || 0 }))}</button>` : '';
+    const en = Object.keys(echos).sort((a, b) => a.localeCompare(b));
+    const geraete = en.length > 1 || f.echo ? `${chip('data-echo', '', !f.echo, this.t('pr_alle'))}${en.map((n) => chip('data-echo', n, f.echo === n, n + ' (' + echos[n] + ')')).join('')}` : '';
+    if (!geraete && !typen && !leute && !nichts) return '';
+    const weg = f.nichts && l.nichts_offen ? `<button class="k v-weg" data-a="nichts_verwerfen" data-n="${l.nichts_offen}" title="${esc(this.t('v_nichts_weg_t'))}"><ha-icon icon="mdi:delete-outline"></ha-icon>${esc(this.t('v_nichts_weg', { n: l.nichts_offen }))}</button>` : '';
+    return `${geraete ? `<div class="zeile v-entscheid v-arten">${geraete}</div>` : ''}${typen ? `<div class="zeile v-entscheid v-arten">${typen}</div>` : ''}${leute || nichts ? `<div class="zeile v-entscheid v-arten">${leute}${nichts}${weg}</div>` : ''}`;
+  }
+
   _verlauf() {
     const l = this._liste || { eintraege: [], gesamt: 0, seiten: 1 };
     const filter = ['bewertet', 'auto', 'hochgeladen', 'test', 'alle'];
     const z = this._filter.zelle;
-    return `<div class="zeile" style="margin-bottom:10px">${z ? `<button class="chip an" data-a="zelle_weg"><ha-icon icon="mdi:table" style="--mdc-icon-size:16px"></ha-icon>${esc(this.t('tb_zeile_' + z.zeile))} · ${this._zahl(z.von)}–${this._zahl(Math.min(1, z.bis))}${z.echo ? ' · ' + esc(z.echo) : ''} ✕</button>` : filter.map((k) => `<button class="chip ${this._filter.verlauf === k ? 'an' : ''}" data-verlauf="${k}">${esc(this.t('v_' + k))}</button>`).join('')}<span class="klein">${esc(this.t('v_anzahl', { n: l.gesamt }))}</span></div>
+    return `<div class="zeile" style="margin-bottom:10px">${z ? `<button class="chip an" data-a="zelle_weg"><ha-icon icon="mdi:table" style="--mdc-icon-size:16px"></ha-icon>${esc(this.t('tb_zeile_' + z.zeile))} · ${this._zahl(z.von)}–${this._zahl(Math.min(1, z.bis))}${z.echo ? ' · ' + esc(z.echo) : ''} ✕</button>` : filter.map((k) => `<button class="chip ${this._filter.verlauf === k ? 'an' : ''}" data-verlauf="${k}">${esc(this.t('v_' + k))}</button>`).join('')}<span class="klein">${esc(this.t('v_anzahl', { n: l.gesamt }))}</span>
+<label class="pr-auto klein v-auto"><input type="checkbox" id="autoplay" ${this._autoplay ? 'checked' : ''}><span class="pr-auto-s"></span>${esc(this.t('pr_autoplay'))}</label></div>
+${z ? '' : this._artZeile(l)}
+${l.gesamt ? `<div class="klein pr-tasten">${this._andere().length ? this.t('pr_tasten') : this.t('pr_tasten').replace(/ · <b>3<\/b>[^·]*/, '')}</div>` : ''}
 ${!z && this._filter.verlauf === 'bewertet' ? this._entscheidZeile(l) : `<div class="klein" style="margin-bottom:10px">${esc(this.t('v_hilfe'))}</div>`}
 ${l.gesamt ? `<div class="liste">${l.eintraege.map((a, i) => this._eintrag(a, i, false)).join('')}</div>` : `<ha-card><div class="leer">${esc(this.t('v_leer'))}</div></ha-card>`}
 ${l.seiten > 1 ? `<div class="zeile" style="justify-content:center;margin-top:12px"><button class="k" data-seite="-1" ${l.seite ? '' : 'disabled'}>${esc(this.t('zurueck'))}</button><span class="klein">${esc(this.t('seite', { a: l.seite + 1, b: l.seiten }))}</span><button class="k" data-seite="1" ${l.seite + 1 < l.seiten ? '' : 'disabled'}>${esc(this.t('weiter'))}</button></div>` : ''}`;
@@ -3043,7 +3082,7 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
 
   // ---------- Ereignisse ----------
   async _klick(e) {
-    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe],[data-zelle],[data-tbecho],[data-schnitt],[data-sa],[data-logfilter],[data-umzug],[data-ziel],[data-zurueck],[data-vgl],[data-raum],[data-vurteil],[data-vsort]');
+    const t = e.target.closest('[data-reiter],[data-a],[data-spielen],[data-urteil],[data-echo],[data-verlauf],[data-seite],[data-recmodus],[data-takespielen],[data-takeweg],[data-farbe],[data-zelle],[data-tbecho],[data-schnitt],[data-sa],[data-logfilter],[data-umzug],[data-ziel],[data-zurueck],[data-vgl],[data-raum],[data-vurteil],[data-vsort],[data-vtyp],[data-vperson],[data-vnichts]');
     if (!t) return;
     if (t.dataset.raum) { this._raumAktion(t.dataset.raum, t.dataset.knoten); return; }
     if (t.dataset.reiter) { if (t.dataset.reiter === 'neu') this._entwurf = null; this._gehe(t.dataset.reiter, t.dataset.wort); return; }
@@ -3059,10 +3098,13 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
     if (t.dataset.zelle) { const [zeile, von, bis] = t.dataset.zelle.split('|'); this._filter.zelle = { zeile, von: Number(von), bis: Number(bis), echo: this._tbEcho || '' }; this._filter.seite = 0; this._gehe('verlauf', this._wortId); return; }
     if (t.dataset.logfilter) { this._logFilter = t.dataset.logfilter; this._zeichnen(); return; }
     if (t.dataset.tbecho !== undefined) { this._tbEcho = t.dataset.tbecho; this._zeichnen(); return; }
-    if (t.dataset.vurteil !== undefined) { this._filter.urteil = t.dataset.vurteil; this._filter.seite = 0; this._laden(); return; }
-    if (t.dataset.vsort !== undefined) { this._filter.sort = t.dataset.vsort; this._filter.seite = 0; this._laden(); return; }
-    if (t.dataset.verlauf) { this._filter.zelle = null; this._filter.verlauf = t.dataset.verlauf; this._filter.seite = 0; this._laden(); return; }
-    if (t.dataset.seite) { this._filter.seite = Math.max(0, this._filter.seite + Number(t.dataset.seite)); this._laden(); window.scrollTo(0, 0); return; }
+    if (t.dataset.vurteil !== undefined) { this._filter.urteil = t.dataset.vurteil; this._filter.seite = 0; this._aktiv = 0; this._laden(); return; }
+    if (t.dataset.vtyp !== undefined) { this._filter.typ = t.dataset.vtyp; this._filter.seite = 0; this._aktiv = 0; this._laden(); return; }
+    if (t.dataset.vperson !== undefined) { this._filter.person = t.dataset.vperson; this._filter.seite = 0; this._aktiv = 0; this._laden(); return; }
+    if (t.dataset.vnichts) { this._filter.nichts = !this._filter.nichts; this._filter.seite = 0; this._aktiv = 0; this._laden(); return; }
+    if (t.dataset.vsort !== undefined) { this._filter.sort = t.dataset.vsort; this._filter.seite = 0; this._aktiv = 0; this._laden(); return; }
+    if (t.dataset.verlauf) { this._filter.zelle = null; this._filter.verlauf = t.dataset.verlauf; this._filter.seite = 0; this._aktiv = 0; this._laden(); return; }
+    if (t.dataset.seite) { this._filter.seite = Math.max(0, this._filter.seite + Number(t.dataset.seite)); this._aktiv = 0; this._laden(); window.scrollTo(0, 0); return; }
     if (t.dataset.recmodus) { this._rec.modus = t.dataset.recmodus; this._zeichnen(); return; }
     if (t.dataset.takespielen) { const tk = this._rec.takes[Number(t.dataset.takespielen)]; if (tk) this._spielen('take' + t.dataset.takespielen, tk.url); return; }
     if (t.dataset.takeweg) { const [tk] = this._rec.takes.splice(Number(t.dataset.takeweg), 1); if (tk) URL.revokeObjectURL(tk.url); this._recZeichnen(); return; }
@@ -3076,6 +3118,14 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
       else if (a === 'holen') { t.disabled = true; await this._api('POST', 'aktion', { aktion: 'jetzt_holen' }); this._laden(); }
       else if (a === 'trainieren') { await this._api('POST', 'aktion', { aktion: 'training_starten', wort: this._wortId }); this._laden(); }
       else if (a === 'abbrechen') { if (confirm(this.t('t_abbrechen_frage'))) { await this._api('POST', 'aktion', { aktion: 'training_abbrechen', wort: this._wortId }); this._laden(); } }
+      else if (a === 'nichts_verwerfen') {
+        // unusable recordings are deleted from disk, so always ask first; only unanswered ones, never your own answers
+        if (confirm(this.t('v_nichts_frage', { n: Number(t.dataset.n) || 0 }))) {
+          t.disabled = true;
+          const r = await this._api('POST', 'aktion', { aktion: 'nichts_verwerfen', wort: this._wortId, ...(this._reiter === 'verlauf' ? { filter: this._filter.verlauf, typ: this._filter.typ, person: this._filter.person } : { filter: 'offen' }), echo: this._filter.echo });
+          this._meldung(this.t('v_nichts_fertig', { n: (r && r.n) || 0 })); this._laden();
+        }
+      }
       else if (a === 'alle_vorschlaege') {
         const ids = ((this._liste && this._liste.eintraege) || []).filter((x) => x.vorschlag).map((x) => x.id);
         if (confirm(this.t('pr_alle_frage', { n: ids.length }))) { await this._api('POST', 'aktion', { aktion: 'vorschlaege_uebernehmen', wort: this._wortId, ids, person: this._person }); this._laden(); }

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.47
+- **History, one category at a time** (thanks to the ideas in discussion #58): chips above the list filter by device, kind (*Woke up*, *Woke up, then cancelled*, *Near miss*, *Noise*, uploaded, recorded), person and *Nothing clear heard*. Each chip counts what you will see after tapping it, and they combine.
+- **Play next right away in History:** the same switch as in *Review*; after an answer the next recording starts by itself. The keys (*Space*, *1*, *2*, *0*, *3*, *↑ ↓*) now work in History too.
+- **Mark all open recordings with nothing clear heard as unusable** in one tap, after asking (History with *Nothing clear heard*, and the *Review* page). It never changes your own answers and never takes a recording where the device woke up: that may be a real false wake or your word said quietly, so it stays for you to listen to.
+- No trainer update needed.
+
 ## 1.0.46
 - **Real false wakes count much more:** a recording where a device really woke up and you answered *not said* is now trained as its own set, seen more often and punished harder. Before, a few dozen of them were mixed with thousands of harmless near misses and hardly counted.
 - **The verdict looks at them:** each run measures how many held-out real false wakes of your devices would wake the new and the old version again, and how many of your own *not said* recordings wake them. Both now count for the verdict (with the check for chance), so a version that stops waking at home is rolled out. A version that hears worse in daily life or in the hard test is still never rolled out.

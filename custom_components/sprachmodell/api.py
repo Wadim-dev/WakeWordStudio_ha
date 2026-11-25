@@ -3,7 +3,7 @@
 Panel (Home Assistant login; changing words, settings, the trainer key, rolling out and
 deleting need an administrator). "wort" = id of the word:
     GET  /api/sprachmodell/daten?wort=           Zentrale + Einzelheiten eines Worts
-    GET  /api/sprachmodell/liste?wort=           Aufnahmen (filter, echo, art, seite, sort=zweifel)
+    GET  /api/sprachmodell/liste?wort=           Aufnahmen (filter, echo, art, typ, person, nichts=1, seite, sort=zweifel)
     GET  /api/sprachmodell/audio/<wort>/<id>     WAV einer Aufnahme
     POST /api/sprachmodell/urteil                {wort, ids, urteil | person | loeschen}
     POST /api/sprachmodell/hochladen             multipart: wort, person, datei (Zip)
@@ -46,7 +46,18 @@ from homeassistant.helpers.http import KEY_AUTHENTICATED, KEY_HASS, HomeAssistan
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
 from . import zentrale_holen
-from .const import DOMAIN, KEIN_WORT, SPRACHEN, STANDARD_WORT, STANDARD_ZENTRALE, TRAINER_OHNE_ID, TRAINER_VERSION, VORPRUEFEN_JE_MAL, WORT
+from .const import (
+    DOMAIN,
+    KEIN_WORT,
+    SPRACHEN,
+    STANDARD_WORT,
+    STANDARD_ZENTRALE,
+    TRAINER_OHNE_ID,
+    TRAINER_VERSION,
+    VERWORFEN,
+    VORPRUEFEN_JE_MAL,
+    WORT,
+)
 from .speicher import sichere_id
 from .zentrale import Wort, Zentrale, trainer_name
 
@@ -231,6 +242,7 @@ class ListeAnsicht(HomeAssistantView):
         return self.json(wort.speicher.liste(
             q.get("filter", "offen"), q.get("echo") or None, q.get("art") or None,
             max(0, int(q.get("seite", 0) or 0)), zelle=zelle, sortierung=q.get("sort") or None,
+            typ=q.get("typ") or None, person=q.get("person") or None, nichts=q.get("nichts") == "1",
         ))
 
 
@@ -478,6 +490,14 @@ class AktionAnsicht(HomeAssistantView):
                 await hass.async_add_executor_job(wort.speicher.zurueckholen, aid, ziel.speicher)
             z.erinnern()
             return {"ziel": ziel.id, "stand": wort.speicher.stand}
+        elif aktion == "nichts_verwerfen":
+            # only unanswered recordings the list shows with the same filters (never your answers, never wakes)
+            ids = wort.speicher.nichts_sammeln(str(daten.get("filter") or "offen"), daten.get("echo") or None,
+                                               daten.get("typ") or None, daten.get("person") or None)
+            if ids:
+                await hass.async_add_executor_job(wort.speicher.urteilen, ids, VERWORFEN, None)
+            z.erinnern()
+            return {"n": len(ids)}
         elif aktion == "vorschlaege_uebernehmen":
             offen = [a for a in wort.speicher.offen() if a.get("vorschlag")]
             if daten.get("ids"):

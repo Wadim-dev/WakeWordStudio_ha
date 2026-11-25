@@ -137,6 +137,42 @@ def test_entscheidungen_zweifel_zuerst(s: Speicher) -> None:
     assert [e["id"] for e in nur["eintraege"]] == ["e1", "e5", "e0", "e4"] and nur["anzahl"]["kein_wort"] == 2
 
 
+def test_verlauf_filter_art_person_nichts_gehoert(s: Speicher) -> None:
+    """History: device, kind, person or 'nothing intelligible heard' one at a time; each chip counts what you
+    would see after tapping it. The one-tap 'unusable' takes only what the list counts for it: unanswered,
+    nothing heard, and never a recording where the device woke up (possible false wake)."""
+    for aid, art, urteil, person, gehoert, echo in [
+            ("w1", "wake", "wort", "Anna", "alisa", "Kitchen"), ("w2", "wake", "wort", "Ben", "", "Kitchen"),
+            ("m1", "mistake", "kein_wort", None, "", "Hall"), ("n1", "nearmiss", None, None, "", "Kitchen"),
+            ("n2", "nearmiss", None, None, "", "Hall"), ("n3", "nearmiss", None, None, "hallo", "Kitchen"),
+            ("x1", "wake", None, None, "", "Kitchen"), ("g1", "noise", None, None, "", "Kitchen")]:
+        s.aufnahme_neu({"id": aid, "quelle": "echo", "echo": echo, "art": art, "score": 0.5, "urteil": urteil,
+                        "person": person}, wav())
+        s.daten["aufnahmen"][aid]["gehoert"] = gehoert
+    alle = s.liste("alle", None, None, 0)
+    assert alle["arten"] == {"wake": 3, "mistake": 1, "nearmiss": 3, "noise": 1}
+    assert alle["echos"] == {"Kitchen": 6, "Hall": 2}
+    assert alle["personen"] == {"Anna": 1, "Ben": 1} and alle["nichts"] == 6
+    assert alle["nichts_offen"] == 3  # n1, n2, g1: x1 woke the device, w2/m1 are answered
+    knapp = s.liste("alle", None, None, 0, typ="nearmiss")
+    assert {e["id"] for e in knapp["eintraege"]} == {"n1", "n2", "n3"}
+    assert knapp["arten"]["wake"] == 3 and knapp["echos"] == {"Kitchen": 2, "Hall": 1} and knapp["nichts"] == 2
+    assert [e["id"] for e in s.liste("alle", None, None, 0, person="Ben")["eintraege"]] == ["w2"]
+    assert s.liste("alle", None, None, 0, person="Ben")["arten"] == {"wake": 1}
+    nichts = s.liste("alle", None, None, 0, nichts=True)
+    assert {e["id"] for e in nichts["eintraege"]} == {"w2", "m1", "n1", "n2", "x1", "g1"}
+    assert nichts["arten"] == {"wake": 2, "mistake": 1, "nearmiss": 2, "noise": 1} and nichts["nichts"] == 6
+    kueche = s.liste("alle", "Kitchen", None, 0, nichts=True)
+    assert kueche["echos"] == {"Kitchen": 4, "Hall": 2} and kueche["nichts_offen"] == 2
+    assert sorted(s.nichts_sammeln("alle")) == ["g1", "n1", "n2"] and s.nichts_sammeln("offen", "Hall") == ["n2"]
+    assert s.nichts_sammeln("alle", typ="wake") == [] and s.nichts_sammeln("bewertet") == []
+    assert s.nichts_sammeln("alle", person="Ben") == []
+    s.urteilen(s.nichts_sammeln("offen", "Kitchen"), "verworfen", None)
+    a = s.daten["aufnahmen"]
+    assert a["n1"]["urteil"] == a["g1"]["urteil"] == "verworfen" and not a["n2"].get("urteil")
+    assert not a["x1"].get("urteil") and a["w2"]["urteil"] == "wort"
+
+
 def test_beinahe_unter_08_selbst_nicht_gesagt(s: Speicher) -> None:
     """Pre-review: low near misses in which speech recognition heard neither the word nor anything like it."""
     faelle = {"tv": ("nearmiss", 0.6, "привет как дела"), "still": ("nearmiss", 0.7, ""),
