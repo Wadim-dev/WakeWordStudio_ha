@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.45';
+const VERSION = '1.0.46';
 const KURVE_VERSIONEN = 12; // how many of the newest versions the curve shows
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
@@ -2303,6 +2303,8 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
       { titel: 'd_fehl_rede', hin: 'd_weniger', neu: n.fehlausloeser_pro_stunde, alt: a.fehlausloeser_pro_stunde, u: urteil('fehlausloeser_rede') },
       { titel: 'd_fehl_geraeusch', hin: 'd_weniger', neu: n.fehlausloeser_geraeusch_pro_stunde, alt: a.fehlausloeser_geraeusch_pro_stunde, u: urteil('fehlausloeser_geraeusch') },
       { titel: 'd_fehl_stille', hin: 'd_weniger', neu: n.fehlausloeser_stille_pro_stunde, alt: a.fehlausloeser_stille_pro_stunde, u: urteil('fehlausloeser_stille') },
+      { titel: 'd_fehl_echt', hin: 'd_weniger', neu: n.echte_fehlausloeser, alt: a.echte_fehlausloeser, pct: true, skala: true, u: urteil('echte_fehlausloeser') },
+      { titel: 'd_gegen', hin: 'd_weniger', neu: n.gegenbeispiele, alt: a.gegenbeispiele, pct: true, skala: true, u: urteil('aehnliche_woerter') },
     ].filter((f) => f.neu != null && f.alt != null);
     if (!fragen.length) return '';
     const altName = b.alt_nr ? 'v' + b.alt_nr : this.t('q_vgl_alt');
@@ -2310,7 +2312,7 @@ ${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden
     let k = 0;
     const balken = (name, wert, f, max, klasse) => `<div class="d-zeile"><span class="d-name">${esc(name)}</span><div class="d-spur"><i class="${klasse}" style="--w:${Math.max(1.5, Math.min(100, (wert / max) * 100)).toFixed(1)}%;animation-delay:${(k++) * 70}ms"></i></div><b>${f.pct ? this._pct(wert) : this._zahl(wert, 1)}</b></div>`;
     return `<div class="duell">${fragen.map((f) => {
-      const max = f.pct ? 1 : Math.max(1, f.neu, f.alt) * 1.1;
+      const max = f.pct && !f.skala ? 1 : Math.max(f.pct ? 0.05 : 1, f.neu, f.alt) * 1.1;
       const marke = f.u ? `<div class="d-fuss"><span class="d-urteil u-${f.u}"><ha-icon icon="${icon[f.u]}"></ha-icon>${esc(this.t('d_u_' + f.u))}</span></div>` : '';
       return `<div class="d-frage"><div class="d-kopf"><span>${esc(this.t(f.titel))}</span><span class="klein">${esc(this.t(f.hin))}</span></div>${balken('v' + nr, f.neu, f, max, 'neu')}${balken(altName, f.alt, f, max, 'alt')}${marke}</div>`;
     }).join('')}${vg || !hinweis ? '' : `<div class="klein">${esc(this.t('d_alter_test'))}</div>`}</div>`;

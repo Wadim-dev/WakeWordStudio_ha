@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.46
+- **Real false wakes count much more:** a recording where a device really woke up and you answered *not said* is now trained as its own set, seen more often and punished harder. Before, a few dozen of them were mixed with thousands of harmless near misses and hardly counted.
+- **The verdict looks at them:** each run measures how many held-out real false wakes of your devices would wake the new and the old version again, and how many of your own *not said* recordings wake them. Both now count for the verdict (with the check for chance), so a version that stops waking at home is rolled out. A version that hears worse in daily life or in the hard test is still never rolled out.
+- The run report and *Compare versions* show both as bars.
+- **Trainer update needed (1.0.42);** restart the trainer under *Settings → Trainer*.
+
 ## 1.0.45
 - **Far fewer recordings to review:** with *Pre-review* on, a near miss from a device with a score below 0.80, in which speech recognition heard neither the word nor anything that sounds like it, counts as *not said* by itself (marked *auto*, it still teaches the model as a negative, and you can change it in *History → Reviewed*). Near misses above 0.80 and anything that sounds like the word stay for you. Open near misses that were already listened to are sorted out once when Home Assistant starts. No trainer update needed.
 
