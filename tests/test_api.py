@@ -130,6 +130,16 @@ async def test_aktionen(hass: HomeAssistant, admin, gast, api) -> None:
     assert (await aktion(gast, aktion="vorschlaege_uebernehmen", wort="hey_lumi", ids=["a1"]))[0] == 200
     assert (await aktion(gast, aktion="vorschlaege_uebernehmen", wort="hey_lumi"))[0] == 200
     assert api.woerter["hey_lumi"].speicher.daten["aufnahmen"]["a2"]["urteil"] == "kein_wort"
+    sp = api.woerter["hey_lumi"].speicher
+    sp.aufnahme_neu({"id": "leer1", "quelle": "echo", "echo": "Kitchen", "art": "nearmiss", "score": 0.5}, wav())
+    sp.daten["aufnahmen"]["leer1"]["gehoert"] = ""
+    sp.aufnahme_neu({"id": "leer2", "quelle": "echo", "echo": "Kitchen", "art": "wake", "score": 0.99}, wav())
+    sp.daten["aufnahmen"]["leer2"]["gehoert"] = ""
+    assert (await aktion(gast, aktion="nichts_verwerfen", wort="hey_lumi", echo="Hall")) == (200, {"n": 0})
+    assert (await aktion(gast, aktion="nichts_verwerfen", wort="hey_lumi", filter="bewertet")) == (200, {"n": 0})
+    assert (await aktion(gast, aktion="nichts_verwerfen", wort="hey_lumi", echo="Kitchen")) == (200, {"n": 1})
+    assert not sp.daten["aufnahmen"]["leer2"].get("urteil")  # the device woke: stays for listening
+    assert sp.daten["aufnahmen"]["leer1"]["urteil"] == "verworfen"
     assert (await aktion(admin, aktion="einspielen", wort="hey_lumi", nr="x"))[1]["message"] == "ungueltig"
     assert (await aktion(admin, aktion="einspielen", wort="hey_lumi", nr=5))[1]["message"] == "version_fehlt"
     api.woerter["hey_lumi"].speicher.version_neu(b"TFL3", {})

@@ -95,6 +95,24 @@ def _normal(text: str) -> str:
     return "".join(c for c in str(text).lower().replace("ё", "е") if c.isalnum())
 
 
+def _typ(a: dict[str, Any]) -> str:
+    """What kind of recording, as the list shows it (recorded in the browser counts on its own)."""
+    return "browser" if a.get("quelle") == "browser" else str(a.get("art") or "")
+
+
+def _nichts_gehoert(a: dict[str, Any]) -> bool:
+    """Speech recognition listened and understood nothing."""
+    return a.get("gehoert") == ""
+
+
+def _nichts_sammeln(a: dict[str, Any]) -> bool:
+    """May go to 'unusable' with one tap: unanswered device recording, nothing understood, and the device did NOT
+    wake up. A wake with nothing understood is either a real false wake (the most valuable thing to train against)
+    or the word said too quietly for speech recognition: both need your ear, never a bulk action."""
+    return (_nichts_gehoert(a) and not a.get("urteil") and a.get("quelle") == "echo"
+            and a.get("art") not in ("wake", "mistake"))
+
+
 def wort_gehoert(gehoert: str, wort: str) -> bool:
     w = _normal(wort)
     return bool(w) and w in _normal(gehoert)
@@ -528,9 +546,16 @@ class Speicher:
             if a["quelle"] == "echo" and not a.get("urteil")
         ]
 
+    def nichts_sammeln(self, filter_: str, echo: str | None = None, typ: str | None = None,
+                       person: str | None = None) -> list[str]:
+        """Exactly the recordings the one-tap 'unusable' counts in the list with the same filters."""
+        treffer = self.liste(filter_, echo, None, 0, je_seite=1_000_000, typ=typ, person=person)["eintraege"]
+        return [a["id"] for a in treffer if _nichts_sammeln(a)]
+
     def liste(self, filter_: str, echo: str | None, art: str | None,
               seite: int, je_seite: int = 60, zelle: tuple[str, float, float] | None = None,
-              sortierung: str | None = None) -> dict[str, Any]:
+              sortierung: str | None = None, typ: str | None = None, person: str | None = None,
+              nichts: bool = False) -> dict[str, Any]:
         alle = list(self.daten["aufnahmen"].values())
         if zelle:  # one cell of the table on the quality page: row and score range
             zeile, von, bis = zelle
@@ -546,8 +571,27 @@ class Speicher:
             alle = [a for a in alle if a.get("auto")]
         elif filter_ == "test":
             alle = [a for a in alle if a.get("urteil") in (WORT, KEIN_WORT) and a.get("test")]
-        if echo:
-            alle = [a for a in alle if a.get("echo") == echo]
+        # counts for the chips: each one before its own filter and after all the others,
+        # so a chip always says how many you would see after tapping it
+        def passt(a: dict[str, Any], ohne: str) -> bool:
+            return ((ohne == "echo" or not echo or a.get("echo") == echo)
+                    and (ohne == "typ" or not typ or _typ(a) == typ)
+                    and (ohne == "person" or not person or a.get("person") == person)
+                    and (ohne == "nichts" or not nichts or _nichts_gehoert(a)))
+
+        echos: dict[str, int] = {}
+        arten: dict[str, int] = {}
+        personen: dict[str, int] = {}
+        for a in alle:
+            if a.get("echo") and passt(a, "echo"):
+                echos[a["echo"]] = echos.get(a["echo"], 0) + 1
+            if passt(a, "typ"):
+                arten[_typ(a)] = arten.get(_typ(a), 0) + 1
+            if a.get("person") and passt(a, "person"):
+                personen[a["person"]] = personen.get(a["person"], 0) + 1
+        nichts_n = sum(1 for a in alle if _nichts_gehoert(a) and passt(a, "nichts"))
+        alle = [a for a in alle if passt(a, "")]
+        nichts_offen = sum(1 for a in alle if _nichts_sammeln(a))
         anzahl = {u: sum(1 for a in alle if a.get("urteil") == u) for u in (WORT, KEIN_WORT)}
         if art:
             alle = [a for a in alle if a.get("art") == art or a.get("urteil") == art]
@@ -562,6 +606,11 @@ class Speicher:
             alle.sort(key=rang)
         return {
             "anzahl": anzahl,
+            "echos": echos,
+            "arten": arten,
+            "personen": personen,
+            "nichts": nichts_n,
+            "nichts_offen": nichts_offen,
             "gesamt": len(alle),
             "seite": seite,
             "seiten": max(1, -(-len(alle) // je_seite)),
