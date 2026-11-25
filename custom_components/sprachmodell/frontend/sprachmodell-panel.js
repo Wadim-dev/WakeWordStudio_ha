@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.47';
+const VERSION = '1.0.48';
 const KURVE_VERSIONEN = 12; // how many of the newest versions the curve shows
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
@@ -690,18 +690,29 @@ class SprachmodellPanel extends HTMLElement {
     // last_contact changes with every trainer report: it only refreshes the training page (live log), not lists you work in
     const st = zust.map((s) => s.state + JSON.stringify({ ...s.attributes, last_contact: undefined })).join('|');
     const live = zust.map((s) => s.attributes.last_contact || '').join('|');
-    if (st !== this._stempel) { const war = this._stempel; this._stempel = st; this._liveStempel = live; if (war && !this._rec.an && !this._bearbeitet()) this._laden(); }
-    else if (live !== this._liveStempel) { this._liveStempel = live; if (this._reiter === 'training' && !this._bearbeitet()) this._laden(); }
+    if (st !== this._stempel) { const war = this._stempel; this._stempel = st; this._liveStempel = live; if (war) this._hintergrundLaden(); }
+    else if (live !== this._liveStempel) { this._liveStempel = live; if (this._reiter === 'training') this._hintergrundLaden(); }
     const m = this.shadowRoot.querySelector('ha-menu-button'); if (m) m.hass = h;
   }
   get hass() { return this._hass; }
   set narrow(n) { this._narrow = n; const m = this.shadowRoot.querySelector('ha-menu-button'); if (m) m.narrow = n; }
   set route(r) {
     this._route = r;
-    const neu = ((r && r.path) || '').replace(/^\//, '').split('/')[0] || 'zentrale';
+    this._ortAnwenden(((r && r.path) || '').replace(/^\//, '').split('/')[0] || 'zentrale');
+  }
+
+  // page and word from the address; called when Home Assistant hands the route down and right after our own navigation
+  _ortAnwenden(neu) {
     const wort = new URLSearchParams(location.search).get('wort') || this._wortId || this._merk('wort') || null;
     if (neu !== this._reiter || wort !== this._wortId) {
-      if (neu !== this._reiter) this._recStopp();
+      if (neu !== this._reiter || wort !== this._wortId) this._recStopp();
+      // recordings you made but did not save yet belong to the word they were made for: they wait there
+      if (wort !== this._wortId) { this._takesJe = this._takesJe || {}; if (this._wortId) this._takesJe[this._wortId] = this._rec.takes; this._rec.takes = (wort && this._takesJe[wort]) || []; }
+      // filters belong to one word: another word has other devices and people, a filter kept from the last one
+      // would hide its recordings without showing why
+      if (wort !== this._wortId) { Object.assign(this._filter, { echo: '', seite: 0, urteil: '', sort: '', typ: '', person: '', nichts: false, zelle: null }); this._tbEcho = ''; this._aktiv = 0; }
+      else if (neu !== this._reiter) { this._filter.seite = 0; this._aktiv = 0; }
+      this._schnitt = null; this._spaeter = false;
       this._reiter = neu; this._wortId = wort;
       if (this._bereit) { this._kopfZeichnen(); this._laden(); }
     }
@@ -713,17 +724,40 @@ class SprachmodellPanel extends HTMLElement {
       if (Object.prototype.hasOwnProperty.call(this, k)) { const v = this[k]; delete this[k]; this[k] = v; }
     }
     window.addEventListener('keydown', this._taste);
+    if (!this._los) this._los = () => { if (this._zeiger) { this._zeiger = false; setTimeout(() => this._nachholen(), 800); } };
+    for (const ev of ['pointerup', 'pointercancel', 'blur']) window.addEventListener(ev, this._los, true);
   }
-  disconnectedCallback() { window.removeEventListener('keydown', this._taste); this._audio.pause(); this._recStopp(); if (this._raumD) this._raumSchliessen(); }
+  disconnectedCallback() { window.removeEventListener('keydown', this._taste); for (const ev of ['pointerup', 'pointercancel', 'blur']) window.removeEventListener(ev, this._los, true); this._zeiger = false; this._audio.pause(); this._recStopp(); if (this._raumD) this._raumSchliessen(); }
 
   // Formular offen und geändert? Dann nicht unter den Fingern neu zeichnen
   _bearbeitet() { return ['neu', 'wort'].includes(this._reiter) && this._entwurf && this._entwurf._geaendert; }
 
+  // In the middle of something a refresh from the background would destroy: recording, an edited word, the trim
+  // editor, the "other word" picker, a field you are typing in or a list you have open.
+  _beschaeftigt() {
+    if (this._rec.an || this._bearbeitet() || this._schnitt || this._zeiger) return true;
+    const a = this.shadowRoot.activeElement;
+    if (a && (a.tagName === 'TEXTAREA' || (a.tagName === 'SELECT' && !a._gewaehlt) || (a.tagName === 'INPUT' && !['checkbox', 'radio', 'button', 'file'].includes(a.type)))) return true;
+    return [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg) [data-umzugbox]')].some((b) => b.innerHTML);
+  }
+
+  // refresh that nobody asked for (new recordings, pre-review, trainer reports): waits until you are done
+  _hintergrundLaden() {
+    if (this._beschaeftigt()) { this._spaeter = true; return; }
+    this._spaeter = false; this._laden();
+  }
+
+  _nachholen() { if (this._spaeter && !this._beschaeftigt()) { this._spaeter = false; this._laden(); } }
+
   _gehe(reiter, wort) {
-    if (wort) { this._wortId = wort; this._merk('wort', wort); }
-    const q = !OHNE_WORT.includes(reiter) && this._wortId ? '?wort=' + encodeURIComponent(this._wortId) : '';
-    history.pushState(null, '', this._basis + '/' + reiter + q);
+    const w = wort || this._wortId, ohne = OHNE_WORT.includes(reiter);
+    if (wort) this._merk('wort', wort);
+    history.pushState(null, '', this._basis + '/' + reiter + (!ohne && w ? '?wort=' + encodeURIComponent(w) : ''));
     window.dispatchEvent(new CustomEvent('location-changed'));
+    // Do not rely on the route coming back: with the same page and another word nothing else notices the change,
+    // and the page of the old word would stay (with the new word's name on every action).
+    if (ohne && wort) this._wortId = wort;
+    this._ortAnwenden(reiter);
   }
 
   _aufbauen() {
@@ -737,6 +771,14 @@ class SprachmodellPanel extends HTMLElement {
     this.shadowRoot.addEventListener('click', (e) => this._klick(e));
     this.shadowRoot.addEventListener('change', (e) => this._aenderung(e));
     this.shadowRoot.addEventListener('input', (e) => this._eingabe(e));
+    // a field loses focus or a list got its choice: catch up on a refresh that had to wait
+    this.shadowRoot.addEventListener('focusin', (e) => { if (e.target && e.target.tagName === 'SELECT') e.target._gewaehlt = false; });
+    // (not at once: the tap that took the focus away must reach its button before the page is redrawn)
+    this.shadowRoot.addEventListener('focusout', () => setTimeout(() => this._nachholen(), 800));
+    // never redraw under a finger or a pressed mouse button: the tap would land on nothing
+    this.shadowRoot.addEventListener('pointerdown', () => { this._zeiger = true; }, true);
+
+    this.shadowRoot.addEventListener('change', (e) => { if (e.target && e.target.tagName === 'SELECT') { e.target._gewaehlt = true; setTimeout(() => this._nachholen(), 1500); } });
     // which trainer entries are open survives a redraw ("toggle" does not bubble, so listen while capturing)
     this.shadowRoot.addEventListener('toggle', (e) => {
       const d = e.target;
@@ -771,6 +813,7 @@ class SprachmodellPanel extends HTMLElement {
   async _api(methode, pfad, daten) { return this._hass.callApi(methode, 'sprachmodell/' + pfad, daten); }
 
   async _laden() {
+    this._spaeter = false;
     try {
       const q = new URLSearchParams();
       if (this._wortId) q.set('wort', this._wortId);
@@ -788,7 +831,7 @@ class SprachmodellPanel extends HTMLElement {
       const ew = this._wortId ? '&wort=' + encodeURIComponent(this._wortId) : '';
       const ef = this._filter.echo ? '&echo=' + encodeURIComponent(this._filter.echo) : '';
       if (this._daten.wort && this._reiter === 'pruefen') this._liste = await this._api('GET', 'liste?filter=offen' + ew + ef);
-      if (this._daten.wort && this._reiter === 'verlauf') { const z = this._filter.zelle; this._liste = await this._api('GET', (z ? `liste?filter=alle&zeile=${z.zeile}&von=${z.von}&bis=${z.bis}&seite=${this._filter.seite}` : `liste?filter=${this._filter.verlauf}&seite=${this._filter.seite}${this._filter.verlauf === 'bewertet' ? (this._filter.urteil ? '&art=' + this._filter.urteil : '') + (this._filter.sort ? '&sort=' + this._filter.sort : '') : ''}${this._verlaufFilter()}`) + ew + (z ? (z.echo ? '&echo=' + encodeURIComponent(z.echo) : '') : ef)); }
+      if (this._daten.wort && this._reiter === 'verlauf') { const z = this._filter.zelle; this._liste = await this._api('GET', (z ? `liste?filter=alle&zeile=${z.zeile}&von=${z.von}&bis=${z.bis}&seite=${this._filter.seite}` : `liste?filter=${this._filter.verlauf}&seite=${this._filter.seite}${this._filter.verlauf === 'bewertet' ? (this._filter.urteil ? '&art=' + this._filter.urteil : '') + (this._filter.sort ? '&sort=' + this._filter.sort : '') : ''}${this._verlaufFilter()}`) + ew + (z ? (z.echo ? '&echo=' + encodeURIComponent(z.echo) : '') : ef)); if (this._liste && typeof this._liste.seite === 'number') this._filter.seite = this._liste.seite; }
       this._fehler = null;
     } catch (e) { this._fehler = this._fehlerText(e); }
     this._kopfZeichnen();
@@ -816,7 +859,14 @@ class SprachmodellPanel extends HTMLElement {
     const seite = this._reiter + '|' + this._wortId;
     main.classList.toggle('still', this._gezeigt === seite);
     this._gezeigt = seite;
+    const umzug = [...main.querySelectorAll('.eintrag:not(.weg) [data-umzugbox]')].find((b) => b.innerHTML);
     main.innerHTML = f.call(this);
+    // what you had open stays open across a redraw: the trim editor with its selection, the "other word" picker
+    if (this._schnitt) {
+      const box = main.querySelector(`[data-schnittbox="${CSS.escape(this._schnitt.id)}"]`);
+      if (box) this._schnittBauen(box); else this._schnitt = null;
+    }
+    if (umzug && main.querySelector(`[data-umzugbox="${CSS.escape(umzug.dataset.umzugbox)}"]`)) this._umzugOeffnen(umzug.dataset.umzugbox, true);
     const logNeu = main.querySelector('.protokoll'); if (logNeu) logNeu.scrollTop = oben ? 0 : logPos;
     if (this._reiter === 'pruefen' || this._reiter === 'verlauf') {
       this._aktiv = Math.max(0, Math.min(this._aktiv, this.shadowRoot.querySelectorAll('.eintrag:not(.weg)').length - 1));
@@ -1264,8 +1314,13 @@ ${this._stat({ icon: 'mdi:target', titel: this.t('al_genau'), wert: quote == nul
 
   _pruefen() {
     const l = this._liste || { eintraege: [], gesamt: 0 }, s = this._daten.wort.statistik;
-    const echoChips = Object.entries(s.offen_je_echo || {}).map(([e, n]) => `<button class="chip ${this._filter.echo === e ? 'an' : ''}" data-echo="${esc(e)}">${esc(e)} · ${n}</button>`).join('');
+    const jeEcho = { ...(s.offen_je_echo || {}) };
+    if (this._filter.echo && !(this._filter.echo in jeEcho)) jeEcho[this._filter.echo] = 0;  // the chosen device stays visible, even when it has nothing left
+    const echoChips = Object.entries(jeEcho).map(([e, n]) => `<button class="chip ${this._filter.echo === e ? 'an' : ''}" data-echo="${esc(e)}">${esc(e)} · ${n}</button>`).join('');
     const mitVorschlag = l.eintraege.filter((a) => a.vorschlag).length;
+    // one device done, others still waiting: keep the device chips and offer the rest right away
+    if (!l.gesamt && this._filter.echo && s.offen) return `<div class="zeile weit pr-leiste"><div class="zeile"><button class="chip" data-echo="">${esc(this.t('pr_alle'))} · ${s.offen}</button>${echoChips}</div></div>
+<ha-card><div class="leer"><ha-icon icon="mdi:check-all"></ha-icon><p>${esc(this.t('pr_leer_filter', { g: this._filter.echo }))}</p><p class="klein">${esc(this.t('pr_leer_filter_text', { n: s.offen }))}</p><button class="k haupt" data-echo=""><ha-icon icon="mdi:filter-remove-outline"></ha-icon>${esc(this.t('pr_alle_zeigen', { n: s.offen }))}</button></div></ha-card>`;
     if (!l.gesamt) return `<ha-card><div class="leer"><ha-icon icon="mdi:check-all"></ha-icon><p>${esc(this.t('pr_leer'))}</p><p class="klein">${esc(this.t('pr_leer_text'))}</p><button class="k" data-a="holen"><ha-icon icon="mdi:download-outline"></ha-icon>${esc(this.t('pr_holen'))}</button></div></ha-card>`;
     const fertig = (this._prGemacht || {})[this._wortId] || 0, alle = fertig + s.offen;
     this._prBasis = { offen: s.offen, fertig };
@@ -1334,19 +1389,20 @@ ${this._andere().length && !a.zu_wort && !a.von_wort ? `<button class="k leise" 
     return '';
   }
 
-  _umzugOeffnen(id) {
+  _umzugOeffnen(id, still) {
     const box = this.shadowRoot.querySelector(`[data-umzugbox="${CSS.escape(id)}"]`);
     if (!box) return;
     const knopf = this.shadowRoot.querySelector(`[data-umzug="${CSS.escape(id)}"]`);
     const offen = !!box.innerHTML;
     this.shadowRoot.querySelectorAll('[data-umzugbox]').forEach((b) => { b.innerHTML = ''; });
     this.shadowRoot.querySelectorAll('[data-umzug]').forEach((b) => b.setAttribute('aria-expanded', 'false'));
-    if (offen) return;
+    if (offen) { this._nachholen(); return; }
     const alle = this._daten.woerter;
     box.innerHTML = `<div class="klein umzug-frage">${esc(this.t('pr_welches'))}</div>
 <div class="umzug-woerter">${this._andere().map((w) => `<button class="chip wortwahl" data-ziel="${esc(w.id)}" data-id="${esc(id)}" style="--wf:${this._farbe(w, alle.indexOf(w))}"><span class="farbe"></span>${esc(w.wort)}</button>`).join('')}</div>
 <div class="klein umzug-hilfe">${esc(this.t('pr_anderes_hilfe', { w: this._wortName() }))}</div>`;
     if (knopf) knopf.setAttribute('aria-expanded', 'true');
+    if (still) return;
     const erst = box.querySelector('[data-ziel]');
     if (erst) erst.focus({ preventScroll: true });
     box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
@@ -1380,17 +1436,25 @@ ${this._andere().length && !a.zu_wort && !a.von_wort ? `<button class="k leise" 
   async _schnittOeffnen(id) {
     const box = this.shadowRoot.querySelector(`[data-schnittbox="${CSS.escape(id)}"]`);
     if (!box) return;
-    if (this._schnitt && this._schnitt.id === id) { this._schnitt = null; box.innerHTML = ''; return; }
+    if (this._schnitt && this._schnitt.id === id) { this._schnitt = null; box.innerHTML = ''; this._nachholen(); return; }
     this.shadowRoot.querySelectorAll('[data-schnittbox]').forEach((b) => { b.innerHTML = ''; });
+    this._schnitt = null;
     const a = ((this._liste && this._liste.eintraege) || []).find((x) => x.id === id) || {};
     try {
       const url = await this._blob(id);
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const puffer = await ctx.decodeAudioData(await (await fetch(url)).arrayBuffer());
-      ctx.close();
+      // one shared decoder: browsers allow only a handful of audio contexts per page
+      if (!this._dekoder) this._dekoder = new (window.AudioContext || window.webkitAudioContext)();
+      const puffer = await this._dekoder.decodeAudioData(await (await fetch(url)).arrayBuffer());
       const dauer = puffer.duration, s = a.schnitt || [0, dauer];
       this._schnitt = { id, url, dauer, daten: puffer.getChannelData(0), von: s[0], bis: Math.min(s[1], dauer) };
     } catch (e) { this._meldung(this.t('ging_nicht', { f: e.message })); return; }
+    // the page may have been redrawn while the recording was loading: take the box that is there now
+    const jetzt = this.shadowRoot.querySelector(`[data-schnittbox="${CSS.escape(id)}"]`);
+    if (jetzt) this._schnittBauen(jetzt); else this._schnitt = null;
+  }
+
+  // the editor for this._schnitt in its box; also after a redraw, with the selection you had
+  _schnittBauen(box) {
     const z = this._schnitt;
     box.innerHTML = `<div class="studio"><canvas></canvas><div class="wahl"></div><div class="aus links"></div><div class="aus rechts"></div>
 <div class="griff" data-griff="von" tabindex="0" role="slider" aria-label="${esc(this.t('pr_anfang'))}"><span></span></div><div class="griff" data-griff="bis" tabindex="0" role="slider" aria-label="${esc(this.t('pr_ende'))}"><span></span></div><div class="spielkopf"></div></div>
@@ -1715,6 +1779,7 @@ ${this._andere().length && !a.zu_wort && !a.von_wort ? `<button class="k leise" 
 
   _wegGleiten(zeile, id, stempel) {
     zeile.classList.add('weg');
+    if (this._schnitt && this._schnitt.id === id) this._schnitt = null;  // answered: its trim editor goes with it
     zeile.insertAdjacentHTML('beforeend', stempel);
     const ruhig = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (zeile.animate && !ruhig) {
@@ -1728,7 +1793,7 @@ ${this._andere().length && !a.zu_wort && !a.von_wort ? `<button class="k leise" 
     this._aktiv = Math.min(this._aktiv, rest.length - 1);
     const naechste = this._markieren();
     if (naechste && this._autoplay) this._spielen(naechste.dataset.id);
-    clearTimeout(this._nachladen); this._nachladen = setTimeout(() => this._laden(), rest.length ? 4000 : 300);
+    clearTimeout(this._nachladen); this._nachladen = setTimeout(() => this._hintergrundLaden(), rest.length ? 4000 : 300);
   }
 
   // ---------- Aufnehmen ----------
@@ -1837,6 +1902,7 @@ ${sicher ? '' : `<div class="hinweis">${esc(this.t('au_kein_mikro'))}</div>`}
     try { r.proz.disconnect(); r.quelle.disconnect(); r.strom.getTracks().forEach((t) => t.stop()); r.ctx.close(); } catch (e) { /* schon zu */ }
     r.an = false;
     this._recZeichnen();
+    this._nachholen();
   }
 
   _takeNeu(stuecke, rate) {
@@ -2981,15 +3047,23 @@ ${e.laut ? `<div class="hinweis">${esc(this.t('rk_zu_laut'))}</div>` : ''}
   }
 
   // hear it: one of your own recordings of the word, first as recorded, then as in this room
+  async _umrechnen(puffer, ziel) {
+    const off = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, Math.max(1, Math.ceil(puffer.duration * ziel)), ziel);
+    const q = off.createBufferSource(); q.buffer = puffer; q.connect(off.destination); q.start();
+    return off.startRendering();
+  }
+
   async _raumHoeren(impulse, g) {
     try {
       const ctx = this._hoerCtx || (this._hoerCtx = new (window.AudioContext || window.webkitAudioContext)());
       if (ctx.state === 'suspended') await ctx.resume();
-      let h = impulse;
+      const holen = async (pfad) => { const r = await this._hass.fetchWithAuth(pfad); if (!r.ok) throw new Error(r.statusText || String(r.status)); return ctx.decodeAudioData(await r.arrayBuffer()); };
+      // impulses from a fresh clap test are 16 kHz; stored ones are decoded by the browser at its own rate
+      let h = impulse, rate = 16000;
       if (!h) {
+        rate = ctx.sampleRate;
         h = await Promise.all((g.raum.ids || []).slice(-3).map(async (id) => {
-          const r = await this._hass.fetchWithAuth('/api/sprachmodell/raum/' + encodeURIComponent(g.knoten) + '/' + encodeURIComponent(id));
-          return (await ctx.decodeAudioData(await r.arrayBuffer())).getChannelData(0);
+          return (await holen('/api/sprachmodell/raum/' + encodeURIComponent(g.knoten) + '/' + encodeURIComponent(id))).getChannelData(0);
         }));
       }
       const wid = (Object.values(g.plaetze || {}).find((p) => p.wort) || {}).wort || (this._daten.woerter[0] || {}).id;
@@ -2997,9 +3071,13 @@ ${e.laut ? `<div class="hinweis">${esc(this.t('rk_zu_laut'))}</div>` : ''}
       if (wid) {
         const l = await this._api('GET', `liste?filter=bewertet&art=wort&wort=${encodeURIComponent(wid)}`);
         const a = (l.eintraege || [])[0];
-        if (a) { const r = await this._hass.fetchWithAuth('/api/sprachmodell/audio/' + encodeURIComponent(wid) + '/' + encodeURIComponent(a.id)); trocken = await ctx.decodeAudioData(await r.arrayBuffer()); }
+        // no recording of the word to play through the room: not a reason to fail, the clap alone is played
+        if (a) { try { trocken = await holen('/api/sprachmodell/audio/' + encodeURIComponent(wid) + '/' + encodeURIComponent(a.id)); } catch (e) { trocken = null; } }
       }
-      const imp = h[0], buf = ctx.createBuffer(1, imp.length, 16000); buf.copyToChannel(imp instanceof Float32Array ? imp : new Float32Array(imp), 0);
+      if (!h || !h.length || !h[0] || !h[0].length) { this._meldung(this.t('rk_hoeren_nichts')); return; }
+      const imp = h[0], roh = ctx.createBuffer(1, imp.length, rate); roh.copyToChannel(imp instanceof Float32Array ? imp : new Float32Array(imp), 0);
+      // a reverb (ConvolverNode) only takes a buffer at the context's own rate (Firefox enforces it): resample first
+      const buf = rate === ctx.sampleRate ? roh : await this._umrechnen(roh, ctx.sampleRate);
       if (!trocken) { const q = ctx.createBufferSource(); q.buffer = buf; q.connect(ctx.destination); q.start(); this._meldung(this.t('rk_hoeren_klatsch')); return; }
       const nass = ctx.createConvolver(); nass.normalize = true; nass.buffer = buf;
       const a = ctx.createBufferSource(); a.buffer = trocken; a.connect(ctx.destination); a.start();

@@ -95,7 +95,7 @@ Listen, then tap *said* or *not said* – or use the keyboard (**Space** play ·
 
 **Pre-review**: while the trainer is idle, speech recognition listens to new device recordings; each one shows what was heard, and recordings in which the word was clearly heard are confirmed by themselves, and near misses below 0.80 in which neither the word nor anything like it was heard count as *not said* (both marked *auto*, filter in History, you can always change the answer). Switch: word → Training → Automatic.
 
-**Trim**: *Trim* opens an editor like in a recording studio: a large waveform with a time ruler, handles for start and end right in the waveform (drag them, move the whole selection or draw a new one), a play head that runs along, tap to play from any point, *Automatic* finds start and end at the sound. Save, and training uses only that part. Device wake-ups are trimmed by themselves for training (word at the end, the device's sound after it cut off).
+**Trim**: *Trim* opens an editor like in a recording studio: a large waveform with a time ruler, handles for start and end right in the waveform (drag them, move the whole selection or draw a new one), a play head that runs along, tap to play from any point, *Automatic* finds start and end at the sound. Save, and training uses only that part. Device wake-ups are trimmed by themselves for training (word at the end, the device's sound after it cut off). While the editor is open (or you pick *Other word*, or type in a field), the page does not refresh by itself when new recordings arrive; it catches up when you are done.
 
 ## Record and upload
 

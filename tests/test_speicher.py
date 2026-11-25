@@ -173,6 +173,17 @@ def test_verlauf_filter_art_person_nichts_gehoert(s: Speicher) -> None:
     assert not a["x1"].get("urteil") and a["w2"]["urteil"] == "wort"
 
 
+def test_liste_seite_hinter_dem_ende(s: Speicher) -> None:
+    """A page that no longer exists (answers moved recordings out of the filter) shows the last page, never an
+    empty list without a way back."""
+    for i in range(5):
+        s.aufnahme_neu({"id": f"p{i}", "quelle": "echo", "art": "wake", "score": 0.9, "urteil": "wort"}, wav())
+    hinten = s.liste("bewertet", None, None, 7, je_seite=2)
+    assert hinten["seite"] == 2 and hinten["seiten"] == 3 and len(hinten["eintraege"]) == 1
+    leer = s.liste("bewertet", None, "kein_wort", 3, je_seite=2)
+    assert leer["seite"] == 0 and leer["seiten"] == 1 and leer["eintraege"] == []
+
+
 def test_beinahe_unter_08_selbst_nicht_gesagt(s: Speicher) -> None:
     """Pre-review: low near misses in which speech recognition heard neither the word nor anything like it."""
     faelle = {"tv": ("nearmiss", 0.6, "привет как дела"), "still": ("nearmiss", 0.7, ""),
