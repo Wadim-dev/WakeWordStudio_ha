@@ -129,6 +129,6 @@ BEINAHE_AUTO_UNTER = 0.8
 
 # Version of the trainer this studio works with (sprachmodell_trainer/: config.yaml and trainer/__init__.py). It only
 # moves when the trainer itself changes, so a release that only changes the studio does not ask for a trainer restart.
-TRAINER_VERSION = "1.0.41"
+TRAINER_VERSION = "1.0.42"
 VERGLEICH_AB = "1.0.40"  # oldest trainer that can compare two stored versions
 VERGLEICHE_MAX = 20  # fair comparisons kept per word

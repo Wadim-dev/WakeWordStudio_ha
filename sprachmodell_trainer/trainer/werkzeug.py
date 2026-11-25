@@ -577,9 +577,12 @@ def pruefen(a: dict) -> dict:
         live["n"] += 1
         _live(live)
     gegen = []
+    fehl_dateien, fehl_je = set(a.get("fehl") or []), {}
     live["teil"] = "aehnlich"
     for f in a["negativ"]:
         gegen.append(float(_verlauf(m, np.concatenate([pause, _laden(f), pause])).max()))
+        if f in fehl_dateien:
+            fehl_je[f] = gegen[-1]  # each recording once, even if it is in the list twice
         live["aehnlich"] += gegen[-1] >= LIVE_CUTOFF
         live["aehnlich_n"] += 1
         if live["aehnlich_n"] % 5 == 0 or live["aehnlich_n"] == len(a["negativ"]):
@@ -639,7 +642,8 @@ def pruefen(a: dict) -> dict:
         _live(live)
     stunden, stunden_bg = max(dauer / 3600, 1e-6), max(dauer_bg / 3600, 1e-6)
     arr = {b: np.array(v) for b, v in werte.items()}
-    gegen_a = np.array(gegen)
+    fehl = list(fehl_je.values())
+    gegen_a, fehl_a = np.array(gegen), np.array(fehl)
     je = {}
     for c in CUTOFFS:
         jp: dict[str, list[float]] = {}
@@ -657,6 +661,9 @@ def pruefen(a: dict) -> dict:
             "trefferquote_schwer": float(np.mean([v for v in schwer.values()])) if len(werte["ruhig"]) else None,
             "gegenbeispiele": float((gegen_a >= c).mean()) if len(gegen) else None,
             "gegenbeispiele_anzahl": int((gegen_a >= c).sum()),
+            # real false wakes of your devices (held out): how many would wake it again at this threshold
+            "echte_fehlausloeser": float((fehl_a >= c).mean()) if len(fehl) else None,
+            "echte_fehlausloeser_anzahl": int((fehl_a >= c).sum()),
             "fehlausloeser_pro_stunde": ausloeser[c] / stunden if rede_dateien else None,
             "fehlausloeser_anzahl": ausloeser[c],
             "fehlausloeser_geraeusch_pro_stunde": aus_bg[c] / stunden_bg if dauer_bg else None,
@@ -667,7 +674,7 @@ def pruefen(a: dict) -> dict:
         }
     return {"stunden": round(stunden, 2), "stunden_geraeusch": round(dauer_bg / 3600, 2),
             "stunden_stille": round(dauer_st / 3600, 2), "positiv": len(werte["ruhig"]),
-            "negativ": len(gegen), "je_schwelle": je}
+            "negativ": len(gegen), "fehl_negativ": len(fehl), "je_schwelle": je}
 
 
 def schlank(a: dict) -> dict:

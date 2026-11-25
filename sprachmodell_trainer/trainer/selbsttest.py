@@ -169,7 +169,9 @@ def main() -> None:
         ergebnis = lauf._werkzeug_sicher("pruefen", {
             "modell": str(tflite), "positiv": [{"datei": f, "person": "A"} for f in pos[20:]], "negativ": neg_wavs[20:],
             "gerede": lang, "bg": bg, "rir": rir, "max_stunden": 1, "max_stunden_bg": 0.05, "stille_minuten": 2,
+            "fehl": neg_wavs[20:23],
         }, "test", 0, 1, "test_neu")
+        assert ergebnis["fehl_negativ"] == 3 and ergebnis["je_schwelle"]["0.97"]["echte_fehlausloeser"] is not None, ergebnis
         assert ergebnis["positiv"] == 4 and ergebnis["je_schwelle"], f"test result incomplete: {ergebnis}"
         punkt = ergebnis["je_schwelle"]["0.97"]
         assert set(punkt["bedingungen"]) == {"ruhig", "leise", "hall", "musik", "gerede", "alltag"}, punkt
@@ -201,7 +203,8 @@ def main() -> None:
             assert ergebnis.get("merkmale", 0) > 0, f"no cut-off features: {ergebnis}"
         merkmale["abgebrochen"] = {"dir": str(ab), "wort": False, "gewicht": 1.0, "strafe": 1.0}
         echt = {"wort_test": [{"datei": f, "person": "AB"[i % 2]} for i, f in enumerate(pos[16:])],
-                "kein_test": [{"datei": f, "person": ""} for f in neg_wavs[16:]], "wort_train": [], "kein_train": []}
+                "kein_test": [{"datei": f, "person": "", "fehl": i < 3} for i, f in enumerate(neg_wavs[16:])],
+                "wort_train": [], "kein_train": []}
         wahl_echt, bericht_echt = lauf._haelften(echt)
         assert len(wahl_echt["positiv"]) == 4 and len(bericht_echt["wort_test"]) == 4, (wahl_echt, bericht_echt)
         assert not {a["datei"] for a in wahl_echt["positiv"]} & {a["datei"] for a in bericht_echt["wort_test"]}
@@ -247,6 +250,9 @@ def main() -> None:
         assert (v["a"], v["b"]) == (2, 1) and v["neu"] and v["alt"] and v["vergleich"]["urteil"] in (
             "besser", "schlechter", "gleich"), v
         assert "je_schwelle" not in v and not list(lauf.ordner.glob("vergleich_v*.tflite")), v.keys()
+        # real false wakes of the devices are measured for both versions and count for the verdict
+        assert v["neu"]["echte_fehlausloeser_n"] == v["alt"]["echte_fehlausloeser_n"] == 3, v["neu"]
+        assert any(z["kennzahl"] == "echte_fehlausloeser" and z["wichtig"] for z in v["vergleich"]["zeilen"]), v["vergleich"]
         # live interim figures of both tests: every part of the test reached, counts within their totals
         for k in ("vgl_a", "vgl_b"):
             lv = lauf.live()["pruefen"].get(k) or {}

@@ -131,7 +131,7 @@ export const TEXTE = {
     g_besser_in: 'Übernommen: wirklich besser bei {k}, nirgends wirklich schlechter.', g_schlechter_in: 'Verworfen: wirklich schlechter bei {k}.',
     g_gleich: 'Gleich gut: Die Unterschiede liegen im Zufall dieses Tests, deshalb bleibt die bisherige Version.', g_erste: 'Erste Version, es gab nichts zu vergleichen.',
     k_alltag_kurz: 'Erkennung im Alltag', k_alltag_bei_fa: 'Im Alltag erkannt bei {fa} Fehlauslösern/Std.', k_fehlausloeser_rede: 'Fehlauslöser pro Stunde Gerede', k_fehlausloeser_geraeusch: 'Fehlauslöser pro Stunde Musik/Geräusche', k_fehlausloeser_stille: 'Fehlauslöser pro Stunde im stillen Raum',
-    k_erkannt: 'Erkannt: {b}', k_aehnliche_woerter: 'Ähnliche Wörter lösen aus', k_schwaechste_person: 'Schwächste Person ({p})',
+    k_erkannt: 'Erkannt: {b}', k_aehnliche_woerter: 'Deine „nicht gesagt“ lösen aus', k_echte_fehlausloeser: 'Echte Fehlauslöser deiner Geräte', d_fehl_echt: 'Springt bei echten Fehlauslösern deiner Geräte wieder an', d_gegen: 'Springt bei deinen „nicht gesagt“-Aufnahmen an', k_schwaechste_person: 'Schwächste Person ({p})',
     u_besser: 'wirklich besser', u_schlechter: 'wirklich schlechter', u_gleich: 'im Zufall, gleich',
     q_vgl_basis: 'Getestet mit {n} echten Aufnahmen in sechs Lagen und im Härtetest, {h} Std. Gerede und {g} Std. Musik/Geräuschen. Beide Versionen hören genau dasselbe. Fett: entscheidet mit.',
    
@@ -346,7 +346,7 @@ export const TEXTE = {
     g_besser_in: 'Taken: really better in {k}, really worse nowhere.', g_schlechter_in: 'Dropped: really worse in {k}.',
     g_gleich: 'As good: the differences are within the chance of this test, so the current version stays.', g_erste: 'First version, nothing to compare with.',
     k_alltag_kurz: 'everyday detection', k_alltag_bei_fa: 'Everyday detection at {fa} false wakes/h', k_fehlausloeser_rede: 'False wakes per hour of speech', k_fehlausloeser_geraeusch: 'False wakes per hour of music/noise', k_fehlausloeser_stille: 'False wakes per hour in a quiet room',
-    k_erkannt: 'Detected: {b}', k_aehnliche_woerter: 'Similar words trigger', k_schwaechste_person: 'Weakest person ({p})',
+    k_erkannt: 'Detected: {b}', k_aehnliche_woerter: 'Your “not said” recordings trigger', k_echte_fehlausloeser: 'Real false wakes of your devices', d_fehl_echt: 'Wakes again on real false wakes of your devices', d_gegen: 'Wakes on your “not said” recordings', k_schwaechste_person: 'Weakest person ({p})',
     u_besser: 'really better', u_schlechter: 'really worse', u_gleich: 'within chance, the same',
     q_vgl_basis: 'Tested with {n} real recordings in six conditions and the hard test, {h} h of speech and {g} h of music/noise. Both versions hear exactly the same. Bold: part of the decision.',
    

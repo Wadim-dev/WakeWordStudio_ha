@@ -779,7 +779,9 @@ class Lauf:
                 tmp = ziel.with_suffix(".tmp")
                 tmp.write_bytes(inhalt)
                 tmp.replace(ziel)
-            aus[art].append({"datei": str(ziel), "person": a.get("person") or ""})
+            # a device really woke up and you said "not said": a real false wake, the kind the model must unlearn
+            fehl = a["urteil"] != "wort" and a.get("quelle") == "echo" and a.get("art") in ("wake", "mistake")
+            aus[art].append({"datei": str(ziel), "person": a.get("person") or "", "fehl": fehl})
             if i % 20 == 0:
                 self._abschnitt("daten", i / max(1, len(liste)), f"aufnahmen:{i}/{len(liste)}")
         if basis.exists():  # umbewertete oder geloeschte Aufnahmen entfernen
@@ -979,8 +981,15 @@ class Lauf:
             d = [a["datei"] for a in echt["wort_train"]]
             sets.append(("echt_wort", d, wdh_echt(len(d)), True, True, 3.0, 1.0))
         if echt["kein_train"]:
-            d = [a["datei"] for a in echt["kein_train"]]
-            sets.append(("echt_kein", d, wdh_echt(len(d)), False, True, 2.0, 3.0))
+            d = [a["datei"] for a in echt["kein_train"] if not a.get("fehl")]
+            if d:
+                sets.append(("echt_kein", d, wdh_echt(len(d)), False, True, 2.0, 3.0))
+            # real false wakes of your devices on their own, seen far more often and punished harder: before they
+            # were a few dozen among thousands of harmless near misses and hardly counted (seen 25.11.)
+            f = [a["datei"] for a in echt["kein_train"] if a.get("fehl")]
+            if f:
+                sets.append(("echt_fehl", f, max(10, min(80, 2000 // len(f))), False, True, 4.0, 6.0))
+                self.notiz(f"Real false wakes of your devices: {len(f)}, trained as their own set, weighted higher")
         if stille:
             # a quiet room (faint hiss, hum, far-away sounds) as negatives in every recipe: a model must not take
             # silence for the word (seen 20.11.: a kitchen Echo woke every few seconds in a quiet room)
@@ -1289,7 +1298,9 @@ class Lauf:
             geraeusche += dateien[:300]
         random.Random(5).shuffle(geraeusche)
         auftrag = {"positiv": positiv, "negativ": negativ, "gerede": rede, "bg": geraeusche,
-                   "rir": str(rir) if rir else None, "max_stunden": TEST_STUNDEN_REDE, "max_stunden_bg": TEST_STUNDEN_GERAEUSCH}
+                   "rir": str(rir) if rir else None, "max_stunden": TEST_STUNDEN_REDE, "max_stunden_bg": TEST_STUNDEN_GERAEUSCH,
+                   # held-out real false wakes of your devices (part of negativ): counted on their own
+                   "fehl": [a["datei"] for a in echt["kein_test"] if a.get("fehl")]}
 
         neu = self._werkzeug_sicher("pruefen", {**auftrag, "modell": str(tflite)}, "test", 0, 0.5, schritte[0])
         alt = None
@@ -1348,4 +1359,7 @@ class Lauf:
             else round(w["fehlausloeser_stille_pro_stunde"], 2),
             "fehlausloeser_stille_anzahl": w.get("fehlausloeser_stille_anzahl"),
             "gegenbeispiele": w["gegenbeispiele"], "je_person": w["je_person"],
+            "echte_fehlausloeser": w.get("echte_fehlausloeser"),
+            "echte_fehlausloeser_anzahl": w.get("echte_fehlausloeser_anzahl"),
+            "echte_fehlausloeser_n": ergebnis.get("fehl_negativ"),
         }

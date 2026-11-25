@@ -127,7 +127,12 @@ def vergleichen(neu: dict[str, Any], alt: dict[str, Any], cut_neu: float, cut_al
         n_neg = int(neu.get("negativ") or 0)
         # fewer similar words that wake the device is better, so the hit-rate test runs the other way round
         u = _quote_unterschied(pa.get("gegenbeispiele"), pn.get("gegenbeispiele"), n_neg)
-        zeile("aehnliche_woerter", pn.get("gegenbeispiele"), pa.get("gegenbeispiele"), u, False)
+        # your own "not said" recordings (held out) count for the verdict: they are what wakes the devices at home
+        zeile("aehnliche_woerter", pn.get("gegenbeispiele"), pa.get("gegenbeispiele"), u, True)
+    if pn.get("echte_fehlausloeser") is not None and pa.get("echte_fehlausloeser") is not None:
+        n_f = int(neu.get("fehl_negativ") or 0)
+        u = _quote_unterschied(pa.get("echte_fehlausloeser"), pn.get("echte_fehlausloeser"), n_f)
+        zeile("echte_fehlausloeser", pn.get("echte_fehlausloeser"), pa.get("echte_fehlausloeser"), u, True)
     schwach_n = _schwaechste(pn.get("je_person") or {})
     schwach_a = _schwaechste(pa.get("je_person") or {})
     if schwach_n and schwach_a:

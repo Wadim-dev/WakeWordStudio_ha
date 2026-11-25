@@ -138,3 +138,29 @@ def test_stille_nur_bei_niedrigen_schwellen() -> None:
     e = _mit_stille(_ergebnis(QUOTE, FA_ALT), {c: (5 if c < 0.95 else 1) for c in SCHWELLEN})
     assert vergleich.alltag_bei(e["je_schwelle"], 2.0, e["stunden"]) == QUOTE[0.95]
     assert vergleich.alltag_bei(_ergebnis(QUOTE, FA_ALT)["je_schwelle"], 2.0, 6.0) == QUOTE[0.92]
+
+
+def test_echte_fehlausloeser_entscheiden() -> None:
+    """Real false wakes of the devices (held out) and the own "not said" recordings decide too (25.11.)."""
+    def mit(e: dict, echt: float, gegen: float, n: int = 40) -> dict:
+        for c in SCHWELLEN:
+            e["je_schwelle"][str(c)]["echte_fehlausloeser"] = echt
+            e["je_schwelle"][str(c)]["gegenbeispiele"] = gegen
+        e["fehl_negativ"] = n
+        return e
+
+    neu = mit(_ergebnis(QUOTE, FA_ALT), 0.05, 0.1)
+    alt = mit(_ergebnis(QUOTE, FA_ALT), 0.5, 0.1)
+    v = vergleich.vergleichen(neu, alt, 0.99, 0.99)
+    zeile = next(z for z in v["zeilen"] if z["kennzahl"] == "echte_fehlausloeser")
+    assert zeile["wichtig"] and v["urteil"] == "besser" and v["besser_in"] == ["echte_fehlausloeser"]
+    assert vergleich.vergleichen(alt, neu, 0.99, 0.99)["urteil"] == "schlechter"
+    # fewer false wakes, but it hears worse in daily life: never better
+    schlecht = {c: q - 0.2 for c, q in QUOTE.items()}
+    assert vergleich.vergleichen(mit(_ergebnis(schlecht, FA_ALT), 0.05, 0.1), alt, 0.99, 0.99)["urteil"] == "schlechter"
+    # the own "not said" recordings count for the verdict
+    g = vergleich.vergleichen(mit(_ergebnis(QUOTE, FA_ALT), 0.2, 0.02), mit(_ergebnis(QUOTE, FA_ALT), 0.2, 0.3), 0.99, 0.99)
+    assert next(z for z in g["zeilen"] if z["kennzahl"] == "aehnliche_woerter")["wichtig"] and g["urteil"] == "besser"
+    # too few real false wakes to tell: chance
+    assert vergleich.vergleichen(mit(_ergebnis(QUOTE, FA_ALT), 0.0, 0.1, 2), mit(_ergebnis(QUOTE, FA_ALT), 0.5, 0.1, 2),
+                                 0.99, 0.99)["urteil"] == "gleich"
