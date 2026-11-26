@@ -98,6 +98,8 @@ Listen, then tap *said* or *not said* – or use the keyboard (**Space** play ·
 
 **What comes to review is yours to set**: right under that switch you choose the score below which near misses are settled by themselves (0.50 to 0.99, default 0.80), and whether that waits for speech recognition or happens *all at once*. With plenty of reviewed recordings, *all at once* keeps the review list short: only what is close to the threshold and every real wake still comes to you. A near miss right before a wake always stays for you, because the word was probably said.
 
+<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/pre-review.png" alt="Pre-review: choose what comes to review" width="900"></p>
+
 **Trim**: *Trim* opens an editor like in a recording studio: a large waveform with a time ruler, handles for start and end right in the waveform (drag them, move the whole selection or draw a new one), a play head that runs along, tap to play from any point, *Automatic* finds start and end at the sound. Save, and training uses only that part. Device wake-ups are trimmed by themselves for training (word at the end, the device's sound after it cut off). While the editor is open (or you pick *Other word*, or type in a field), the page does not refresh by itself when new recordings arrive; it catches up when you are done.
 
 ## Record and upload
