@@ -129,7 +129,7 @@ Everyday detection and a bar per condition (quiet, soft, reverb, music, TV, all 
 
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/threshold.png" alt="Setting your own threshold" width="900"></p>
 
-**Compare any two versions:** the card *Compare versions* under *Quality* puts two versions of your choice side by side, with the same questions as the run report. Figures measured in separate runs are marked as only roughly comparable; **Fair test** has the trainer test both on exactly the same recordings, speech and noise (no training, usually 20 to 40 minutes), with the check for chance, and keeps the result.
+**Compare any two versions:** the card *Compare versions* under *Quality* puts two versions of your choice side by side, with the same questions as the run report. Figures measured in separate runs are marked as only roughly comparable; **Fair test** has the trainer test both on exactly the same recordings, speech and noise (no training, usually 20 to 40 minutes), with the check for chance, and keeps the result. A fair test against the active version also sets the state in the version list, and when the other version is really better, *Roll out vN* appears right in the card. Rolling out stays your tap: nothing is rolled out by itself after a fair test.
 
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/compare.png" alt="Comparing two versions of your choice" width="900"></p>
 

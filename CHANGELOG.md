@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.49
+- **A fair test now counts in the version list** (discussion #63): when a fair test compared a version with the active one, its state in the list follows that test (*better*, *as good* or *worse*, each marked *fair test*) instead of the older comparison from the training run. The details show the fair test first, with all its rows including *Real false wakes of your devices*, and the comparison from the training run below it.
+- **Roll out right from the comparison:** when the fair test (or a run that measured both) says the other version is really better than the active one, *Compare versions* offers *Roll out vN*, and the button in the version list is highlighted. Nothing is rolled out by itself after a fair test: *Roll out a better version by itself* keeps applying to training runs only.
+- *Compare versions* shows the thresholds of a fair test.
+- **Trainer 1.0.43: a fair test is a test only.** It no longer makes new training voices (that took up to 90 minutes and looked like a training run); only the two small test sets are made if they are missing. The log starts with *Fair test, no training*. Update the trainer to get this; an older trainer still works.
+
 ## 1.0.48
 - **Room sound → Listen works in every browser** (#61): the clap response is brought to the browser's own sample rate before it goes into the reverb. Firefox refused it with *Buffer sample rate (16000) does not match AudioContext sample rate (48000)*. If no reviewed recording of the word can be loaded, the clap alone is played instead of an error.
 - **Review no longer ends in a dead end** (#60): when the chosen device is done but others still have recordings, the device chips stay and *Show all …* is offered, instead of *Nothing to review*.
