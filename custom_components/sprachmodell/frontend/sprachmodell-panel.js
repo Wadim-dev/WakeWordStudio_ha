@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.48';
+const VERSION = '1.0.49';
 const KURVE_VERSIONEN = 12; // how many of the newest versions the curve shows
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
@@ -488,6 +488,7 @@ main:not(.still) .ku-linie{animation:ku-zeichnen 1.6s cubic-bezier(.3,.7,.3,1) b
 .ku-flaeche{fill:var(--farbe);opacity:.1}main:not(.still) .ku-flaeche{animation:ku-flaeche 1.2s .5s ease-out both}@keyframes ku-flaeche{from{opacity:0}}
 .ku-punkt circle{fill:var(--card-background-color,#1c1c1c);stroke:var(--farbe);stroke-width:3}.vf-wahl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.vf-wahl select{flex:1 1 160px;min-width:0}
 .vf-hinweis{display:flex;gap:6px;align-items:flex-start;margin:6px 0 10px}.vf-hinweis ha-icon{--mdc-icon-size:18px;color:var(--success-color,#43a047);flex:none}.vf-hinweis.grob ha-icon{color:var(--warning-color,#ffa000)}
+.vgl-fair{padding-bottom:4px}.vgl-lauf-titel{margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--divider-color);font-size:13px;font-weight:500;color:var(--secondary-text-color)}
 .vf-fuss{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}.vf-fuss ha-icon{--mdc-icon-size:18px}.vf-lauf{display:flex;gap:8px;align-items:center;margin:6px 0;font-weight:500}.vf-lauf ha-icon{color:var(--primary-color)}
 .ku-punkt circle.nicht{stroke:var(--secondary-text-color);stroke-width:2;opacity:.8}.ku-punkt circle.aktiv{fill:var(--farbe);filter:drop-shadow(0 0 6px var(--farbe))}
 main:not(.still) .ku-punkt{animation:auftauchen .4s both;animation-delay:calc(.25s + var(--n) * .2s)}
@@ -1289,9 +1290,10 @@ ${this._weg(w, v)}`;
     const B = 600, H = 120, x = (i) => 30 + (i / (vs.length - 1)) * (B - 60), y = (v) => 14 + (1 - (v - lo) / ((hi - lo) || 1)) * (H - 44);
     const pkt = q.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
     const farbe = this._farbe(this._wortKurz() || {});
+    const nicht = (v) => v.status === 'verworfen' && ((this._fairGegenAktiv(w, v) || {}).vergleich || {}).urteil !== 'besser';
     return `<svg class="kurve" viewBox="0 0 ${B} ${H}" style="--farbe:${esc(farbe)}" aria-label="${esc(this.t('ku_titel'))}">
 <polygon class="ku-flaeche" points="${x(0).toFixed(1)},${H - 24} ${pkt} ${x(vs.length - 1).toFixed(1)},${H - 24}"/><polyline class="ku-linie" points="${pkt}"/>
-${vs.map((v, i) => `<g class="ku-punkt" style="--n:${i}"><circle cx="${x(i).toFixed(1)}" cy="${y(q[i]).toFixed(1)}" r="${v.nr === w.aktiv ? 6 : v.status === 'verworfen' ? 3 : 4}" class="${v.nr === w.aktiv ? 'aktiv' : v.status === 'verworfen' ? 'nicht' : ''}"/><text x="${x(i).toFixed(1)}" y="${(y(q[i]) - 11).toFixed(1)}">${esc(this._pct(q[i]))}</text><text class="ku-v" x="${x(i).toFixed(1)}" y="${H - 6}">v${v.nr}</text></g>`).join('')}</svg>`;
+${vs.map((v, i) => `<g class="ku-punkt" style="--n:${i}"><circle cx="${x(i).toFixed(1)}" cy="${y(q[i]).toFixed(1)}" r="${v.nr === w.aktiv ? 6 : nicht(v) ? 3 : 4}" class="${v.nr === w.aktiv ? 'aktiv' : nicht(v) ? 'nicht' : ''}"/><text x="${x(i).toFixed(1)}" y="${(y(q[i]) - 11).toFixed(1)}">${esc(this._pct(q[i]))}</text><text class="ku-v" x="${x(i).toFixed(1)}" y="${H - 6}">v${v.nr}</text></g>`).join('')}</svg>`;
   }
 
   _alltag() {
@@ -2354,24 +2356,45 @@ ${summe ? `<div class="tb-rahmen"><table class="tb"><tr><th class="tb-r klein">$
   _versionen(w) {
     const zeilen = w.versionen.map((x) => {
       const b = x.bericht || {}, n = b.neu || {}, vg = b.vergleich, offen = this._vglOffen.has(x.nr);
-      const stand = x.status === 'verworfen' && vg && vg.urteil === 'gleich' ? 'gleich' : x.status;
-      const details = vg || b.alt !== undefined;
-      return `<tr class="vrow ${details ? 'klickbar' : ''} ${offen ? 'offen' : ''}" ${details ? `data-vgl="${x.nr}" title="${esc(this.t('q_details'))}"` : ''}><td>${details ? '<ha-icon class="pfeil" icon="mdi:chevron-right"></ha-icon>' : ''}v${x.nr}<div class="klein">${this._datum(x.zeit)}</div></td><td>${this._pct(n.trefferquote)}</td><td>${this._pct(n.trefferquote_alltag)}</td><td>${this._pct(n.trefferquote_schwer)}</td><td>${this._zahl(n.fehlausloeser_pro_stunde, 1)}/${esc(this.t('std'))}</td><td class="${x.status === 'aktiv' ? 'gruen' : ''}">${esc(this.t('s_' + stand))}</td><td class="z">${x.status !== 'aktiv' && this._admin ? `<button class="k" data-a="einspielen" data-nr="${x.nr}">${esc(this.t('q_einspielen'))}</button>` : ''}</td></tr>
-${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden'}><td colspan="7"><div class="vgl">${this._vergleich(x)}</div></td></tr>` : ''}`;
+      const fair = this._fairGegenAktiv(w, x), fu = fair ? fair.vergleich.urteil : '';
+      const stand = fair ? 'fair_' + fu : x.status === 'verworfen' && vg && vg.urteil === 'gleich' ? 'gleich' : x.status;
+      const details = fair || vg || b.alt !== undefined;
+      return `<tr class="vrow ${details ? 'klickbar' : ''} ${offen ? 'offen' : ''}" ${details ? `data-vgl="${x.nr}" title="${esc(this.t('q_details'))}"` : ''}><td>${details ? '<ha-icon class="pfeil" icon="mdi:chevron-right"></ha-icon>' : ''}v${x.nr}<div class="klein">${this._datum(x.zeit)}</div></td><td>${this._pct(n.trefferquote)}</td><td>${this._pct(n.trefferquote_alltag)}</td><td>${this._pct(n.trefferquote_schwer)}</td><td>${this._zahl(n.fehlausloeser_pro_stunde, 1)}/${esc(this.t('std'))}</td><td class="${x.status === 'aktiv' || fu === 'besser' ? 'gruen' : ''}">${esc(this.t('s_' + stand))}</td><td class="z">${x.status !== 'aktiv' && this._admin ? `<button class="k ${fu === 'besser' ? 'haupt' : ''}" data-a="einspielen" data-nr="${x.nr}">${esc(this.t('q_einspielen'))}</button>` : ''}</td></tr>
+${details ? `<tr class="vdetail" data-vgldetail="${x.nr}" ${offen ? '' : 'hidden'}><td colspan="7"><div class="vgl">${fair ? this._vergleichFair(x, fair, vg || b.alt !== undefined) : ''}${this._vergleich(x)}</div></td></tr>` : ''}`;
     }).join('');
     return `<div class="tabelle-scroll"><table class="versionen"><tr><th>${esc(this.t('q_version'))}</th><th>${esc(this.t('q_erkannt_ruhig'))}</th><th title="${esc(this.t('q_alltag_t'))}">${esc(this.t('q_alltag_k'))}</th><th title="${esc(this.t('q_schwer_t'))}">${esc(this.t('q_schwer_k'))}</th><th>${esc(this.t('q_fehl'))}</th><th>${esc(this.t('q_stand'))}</th><th></th></tr>${zeilen}</table></div>`;
   }
 
-  _vergleich(x) {
-    const b = x.bericht || {}, vg = b.vergleich;
+  // the newest fair test of version x against the active one, seen from x (null: none). It is newer than the
+  // comparison of the training run, so the state in the list follows it; rolling out stays a tap by hand.
+  _fairGegenAktiv(w, x) {
+    if (w.aktiv == null || x.nr === w.aktiv) return null;
+    const f = (w.vergleiche || []).find((v) => v.vergleich && Array.isArray(v.vergleich.zeilen) && ((v.a === x.nr && v.b === w.aktiv) || (v.b === x.nr && v.a === w.aktiv)));
+    if (!f) return null;
+    const b = f.a === x.nr ? { neu: f.neu, alt: f.alt, alt_nr: w.aktiv, vergleich: f.vergleich } : this._vglUmdrehen(f.neu, f.alt, f.vergleich, w.aktiv);
+    return { ...b, zeit: f.zeit, n: f.test_positiv };
+  }
+
+  _vergleichFair(x, fair, mitLauf) {
+    return `<div class="vgl-fair">${this._vglUrteil(fair.vergleich, x.nr, fair.alt_nr)}<div class="klein vf-hinweis"><ha-icon icon="mdi:check-decagram-outline"></ha-icon><span>${esc(this.t('q_fair_hinweis', { z: this._zeit(fair.zeit), b: fair.alt_nr, n: fair.n ?? '–' }))}</span></div>${this._vglTabelle(fair, x.nr)}</div>${mitLauf ? `<h4 class="vgl-lauf-titel">${esc(this.t('q_lauf_titel'))}</h4>` : ''}`;
+  }
+
+  _vglTabelle(b, nr) {
+    const vg = b.vergleich;
+    if (!vg) return '';
     const wert = (k, v) => v == null ? '–' : k.startsWith('fehlausloeser') ? this._zahl(v, 1) : this._pct(v);
     const name = (z) => z.kennzahl.endsWith('_bei_fa') ? this.t('k_' + z.kennzahl, { fa: this._zahl(z.fa, 1) })
       : z.kennzahl.startsWith('erkannt_') ? this.t('k_erkannt', { b: this.t('b_' + z.kennzahl.slice(8)) })
         : z.kennzahl === 'schwaechste_person' ? this.t('k_schwaechste_person', { p: z.person || '' }) : this.t('k_' + z.kennzahl);
     const icon = { besser: 'mdi:check-circle', schlechter: 'mdi:close-circle', gleich: 'mdi:approximately-equal' };
+    return `<table class="vgl-tab"><tr><th>${esc(this.t(b.alt_nr ? 'q_vgl' : 'q_vgl_vorher', { v: b.alt_nr }))}</th><th class="z">${esc(this.t('q_vgl_neu', { v: nr }))}</th><th class="z">${esc(b.alt_nr ? 'v' + b.alt_nr : this.t('q_vgl_alt'))}</th><th class="z"></th></tr>${vg.zeilen.map((z) => `<tr class="${z.wichtig ? 'wichtig' : ''}"><td>${esc(name(z))}</td><td class="z">${z.kennzahl.endsWith('_bei_fa') && z.neu == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.neu)}</td><td class="z">${z.kennzahl.endsWith('_bei_fa') && z.alt == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.alt)}</td><td class="z"><ha-icon class="u-${z.urteil}" icon="${icon[z.urteil]}" title="${esc(this.t('u_' + z.urteil))}"></ha-icon></td></tr>`).join('')}</table>
+<div class="klein" style="margin-top:6px">${esc(this.t('q_vgl_basis', { n: vg.testaufnahmen, h: this._zahl(vg.stunden_rede, 1), g: this._zahl(vg.stunden_geraeusch, 1) }))}</div>`;
+  }
+
+  _vergleich(x) {
+    const b = x.bericht || {}, vg = b.vergleich;
     const kopf = this._urteilZeile(b);
-    const tab = vg ? `<table class="vgl-tab"><tr><th>${esc(this.t(b.alt_nr ? 'q_vgl' : 'q_vgl_vorher', { v: b.alt_nr }))}</th><th class="z">${esc(this.t('q_vgl_neu', { v: x.nr }))}</th><th class="z">${esc(b.alt_nr ? 'v' + b.alt_nr : this.t('q_vgl_alt'))}</th><th class="z"></th></tr>${vg.zeilen.map((z) => `<tr class="${z.wichtig ? 'wichtig' : ''}"><td>${esc(name(z))}</td><td class="z">${z.kennzahl.endsWith('_bei_fa') && z.neu == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.neu)}</td><td class="z">${z.kennzahl.endsWith('_bei_fa') && z.alt == null ? esc(this.t('q_nicht_erreicht')) : wert(z.kennzahl, z.alt)}</td><td class="z"><ha-icon class="u-${z.urteil}" icon="${icon[z.urteil]}" title="${esc(this.t('u_' + z.urteil))}"></ha-icon></td></tr>`).join('')}</table>
-<div class="klein" style="margin-top:6px">${esc(this.t('q_vgl_basis', { n: vg.testaufnahmen, h: this._zahl(vg.stunden_rede, 1), g: this._zahl(vg.stunden_geraeusch, 1) }))}</div>` : '';
+    const tab = this._vglTabelle(b, x.nr);
     const kand = b.kandidaten ? `<div class="klein" style="margin-top:8px">${esc(this._kandidatText(b.kandidaten))}</div>` : '';
     const raum = b.raumklang ? `<div class="klein" style="margin-top:6px"><ha-icon icon="mdi:home-sound-out" style="--mdc-icon-size:16px;vertical-align:-3px"></ha-icon> ${esc(this.t('rk_bericht', { n: b.raumklang }))}</div>` : '';
     return kopf + this._duell(b, x.nr) + tab + kand + raum;
@@ -2515,11 +2538,14 @@ ${this._vglFrei(w)}`;
     const nr = a.nr, duell = this._duell(bericht, nr, false);
     const na = bericht.neu || {}, nb = bericht.alt || {};
     const zeile = (titel, ka, kb, f) => `<tr><td>${esc(titel)}</td><td class="z">${f(ka)}</td><td class="z">${f(kb)}</td></tr>`;
-    const pct = (x) => this._pct(x);
+    const pct = (x) => this._pct(x), schw = (n) => fair.a === n ? fair.cutoff : (fair.alt || {}).cutoff;
+    // a sure verdict against the active version: the better one can be rolled out right here
+    const vg = sicher ? bericht.vergleich : null;
+    const besser = !vg ? null : vg.urteil === 'besser' && b.nr === w.aktiv ? a.nr : vg.urteil === 'schlechter' && a.nr === w.aktiv ? b.nr : null;
     const tab = `<table class="vgl-tab"><tr><th></th><th class="z">v${a.nr}</th><th class="z">v${b.nr}</th></tr>
 ${zeile(this.t('vf_ruhig'), na.trefferquote, nb.trefferquote, pct)}
-${fair ? '' : zeile(this.t('vf_schwelle'), a.bericht.cutoff, b.bericht.cutoff, (x) => x == null ? '–' : this._zahl(x))}${fair ? '' : zeile(this.t('vf_testaufnahmen'), a.bericht.test_positiv, b.bericht.test_positiv, (x) => x == null ? '–' : String(x))}</table>`;
-    return `${bericht.vergleich ? this._vglUrteil(bericht.vergleich, a.nr, b.nr) : ''}<div class="klein vf-hinweis ${sicher ? '' : 'grob'}"><ha-icon icon="${sicher ? 'mdi:check-decagram-outline' : 'mdi:information-outline'}"></ha-icon><span>${esc(hinweis)}</span></div>${duell}${tab}${this._vglFairKnopf(w, a, b, fair)}`;
+${zeile(this.t('vf_schwelle'), fair ? schw(a.nr) : a.bericht.cutoff, fair ? schw(b.nr) : b.bericht.cutoff, (x) => x == null ? '–' : this._zahl(x))}${fair ? '' : zeile(this.t('vf_testaufnahmen'), a.bericht.test_positiv, b.bericht.test_positiv, (x) => x == null ? '–' : String(x))}</table>`;
+    return `${bericht.vergleich ? this._vglUrteil(bericht.vergleich, a.nr, b.nr) : ''}<div class="klein vf-hinweis ${sicher ? '' : 'grob'}"><ha-icon icon="${sicher ? 'mdi:check-decagram-outline' : 'mdi:information-outline'}"></ha-icon><span>${esc(hinweis)}</span></div>${duell}${tab}${this._vglFairKnopf(w, a, b, fair, besser)}`;
   }
 
   // the verdict in plain words for any pair (the run's own line speaks of taking a version over)
@@ -2531,14 +2557,15 @@ ${fair ? '' : zeile(this.t('vf_schwelle'), a.bericht.cutoff, b.bericht.cutoff, (
     return `<div class="vgl-urteil u-${vg.urteil}"><ha-icon icon="${icon[vg.urteil] || 'mdi:information'}"></ha-icon><span>${esc(text)}</span></div>`;
   }
 
-  _vglFairKnopf(w, a, b, fair) {
+  _vglFairKnopf(w, a, b, fair, besser = null) {
     if (!this._admin) return '';
+    const rein = besser != null ? `<button class="k haupt" data-a="einspielen" data-nr="${besser}"><ha-icon icon="mdi:upload"></ha-icon>${esc(this.t('vf_einspielen', { n: besser }))}</button>` : '';
     const t = w.training || {}, v = t.vergleich, aktiv = LAEUFT.includes(t.phase) || t.phase === 'wartet';
     if (aktiv && v && ((v.a === a.nr && v.b === b.nr) || (v.a === b.nr && v.b === a.nr))) {
-      return `<div class="vf-fuss"><span class="klein"><ha-icon icon="mdi:timer-sand"></ha-icon> ${esc(this.t(t.phase === 'wartet' ? 'vf_wartet' : 'vf_laeuft_jetzt', { a: v.a, b: v.b }))}</span><button class="link" data-reiter="training">${esc(this.t('vf_zum_training'))}<ha-icon icon="mdi:chevron-right"></ha-icon></button></div>`;
+      return `<div class="vf-fuss">${rein}<span class="klein"><ha-icon icon="mdi:timer-sand"></ha-icon> ${esc(this.t(t.phase === 'wartet' ? 'vf_wartet' : 'vf_laeuft_jetzt', { a: v.a, b: v.b }))}</span><button class="link" data-reiter="training">${esc(this.t('vf_zum_training'))}<ha-icon icon="mdi:chevron-right"></ha-icon></button></div>`;
     }
     const grund = !w.kann_vergleichen ? this.t('vf_trainer_alt') : aktiv ? this.t('vf_belegt') : '';
-    return `<div class="vf-fuss"><button class="k ${fair ? '' : 'haupt'}" data-a="vgl_fair" ${grund ? 'disabled' : ''}><ha-icon icon="mdi:scale-balance"></ha-icon>${esc(this.t(fair ? 'vf_neu_testen' : 'vf_fair_testen'))}</button><span class="klein">${esc(grund || this.t('vf_fair_hilfe'))}</span></div>`;
+    return `<div class="vf-fuss">${rein}<button class="k ${fair || rein ? '' : 'haupt'}" data-a="vgl_fair" ${grund ? 'disabled' : ''}><ha-icon icon="mdi:scale-balance"></ha-icon>${esc(this.t(fair ? 'vf_neu_testen' : 'vf_fair_testen'))}</button><span class="klein">${esc(grund || this.t('vf_fair_hilfe'))}</span></div>`;
   }
 
   _vglFreiNeu() {

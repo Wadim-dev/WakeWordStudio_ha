@@ -596,8 +596,9 @@ class Lauf:
     def _ausfuehren_lauf(self) -> None:
         self.ordner.mkdir(parents=True, exist_ok=True)
         b = beschleuniger()
-        self.notiz("Training on the graphics card " + str(b.get("name") or "") if self.geraet == "gpu" else
-                   "Training on the processor" + (" (chosen in the studio)" if b.get("gpu") else
+        art = "Fair test, no training:" if self.auftrag.get("vergleich") else "Training"
+        self.notiz(f"{art} on the graphics card " + str(b.get("name") or "") if self.geraet == "gpu" else
+                   f"{art} on the processor" + (" (chosen in the studio)" if b.get("gpu") else
                                                   f" (graphics card not usable: {b.get('grund')})" if b.get("bild") == "gpu" else ""))
         self._abschnitt("vorbereiten", 0, "grunddaten", True)
         g = Grunddaten(self.daten, lambda s: (self._pruefen(), self._abschnitt("vorbereiten", 0.3, s, True)))
@@ -615,7 +616,7 @@ class Lauf:
             raise RuntimeError(f"No voice for language {self.sprache}")
 
         echt = self._echte_aufnahmen()
-        tts = self._stimmen(stimmen, gerede)
+        tts = self._stimmen(stimmen, gerede, nur_test=bool(self.auftrag.get("vergleich")))
         if self.auftrag.get("vergleich"):
             self._vergleichen(dict(self.auftrag["vergleich"]), echt, tts, bg, gerede, rir)
             return
@@ -808,7 +809,10 @@ class Lauf:
 
     # --- kuenstliche Stimmen ------------------------------------------------
 
-    def _stimmen(self, stimmen: dict[str, list[Path]], gerede: dict[str, Path]) -> dict[str, Path]:
+    def _stimmen(self, stimmen: dict[str, list[Path]], gerede: dict[str, Path],
+                 nur_test: bool = False) -> dict[str, Path]:
+        """nur_test: a fair comparison trains nothing, so only the two held-out test sets are made (if they are
+        missing) and no new training voices; the test sets are the same ones a training run builds."""
         eigen = [str(p) for p in stimmen[self.sprache]]
         halte = eigen[-1]
         lernen = eigen[:-1] or eigen
@@ -825,7 +829,7 @@ class Lauf:
         w = self.wort
         pos_texte = sorted({w, w + "!", w + "?", w + ".", w.lower(), w.capitalize(), w + ", "})
         aehnlich = self._aehnlich_pruefen(aehnliche_woerter(w), lernen)
-        saetze = self._saetze(gerede)
+        saetze = [] if nur_test else self._saetze(gerede)
         aufgaben = [
             ("pos_eigen", POS_EIGEN, pos_texte, lernen, None),
             *[(f"pos_fremd_{i}", POS_FREMD, pos_texte, [v], eigen[0]) for i, v in enumerate(fremd)],
@@ -834,12 +838,12 @@ class Lauf:
             ("test_pos", HALTE_TEST, pos_texte, [halte], None),
             ("test_neg", HALTE_TEST, aehnlich, [halte], None),
         ]
-        gesamt = sum(a[1] for a in aufgaben)
+        machen = [a for a in aufgaben if not nur_test or a[0].startswith("test_")]
+        gesamt = sum(a[1] for a in machen)
         erledigt = 0
-        aus = {}
-        for name, anzahl, texte, voices, lautschrift in aufgaben:
-            ziel = basis / name
-            aus[name] = ziel
+        aus = {a[0]: basis / a[0] for a in aufgaben}
+        for name, anzahl, texte, voices, lautschrift in machen:
+            ziel = aus[name]
             if len(self._wavs(ziel)) < anzahl:  # new, or more clips wanted than last time: it resumes
                 von, bis = erledigt / gesamt, (erledigt + anzahl) / gesamt
                 self._werkzeug_sicher("tts", {"ziel": str(ziel), "anzahl": anzahl, "texte": texte, "stimmen": voices,
@@ -847,6 +851,8 @@ class Lauf:
                                "stimmen", von, bis, "stimmen")
             erledigt += anzahl
         (basis / "aehnlich.txt").write_text("\n".join(aehnlich), encoding="utf-8")
+        if nur_test:
+            return {**aus, "omni_pos": basis / "omni" / "pos", "omni_neg": basis / "omni" / "neg"}
         aus.update(self._omni(basis, pos_texte, aehnlich + saetze[:300]))
         return aus
 
