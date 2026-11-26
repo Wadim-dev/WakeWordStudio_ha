@@ -18,6 +18,7 @@
 
 <p align="center">
   <a href="https://github.com/Wadim-dev/WakeWordStudio_ha/releases"><img src="https://img.shields.io/github/v/release/Wadim-dev/WakeWordStudio_ha?style=flat-square&color=7c5cff" alt="Release"></a>
+  <a href="https://hacs.xyz"><img src="https://img.shields.io/badge/HACS-default-41bdf5?style=flat-square" alt="In the HACS default list"></a>
   <a href="https://github.com/Wadim-dev/WakeWordStudio_ha/actions/workflows/validate.yml"><img src="https://img.shields.io/github/actions/workflow/status/Wadim-dev/WakeWordStudio_ha/validate.yml?branch=main&label=checks&style=flat-square" alt="Checks"></a>
   <a href="custom_components/sprachmodell/quality_scale.yaml"><img src="https://img.shields.io/badge/quality%20scale-platinum-e5e4e2?style=flat-square" alt="Quality scale: Platinum"></a>
   <img src="https://img.shields.io/badge/100%25-local-00a37a?style=flat-square" alt="100 % local">
@@ -48,7 +49,7 @@
 
 ## Get started in 3 steps
 
-1. **Install** – tap the *Marketplace* button above, install **Wake Word Studio** and restart Home Assistant.
+1. **Install** – Wake Word Studio is in the default list of HACS: tap the *Marketplace* button above (or search for *Wake Word Studio* there), install it and restart Home Assistant.
 2. **Add the integration** – *Settings → Devices & services → Add integration → Wake Word Studio*. Confirm the storage folder (default `/share/sprachmodell`, part of your backups).
 3. **Open Wake Word Studio** in the sidebar, create your word, choose the devices – done. Start a trainer from *Settings → Trainer* (one click as app, or one line for Docker/Proxmox).
 
@@ -308,7 +309,7 @@ Diagnostics (*Settings → Devices & services → Wake Word Studio → ⋮ → D
 
 **Wake Word Studio** macht aus Home Assistant eine Werkstatt für eigene Aktivierungswörter: beliebig viele Wörter in jeder Sprache, Geräte und Platz frei wählbar, Aufnahmen mit einem Tipp prüfen, im Browser aufnehmen oder Zips hochladen, nachts trainieren, ehrlich testen und nur bessere Versionen von selbst einspielen. Die ganze Oberfläche gibt es auf Deutsch.
 
-1. Über den Marketplace installieren und Home Assistant neu starten.
+1. Über den Marketplace installieren (Wake Word Studio steht in der Standardliste von HACS, einfach danach suchen) und Home Assistant neu starten.
 2. *Einstellungen → Geräte & Dienste → Integration hinzufügen → Wake Word Studio*, Ablageordner bestätigen (später änderbar über *Neu konfigurieren*, die Daten ziehen mit um).
 3. **Wake Word Studio** in der Seitenleiste öffnen, Wort anlegen, Geräte wählen, Trainer starten (App, Proxmox, Windows-PC oder Linux – *Einstellungen → Trainer → Trainer einrichten* zeigt die Schritte und einen Befehl zum Kopieren).
 
