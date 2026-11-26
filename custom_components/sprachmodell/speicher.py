@@ -464,6 +464,8 @@ class Speicher:
 
     def aufraeumen(self, tage_unbewertet: int) -> int:
         """Unbewertete Geraete-Aufnahmen nach N Tagen, verworfene sofort von der Platte."""
+        if not isinstance(tage_unbewertet, int) or tage_unbewertet < 1:
+            return 0  # never "everything": the caller checks the setting, this is the last guard
         grenze = time.time() - tage_unbewertet * 86400
         weg = [
             a["id"] for a in self.daten["aufnahmen"].values()

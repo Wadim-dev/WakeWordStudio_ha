@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.50
+Hardening after the HACS review. Nothing changes in how you use the studio.
+- **Settings are checked before they are stored.** The server now validates every setting of a request (time as HH:MM, whole numbers within the ranges the panel shows, colour as a hex colour, switches as on/off, names and device lists with length limits) and refuses the whole request if one value is wrong, so nothing half-valid is ever stored. An emptied time field can no longer stop the integration from loading, and an emptied *keep unreviewed recordings* field can no longer become 0 days and delete recordings: the clean-up never uses fewer than 7 days, and settings stored by an older version fall back to the default when Home Assistant starts. The panel does not send an empty or out-of-range field at all; the old value comes back with a note.
+- **Everything shown in the panel is escaped or forced to a number.** That includes progress, versions and report figures from a trainer, days, counts, colours and names. A test now replaces every single value the server sends with markup, page by page, and fails if any of it becomes an element or attribute.
+- **Trainer status is filtered on the server:** only the known keys with their types are kept (phase, progress 0–100, step, time left, trainer info); reports are limited in depth, length and text size.
+- **No disk access on the event loop:** the file checks before sending a recording, a room response or a model, the version check before a fair test and the default folder lookup now run in the executor. The test suite fails if integration code touches the disk on the loop.
+- Free text from requests (person, note, heard text) is length-limited; thresholds must be real numbers within range.
+- No trainer update needed.
+
 ## 1.0.49
 - **A fair test now counts in the version list** (discussion #63): when a fair test compared a version with the active one, its state in the list follows that test (*better*, *as good* or *worse*, each marked *fair test*) instead of the older comparison from the training run. The details show the fair test first, with all its rows including *Real false wakes of your devices*, and the comparison from the training run below it.
 - **Roll out right from the comparison:** when the fair test (or a run that measured both) says the other version is really better than the active one, *Compare versions* offers *Roll out vN*, and the button in the version list is highlighted. Nothing is rolled out by itself after a fair test: *Roll out a better version by itself* keeps applying to training runs only.

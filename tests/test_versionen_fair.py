@@ -55,19 +55,19 @@ async def zwei(hass: HomeAssistant, eintrag):
 async def test_vergleich_starten(hass: HomeAssistant, zwei) -> None:
     z, w = zwei
     with pytest.raises(ValueError, match="gleiche_version"):
-        z.vergleich_starten(w, 1, 1)
+        await z.vergleich_starten(w, 1, 1)
     with pytest.raises(ValueError, match="version_fehlt"):
-        z.vergleich_starten(w, 1, 9)
+        await z.vergleich_starten(w, 1, 9)
     z.trainer_meldet({"info": {"version": "1.0.39"}}, "alt")
     with pytest.raises(ValueError, match="trainer_zu_alt"):
-        z.vergleich_starten(w, 2, 1)
+        await z.vergleich_starten(w, 2, 1)
     z.trainer_meldet({"info": {"version": VERGLEICH_AB}}, "neu")
-    z.vergleich_starten(w, 2, 1)
+    await z.vergleich_starten(w, 2, 1)
     assert w.speicher.daten["auftrag"]["vergleich"] == {"a": 2, "b": 1}
     t = w.speicher.daten["training"]
     assert t["phase"] == "wartet" and t["vergleich"] == {"a": 2, "b": 1} and t["grund"] == "vergleich"
     with pytest.raises(ValueError, match="laeuft_schon"):
-        z.vergleich_starten(w, 1, 2)
+        await z.vergleich_starten(w, 1, 2)
     # the trainer restarts mid-test: queued again as the same comparison, not as a training
     w.speicher.daten["training"].update({"phase": "test", "aktualisiert": (datetime.now(UTC) - timedelta(minutes=30)).isoformat()})
     z._verlorene_laeufe()
@@ -87,7 +87,7 @@ async def test_vergleich_api(hass: HomeAssistant, hass_client_no_auth, zwei) -> 
     alt, neu = {**kopf, "X-Sprachmodell-Trainer": "alt"}, {**kopf, "X-Sprachmodell-Trainer": "neu"}
     await client.post("/api/sprachmodell/trainer/status", headers=alt, json={"info": {"version": "1.0.39"}})
     await client.post("/api/sprachmodell/trainer/status", headers=neu, json={"info": {"version": VERGLEICH_AB}})
-    z.vergleich_starten(w, 2, 1)
+    await z.vergleich_starten(w, 2, 1)
     await z.einstellungen_setzen({"trainer_wahl": "alt"})
     # an older trainer would train instead of comparing: it does not get the job
     d = await (await client.get("/api/sprachmodell/trainer/auftrag", headers=alt)).json()

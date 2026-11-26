@@ -84,13 +84,15 @@ class SprachmodellConfigFlow(ConfigFlow, domain=DOMAIN):
             if not (problem := await self.hass.async_add_executor_job(ordner_pruefen, ordner, self.hass.config.config_dir)):
                 return self.async_create_entry(title=NAME, data={CONF_ORDNER: ordner})
             fehler[CONF_ORDNER] = problem
-        vorschlag = (user_input or {}).get(CONF_ORDNER) or ablage_standard(self.hass)
+        vorschlag = str((user_input or {}).get(CONF_ORDNER) or await self.hass.async_add_executor_job(
+            ablage_standard, self.hass))
         return self.async_show_form(step_id="user", data_schema=_schema(vorschlag), errors=fehler)
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Choose another storage folder; the data moves along."""
         entry = self._get_reconfigure_entry()
-        alt = os.path.normpath(entry.data.get(CONF_ORDNER) or ablage_standard(self.hass))
+        alt = os.path.normpath(str(
+            entry.data.get(CONF_ORDNER) or await self.hass.async_add_executor_job(ablage_standard, self.hass)))
         fehler: dict[str, str] = {}
         if user_input is not None:
             neu = os.path.normpath(str(user_input[CONF_ORDNER]).strip())

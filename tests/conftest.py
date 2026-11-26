@@ -135,3 +135,62 @@ def geraet(hass: HomeAssistant):
     def machen(knoten: str = "kueche", name: str = "Kitchen", **kw: Any) -> Geraet:
         return Geraet(hass, knoten, name, **kw)
     return machen
+
+
+# --- no disk access on the event loop ---------------------------------------
+
+_PLATTE: list[str] = []
+
+
+@pytest.fixture(autouse=True)
+def keine_platte_in_der_schleife(hass: HomeAssistant, monkeypatch):
+    """Fail a test if the integration looks at or touches the disk on the event loop (os.path.isfile, open ...).
+
+    Tests may call the storage classes directly; only calls that start in a coroutine or callback of the
+    integration count, as they would run on the loop in Home Assistant too.
+    """
+    import builtins
+    import inspect
+    import os
+    import shutil
+    import sys
+    import threading
+
+    schleife = threading.get_ident()
+    teil = os.sep + os.path.join("custom_components", "sprachmodell") + os.sep
+    del _PLATTE[:]
+
+    def wache(modul: Any, name: str) -> None:
+        echt = getattr(modul, name)
+
+        def ersatz(*args: Any, **kwargs: Any) -> Any:
+            if threading.get_ident() == schleife:
+                rahmen = sys._getframe(1)
+                aussen = None  # the integration frame closest to the loop or the test
+                kette = []
+                while rahmen is not None:
+                    datei = rahmen.f_code.co_filename
+                    if teil in datei:
+                        aussen = rahmen
+                        kette.append(f"{os.path.basename(datei)}:{rahmen.f_code.co_name}")
+                    rahmen = rahmen.f_back
+                if aussen is not None:
+                    vom_test = aussen.f_back is not None and os.sep + "tests" + os.sep in aussen.f_back.f_code.co_filename
+                    asynchron = bool(aussen.f_code.co_flags & inspect.CO_COROUTINE)
+                    if asynchron or not vom_test:
+                        _PLATTE.append(f"{getattr(modul, '__name__', modul)}.{name} <- {' <- '.join(kette[:4])}")
+            return echt(*args, **kwargs)
+
+        monkeypatch.setattr(modul, name, ersatz)
+
+    for name in ("isfile", "isdir", "exists", "getsize", "getmtime"):
+        wache(os.path, name)
+    for name in ("listdir", "makedirs", "remove", "replace", "scandir"):
+        wache(os, name)
+    for name in ("rmtree", "copyfile", "copytree", "copy2"):
+        wache(shutil, name)
+    wache(builtins, "open")
+    yield
+    gefunden = sorted(set(_PLATTE))
+    del _PLATTE[:]
+    assert not gefunden, "disk access on the event loop:\n" + "\n".join(gefunden)

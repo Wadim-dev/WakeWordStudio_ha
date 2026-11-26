@@ -108,7 +108,7 @@ async def test_alter_trainer_und_speichern(hass: HomeAssistant, geladen) -> None
     z.trainer_meldet({"info": {**PROXMOX, "swap_belegt_gb": 1}}, "neu1")
     assert list(z.trainer) == ["neu1"]
     await z.trainer_einstellen("neu1", pause=True)
-    await hass.async_block_till_done()
+    await hass.async_block_till_done(wait_background_tasks=True)  # every pending save is on disk before the list is cleared
     assert z.daten["trainer"]["neu1"]["info"].get("swap_belegt_gb") is None  # changing values are not stored
     z.trainer.clear()
     await hass.async_add_executor_job(z._laden)

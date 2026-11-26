@@ -220,7 +220,7 @@ export const TEXTE = {
     v_auto: 'Automatisch bestätigt',
     
     f_schnitt_zu_kurz: 'Die Auswahl ist zu kurz (mindestens 0,2 s).', f_aufnahme_fehlt: 'Die Aufnahme gibt es nicht mehr.',
-    f_schon_da: 'Diese Aufnahme liegt dort schon.', f_gleiches_wort: 'Das ist schon dieses Wort.',
+    f_einstellung_ungueltig: 'Dieser Wert ist nicht erlaubt. Es bleibt beim alten.', f_schwelle_bereich: 'Die Schwelle muss zwischen 0,50 und 0,99 liegen.', f_schon_da: 'Diese Aufnahme liegt dort schon.', f_gleiches_wort: 'Das ist schon dieses Wort.',
     pr_anderes: 'Anderes Wort', pr_anderes_t: 'Jemand hat ein anderes deiner Wörter gesagt: dort als Treffer zählen', pr_welches: 'Welches Wort wurde gesagt?',
     pr_anderes_hilfe: 'Dort zählt die Aufnahme als Treffer, hier als „nicht gesagt“ (das Gerät hat bei „{w}“ falsch reagiert). Zuschnitt und Person kommen mit.',
     pr_zu_wort: 'Zu „{w}“', pr_zu_wort_ok: 'Bei „{w}“ als Treffer gespeichert, hier als „nicht gesagt“.', pr_zu_wort_marke: 'zählt bei „{w}“ als Treffer',
@@ -434,7 +434,7 @@ export const TEXTE = {
     v_auto: 'Confirmed automatically',
     
     f_schnitt_zu_kurz: 'The selection is too short (at least 0.2 s).', f_aufnahme_fehlt: 'This recording no longer exists.',
-    f_schon_da: 'This recording is already there.', f_gleiches_wort: 'That is this word already.',
+    f_einstellung_ungueltig: 'This value is not allowed. The old one stays.', f_schwelle_bereich: 'The threshold must be between 0.50 and 0.99.', f_schon_da: 'This recording is already there.', f_gleiches_wort: 'That is this word already.',
     pr_anderes: 'Other word', pr_anderes_t: 'Someone said another of your words: count it there as a hit', pr_welches: 'Which word was said?',
     pr_anderes_hilfe: 'It counts as a hit there and as “not said” here (the device reacted wrongly for “{w}”). Trim and person go along.',
     pr_zu_wort: 'To “{w}”', pr_zu_wort_ok: 'Saved as a hit for “{w}”, here as “not said”.', pr_zu_wort_marke: 'counts as a hit for “{w}”',
