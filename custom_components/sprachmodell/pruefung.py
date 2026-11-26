@@ -10,7 +10,7 @@ import math
 import re
 from typing import Any
 
-from .const import SPRACHEN, STANDARD_WORT, STANDARD_ZENTRALE
+from .const import BEINAHE_GRENZE_MAX, BEINAHE_GRENZE_MIN, SPRACHEN, STANDARD_WORT, STANDARD_ZENTRALE
 
 UHRZEIT = re.compile(r"([01]\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?")
 FARBE = re.compile(r"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})")
@@ -148,6 +148,10 @@ def wort(neu: dict[str, Any]) -> dict[str, Any]:
             aus[k] = dict(v)
         elif k == "farbe":
             aus[k] = farbe(v)
+        elif k == "beinahe_grenze":
+            if isinstance(v, bool) or not isinstance(v, int | float) or not BEINAHE_GRENZE_MIN <= v <= BEINAHE_GRENZE_MAX:
+                raise Ungueltig  # NaN fails the comparison too
+            aus[k] = round(float(v), 2)
         elif k in SCHALTER_WORT:
             aus[k] = _schalter(v)
     return aus

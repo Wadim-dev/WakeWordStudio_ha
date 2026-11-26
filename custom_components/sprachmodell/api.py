@@ -711,7 +711,7 @@ class TrainerGehoert(_TrainerAnsicht):
         hass = request.app[KEY_HASS]
         n = await hass.async_add_executor_job(
             wort.speicher.gehoert_setzen, {str(k)[:80]: str(v)[:300] for k, v in list(ergebnisse.items())[:2000]}, wort.wort,
-            bool(wort.cfg.get("vorpruefen")))
+            bool(wort.cfg.get("vorpruefen")), wort.beinahe_grenze(), bool(wort.cfg.get("beinahe_sofort")))
         z.geaendert()
         z.erinnern()
         return self.json({"bestaetigt": n})

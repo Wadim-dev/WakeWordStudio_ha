@@ -27,7 +27,7 @@ import wave
 import zipfile
 
 from .bausteine import KeinModell, fehlende_bausteine
-from .const import BEINAHE_AUTO_UNTER, KEIN_WORT, NAME, REPO, URTEILE, VERWORFEN, WORT
+from .const import BEINAHE_AUTO_UNTER, BEINAHE_SOFORT_NACH_S, KEIN_WORT, NAME, REPO, URTEILE, VERWORFEN, WORT
 
 DATEI = "daten.json"
 VERSION = 1
@@ -131,13 +131,22 @@ def wort_aehnlich(gehoert: str, wort: str) -> bool:
     return any(difflib.SequenceMatcher(None, w, x).ratio() >= 0.6 for x in kandidaten)
 
 
-def beinahe_nicht(a: dict[str, Any], wort: str) -> bool:
-    """An open near miss from a device, well below the threshold, in which speech recognition heard neither the
-    word nor anything like it: not the word (pre-review marks it auto, you can change it in History)."""
+def beinahe_nicht(a: dict[str, Any], wort: str, grenze: float = BEINAHE_AUTO_UNTER, sofort: bool = False) -> bool:
+    """An open near miss from a device with a score below the limit that the pre-review settles as "not said"
+    (marked auto, you can change it in History).
+
+    Default: only once speech recognition listened and heard neither the word nor anything like it.
+    sofort: without waiting for speech recognition, also when something similar was heard. Left for you even
+    then: a near miss right before a real wake (the word was probably said), one in which the word itself was
+    heard, and one so fresh that the wake after it may not have arrived yet."""
     score = a.get("score")
-    return (not a.get("urteil") and a.get("quelle") == "echo" and a.get("art") == "nearmiss"
-            and isinstance(score, int | float) and score < BEINAHE_AUTO_UNTER and "gehoert" in a
-            and not wort_gehoert(a["gehoert"], wort) and not wort_aehnlich(a["gehoert"], wort))
+    if (a.get("urteil") or a.get("quelle") != "echo" or a.get("art") != "nearmiss"
+            or isinstance(score, bool) or not isinstance(score, int | float) or not score < grenze):
+        return False
+    if sofort:
+        return (a.get("grund") != "verpasst" and not wort_gehoert(a.get("gehoert") or "", wort)
+                and time.time() - _zeit(a.get("zeit")) >= BEINAHE_SOFORT_NACH_S)
+    return "gehoert" in a and not wort_gehoert(a["gehoert"], wort) and not wort_aehnlich(a["gehoert"], wort)
 
 
 def wav_dauer(daten: bytes) -> float:
@@ -339,7 +348,8 @@ class Speicher:
         offen.sort(key=lambda a: _zeit(a["zeit"]), reverse=True)
         return [a["id"] for a in offen[:anzahl]]
 
-    def gehoert_setzen(self, ergebnisse: dict[str, str], wort: str, bestaetigen: bool) -> int:
+    def gehoert_setzen(self, ergebnisse: dict[str, str], wort: str, bestaetigen: bool,
+                       grenze: float = BEINAHE_AUTO_UNTER, sofort: bool = False) -> int:
         """Store what the speech recognition heard. With bestaetigen: an open recording in which the word was
         clearly heard counts as "said the word" (marked auto, so you can see and change it). Returns how many."""
         n = 0
@@ -353,14 +363,14 @@ class Speicher:
                     a["urteil"], a["bewertet"], a["auto"] = WORT, jetzt(), True
                     n += 1
             self.speichern()
-        return n + (self.beinahe_nachziehen(wort) if bestaetigen else 0)
+        return n + (self.beinahe_nachziehen(wort, grenze, sofort) if bestaetigen else 0)
 
-    def beinahe_nachziehen(self, wort: str) -> int:
-        """Mark open low near misses without the word as "not said" (auto). Returns how many."""
+    def beinahe_nachziehen(self, wort: str, grenze: float = BEINAHE_AUTO_UNTER, sofort: bool = False) -> int:
+        """Mark open near misses below the limit as "not said" (auto), see beinahe_nicht. Returns how many."""
         n = 0
         with self._sperre:
             for a in self.daten["aufnahmen"].values():
-                if beinahe_nicht(a, wort):
+                if beinahe_nicht(a, wort, grenze, sofort):
                     a["urteil"], a["bewertet"], a["auto"] = KEIN_WORT, jetzt(), True
                     n += 1
             if n:

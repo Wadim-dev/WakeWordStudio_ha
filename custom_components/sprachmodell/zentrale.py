@@ -36,6 +36,9 @@ from homeassistant.util import slugify
 from . import pruefung
 from .bausteine import KeinModell, fehlende_bausteine
 from .const import (
+    BEINAHE_AUTO_UNTER,
+    BEINAHE_GRENZE_MAX,
+    BEINAHE_GRENZE_MIN,
     BILD_MANIFEST,
     BILD_PRUEFEN_S,
     BILD_TOKEN,
@@ -211,6 +214,20 @@ class Wort:
         """Knoten -> Platz ("1"/"2")."""
         return {str(k): str(v) for k, v in (self.cfg.get("geraete") or {}).items() if str(v) in ("1", "2")}
 
+    def beinahe_grenze(self) -> float:
+        """Near misses below this score are settled by the pre-review (setting of the word, kept within range)."""
+        try:
+            return max(BEINAHE_GRENZE_MIN, min(BEINAHE_GRENZE_MAX, float(self.cfg.get("beinahe_grenze"))))  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return BEINAHE_AUTO_UNTER
+
+    def beinahe_nachziehen(self) -> int:
+        """Let the pre-review settle the near misses the settings of this word leave to it. Writes to disk when
+        something changed: call it in the executor. Returns how many."""
+        if not self.cfg.get("vorpruefen"):
+            return 0
+        return self.speicher.beinahe_nachziehen(self.wort, self.beinahe_grenze(), bool(self.cfg.get("beinahe_sofort")))
+
     def aktive_version(self) -> dict[str, Any] | None:
         nr = self.speicher.daten.get("aktiv")
         return self.speicher.version(nr) if nr else None
@@ -297,8 +314,7 @@ class Zentrale:
             wort = Wort(self, wid, cfg)
             wort.speicher.laden()
             wort.speicher.vorschlaege()
-            if wort.cfg.get("vorpruefen"):
-                wort.speicher.beinahe_nachziehen(wort.wort)
+            wort.beinahe_nachziehen()
             self.woerter[wid] = wort
         for tid, t in (daten.get("trainer") or {}).items():
             try:
@@ -667,6 +683,10 @@ class Zentrale:
                 wort.cfg[k] = v
         self._geraete_freiraeumen(wort)
         await self.hass.async_add_executor_job(self.speichern)
+        if {"vorpruefen", "beinahe_grenze", "beinahe_sofort"} & set(geprueft):
+            # what comes to review changed: apply it to what is waiting right away
+            if await self.hass.async_add_executor_job(wort.beinahe_nachziehen):
+                self.erinnern()
         await self._nach_wortaenderung()
         return wort
 
@@ -800,7 +820,14 @@ class Zentrale:
         except Exception:
             _LOGGER.exception("Fetching recordings failed")
             return False
-        if neu:
+        # near misses the pre-review settles at once wait two minutes first (a wake may follow): catch up here
+        erledigt = 0
+        for wort in list(self.woerter.values()):
+            if wort.cfg.get("vorpruefen") and wort.cfg.get("beinahe_sofort"):
+                erledigt += await self.hass.async_add_executor_job(wort.beinahe_nachziehen)
+        if erledigt:
+            self.erinnern()
+        if neu or erledigt:
             self.geaendert()
         return True
 
