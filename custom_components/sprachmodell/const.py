@@ -48,6 +48,12 @@ STANDARD_WORT = {
     "schwelle_automatisch": True,
     # Speech recognition on the trainer listens to new device recordings and confirms those with the word
     "vorpruefen": True,
+    # What the pre-review settles by itself: near misses of a device with a score below this limit count as
+    # "not said" (marked auto) ...
+    "beinahe_grenze": 0.8,
+    # ... False: only once speech recognition heard neither the word nor anything like it. True: all of them at
+    # once, without waiting for speech recognition (for words with plenty of reviewed recordings)
+    "beinahe_sofort": False,
     # "Thorough": train three candidates per run and keep the best (a run takes about two to three times as long)
     "gruendlich": False,
     # With "thorough": also one model that averages the candidates (fewer false wakes, but it needs about three
@@ -126,6 +132,11 @@ SCHWELLE_MIN = 0.5  # lowest threshold you can set by hand
 VORPRUEFEN_JE_MAL = 40
 # pre-review: a near miss below this score in which speech recognition did not hear the word counts as "not said"
 BEINAHE_AUTO_UNTER = 0.8
+# range of the setting "settle near misses below" (the highest equals the highest threshold a device can have)
+BEINAHE_GRENZE_MIN = 0.5
+BEINAHE_GRENZE_MAX = 0.99
+# with "all at once": a near miss waits this long first, a wake right after it means the word was said
+BEINAHE_SOFORT_NACH_S = 120
 
 # Version of the trainer this studio works with (sprachmodell_trainer/: config.yaml and trainer/__init__.py). It only
 # moves when the trainer itself changes, so a release that only changes the studio does not ask for a trainer restart.

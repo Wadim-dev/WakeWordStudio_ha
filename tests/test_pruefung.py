@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from typing import Any
+from unittest.mock import patch
 
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
@@ -207,3 +208,77 @@ async def test_null_tage_loescht_keine_aufnahmen(hass: HomeAssistant, geladen) -
         assert {"frisch", "sechs"} <= set(w.speicher.daten["aufnahmen"])
     assert w.speicher.aufraeumen(0) == 0 and w.speicher.aufraeumen(-3) == 0
     assert {"frisch", "sechs"} <= set(w.speicher.daten["aufnahmen"])
+
+
+@pytest.mark.parametrize("wert", [0.49, 1.0, 0, -1, "0.8", None, True, float("nan"), float("inf"), MARKUP])
+def test_beinahe_grenze_abgelehnt(wert: Any) -> None:
+    with pytest.raises(pruefung.Ungueltig):
+        pruefung.wort({"beinahe_grenze": wert})
+
+
+def test_beinahe_grenze_erlaubt() -> None:
+    assert pruefung.wort({"beinahe_grenze": 0.9, "beinahe_sofort": True}) == {"beinahe_grenze": 0.9, "beinahe_sofort": True}
+    assert pruefung.wort({"beinahe_grenze": 0.5}) == {"beinahe_grenze": 0.5} and pruefung.wort({"beinahe_grenze": 0.99}) == {"beinahe_grenze": 0.99}
+    assert pruefung.wort({"beinahe_grenze": 0.8749}) == {"beinahe_grenze": 0.87}
+    with pytest.raises(pruefung.Ungueltig):
+        pruefung.wort({"beinahe_sofort": "ja"})
+    assert pruefung.gespeichert_wort({"beinahe_grenze": 7, "beinahe_sofort": 1}) == {}
+
+
+async def test_was_zur_pruefung_kommt(hass: HomeAssistant, geladen) -> None:
+    """Limit and "all at once" of the pre-review decide which near misses are left for the user."""
+    from datetime import UTC, datetime, timedelta
+
+    from .conftest import wav
+
+    z = geladen.runtime_data
+    w = await z.wort_neu({"wort": "Alisa"})
+    alt = (datetime.now(UTC) - timedelta(minutes=30)).isoformat()
+
+    def neu(aid: str, **mehr: Any) -> None:
+        gehoert = mehr.pop("gehoert", None)
+        a = w.speicher.aufnahme_neu({"id": aid, "quelle": "echo", "echo": "Kitchen", "art": "nearmiss", "zeit": alt, **mehr}, wav())
+        if gehoert is not None:
+            w.speicher.daten["aufnahmen"][a["id"]]["gehoert"] = gehoert
+
+    neu("tief", score=0.61)                                  # not listened to yet
+    neu("tief_nichts", score=0.64, gehoert="")               # listened, nothing heard
+    neu("tief_aehnlich", score=0.7, gehoert="Lisa komm")     # sounds like the word
+    neu("tief_wort", score=0.7, gehoert="Alisa licht an")    # the word itself was heard
+    neu("mittel", score=0.85)
+    neu("hoch", score=0.97)
+    neu("frisch", score=0.6, zeit=datetime.now(UTC).isoformat())
+    neu("ohne_wert")
+    neu("vor_wake", score=0.6, zeit=(datetime.now(UTC) - timedelta(minutes=10)).isoformat())
+    w.speicher.aufnahme_neu({"id": "wake", "quelle": "echo", "echo": "Kitchen", "art": "wake", "score": 0.6,
+                             "zeit": (datetime.now(UTC) - timedelta(minutes=10) + timedelta(seconds=5)).isoformat()}, wav())
+    w.speicher.aufnahme_neu({"id": "abbruch", "quelle": "echo", "echo": "Kitchen", "art": "mistake", "score": 0.6, "zeit": alt}, wav())
+    w.speicher.aufnahme_neu({"id": "eigene", "quelle": "browser", "art": "nearmiss", "score": 0.3, "zeit": alt}, wav())
+    w.speicher.vorschlaege()
+    A = w.speicher.daten["aufnahmen"]
+
+    def auto() -> set[str]:
+        return {i for i, a in A.items() if a.get("auto") and a.get("urteil") == "kein_wort"}
+
+    # default: only what speech recognition cleared
+    assert await hass.async_add_executor_job(w.beinahe_nachziehen) == 1 and auto() == {"tief_nichts"}
+    # a higher limit alone still waits for speech recognition
+    await z.wort_aendern(w.id, {"beinahe_grenze": 0.9})
+    assert auto() == {"tief_nichts"}
+    # all at once: everything below the limit, except fresh ones, the one before a wake and the word itself
+    await z.wort_aendern(w.id, {"beinahe_sofort": True})
+    assert auto() == {"tief_nichts", "tief", "tief_aehnlich", "mittel"}
+    assert not A["hoch"].get("urteil") and not A["frisch"].get("urteil") and not A["vor_wake"].get("urteil")
+    assert not A["wake"].get("urteil") and not A["abbruch"].get("urteil") and not A["eigene"].get("urteil") and not A["ohne_wert"].get("urteil")
+    assert not A["tief_wort"].get("urteil")
+    # the fresh one follows once it is two minutes old (the regular fetch catches up)
+    A["frisch"]["zeit"] = (datetime.now(UTC) - timedelta(minutes=3)).isoformat()
+    with patch("custom_components.sprachmodell.sammler.Sammler.holen", return_value=0):
+        assert await z.jetzt_holen()
+    assert "frisch" in auto()
+    # your own answer is never touched, and switching pre-review off stops it
+    w.speicher.urteilen(["mittel"], "wort", None)
+    await z.wort_aendern(w.id, {"vorpruefen": False, "beinahe_grenze": 0.99})
+    assert not A["hoch"].get("urteil") and A["mittel"]["urteil"] == "wort" and "auto" not in A["mittel"]
+    await z.wort_aendern(w.id, {"vorpruefen": True})
+    assert "hoch" in auto() and A["mittel"]["urteil"] == "wort"

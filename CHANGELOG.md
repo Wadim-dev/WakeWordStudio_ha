@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.51
+- **You decide what comes to review.** Under *Training → Automatic → Pre-review* there are two new settings per word:
+  - *Settle near misses below this score* (0.50 to 0.99, default 0.80 as before): near misses of a device below it count as *not said* by themselves (marked *auto*, they still teach the model as negatives, and you can change them in *History → Reviewed*). Higher means less to review.
+  - *All at once, without speech recognition*: off (as before) a near miss is only settled once speech recognition listened and heard neither the word nor anything like it, so it waits while the trainer is busy. On, every near miss below the score is settled after two minutes. Useful once a word has plenty of reviewed recordings.
+- Always left for you: recordings where a device really woke up, a near miss right before a wake (the word was probably said) and one in which the word itself was heard.
+- A change applies to the waiting recordings right away.
+- No trainer update needed.
+
 ## 1.0.50
 Hardening after the HACS review. Nothing changes in how you use the studio.
 - **Settings are checked before they are stored.** The server now validates every setting of a request (time as HH:MM, whole numbers within the ranges the panel shows, colour as a hex colour, switches as on/off, names and device lists with length limits) and refuses the whole request if one value is wrong, so nothing half-valid is ever stored. An emptied time field can no longer stop the integration from loading, and an emptied *keep unreviewed recordings* field can no longer become 0 days and delete recordings: the clean-up never uses fewer than 7 days, and settings stored by an older version fall back to the default when Home Assistant starts. The panel does not send an empty or out-of-range field at all; the old value comes back with a note.

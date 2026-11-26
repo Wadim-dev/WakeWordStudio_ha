@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.50';
+const VERSION = '1.0.51';
 const KURVE_VERSIONEN = 12; // how many of the newest versions the curve shows
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
@@ -421,7 +421,7 @@ input.schieber::after{content:'';position:absolute;top:3px;left:3px;width:18px;h
 input.schieber:checked{background:var(--primary-color)}input.schieber:checked::after{transform:translateX(18px)}
 input.schieber:disabled{opacity:.45;cursor:default}
 .unter-schalter{display:flex;gap:10px;align-items:center;margin:10px 0 0 52px;padding-top:10px;border-top:1px solid rgba(var(--rgb-primary-text-color,0,0,0),.08);cursor:pointer;transition:opacity .3s}
-.unter-schalter>span{display:flex;flex-direction:column;gap:2px;flex:1}.unter-schalter b{font-weight:500;font-size:14px}.unter-schalter.aus{opacity:.45}
+.unter-schalter>span{display:flex;flex-direction:column;gap:2px;flex:1}.unter-schalter b{font-weight:500;font-size:14px}.unter-schalter.aus{opacity:.45}.unter-feld{cursor:default}.unter-feld input.uf-wert{width:76px;text-align:center;font:inherit;font-size:16px;font-variant-numeric:tabular-nums;padding:7px 6px;border-radius:10px;border:1px solid var(--divider-color,rgba(127,127,127,.35));background:var(--card-background-color,transparent);color:var(--primary-text-color)}.unter-feld input.uf-wert{flex:none}
 .kachel-info{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:8px 0 0 52px}.kachel-info ha-icon{--mdc-icon-size:16px;color:var(--success-color,#4caf50)}
 @media (max-width:500px){.schalter-raster{grid-template-columns:1fr}.unter-schalter,.kachel-info{margin-left:0}}
 @media (prefers-reduced-motion:reduce){.kschalter-ikon{animation:none!important}}
@@ -2294,7 +2294,7 @@ ${this._klapp('k_auto', 'mdi:robot-outline', this.t('t_auto'), this._autoKurz(e,
 ${this._kachelSchalter('nachts', 'mdi:weather-night', 'sw_nachts', 'sw_nachts_text', e.nachts, { zusatz: String(d.einstellungen.uhrzeit).slice(0, 5) })}
 ${this._kachelSchalter('automatisch_einspielen', 'mdi:rocket-launch-outline', 'sw_einspielen', 'sw_einspielen_text', e.automatisch_einspielen)}
 ${this._kachelSchalter('schwelle_automatisch', 'mdi:tune-vertical', 'sw_schwelle', 'sw_schwelle_text', e.schwelle_automatisch)}
-${this._kachelSchalter('vorpruefen', 'mdi:ear-hearing', 'sw_vorpruefen', 'sw_vorpruefen_text', e.vorpruefen)}
+${this._kachelSchalter('vorpruefen', 'mdi:ear-hearing', 'sw_vorpruefen', 'sw_vorpruefen_text', e.vorpruefen, { unter: `<label class="unter-schalter unter-feld ${e.vorpruefen ? '' : 'aus'}"><span><b>${esc(this.t('sw_beinahe_grenze'))}</b><span class="klein">${esc(this.t('sw_beinahe_grenze_text'))}</span></span><input type="number" class="uf-wert" min="0.5" max="0.99" step="0.01" data-wopt="beinahe_grenze" value="${num(e.beinahe_grenze, 0.8).toFixed(2)}" ${this._admin && e.vorpruefen ? '' : 'disabled'}></label><label class="unter-schalter ${e.vorpruefen ? '' : 'aus'}"><input type="checkbox" class="schieber" data-wopt="beinahe_sofort" ${e.beinahe_sofort ? 'checked' : ''} ${this._admin && e.vorpruefen ? '' : 'disabled'}><span><b>${esc(this.t('sw_beinahe_sofort'))}</b><span class="klein">${esc(this.t('sw_beinahe_sofort_text'))}</span></span></label>` })}
 ${this._kachelSchalter('gruendlich', 'mdi:podium-gold', 'sw_gruendlich', 'sw_gruendlich_text', e.gruendlich, { unter: `<label class="unter-schalter ${e.gruendlich ? '' : 'aus'}"><input type="checkbox" class="schieber" data-wopt="mitteln" ${e.mitteln ? 'checked' : ''} ${this._admin && e.gruendlich ? '' : 'disabled'}><span><b>${esc(this.t('sw_mitteln'))}</b><span class="klein">${esc(this.t('sw_mitteln_text'))}</span></span></label>` })}
 ${this._raumSchalter(e)}
 </div>
@@ -3376,13 +3376,19 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
     }
     try {
       if (t.dataset.wopt) {
+        if (t.type === 'number') {
+          // a figure of the word (limit of the pre-review): an empty or out-of-range field is never sent
+          if (t.value === '' || !t.validity.valid) { t.value = t.defaultValue; this._meldung(this.t('ging_nicht', { f: this.t('f_einstellung_ungueltig') })); return; }
+          await this._api('POST', 'aktion', { aktion: 'wort_aendern', wort: this._wortId, einstellungen: { [t.dataset.wopt]: Number(t.value) } });
+          t.value = Number(t.value).toFixed(2); t.defaultValue = t.value;
+          this._meldung(this.t('gespeichert')); this._laden();
+          return;
+        }
         const kachel = t.closest('.kschalter-kopf') && t.closest('.kschalter');
         if (kachel) { kachel.classList.toggle('an', t.checked); kachel.classList.toggle('neu', t.checked); }
-        if (t.dataset.wopt === 'gruendlich' && kachel) {
-          const u = kachel.querySelector('.unter-schalter'), m = u && u.querySelector('input');
-          if (u) u.classList.toggle('aus', !t.checked); if (m) m.disabled = !t.checked || !this._admin;
-        }
+        if (kachel) kachel.querySelectorAll('.unter-schalter').forEach((u) => { u.classList.toggle('aus', !t.checked); const m = u.querySelector('input'); if (m) m.disabled = !t.checked || !this._admin; });
         await this._api('POST', 'aktion', { aktion: 'wort_aendern', wort: this._wortId, einstellungen: { [t.dataset.wopt]: t.checked } });
+        if (['vorpruefen', 'beinahe_sofort'].includes(t.dataset.wopt)) this._laden();
         this._meldung(this.t('gespeichert'));
       } else if (t.dataset.ttaste) {
         await this._api('POST', 'aktion', { aktion: 'trainer', trainer: t.dataset.ttaste, taste: t.value });
