@@ -24,8 +24,8 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.loader import async_get_integration
 
-from .const import DOMAIN, PANEL_ELEMENT, PANEL_ICON, PANEL_TITEL, PANEL_URL, STATIC_URL
-from .zentrale import Wort, Zentrale
+from .const import CONF_ORDNER, DOMAIN, PANEL_ELEMENT, PANEL_ICON, PANEL_TITEL, PANEL_URL, STATIC_URL
+from .zentrale import Wort, Zentrale, ablage_standard
 
 PLATFORMS = [Platform.BUTTON, Platform.SENSOR, Platform.SWITCH]
 _STATISCH = f"{DOMAIN}_statisch"
@@ -37,7 +37,9 @@ type SprachConfigEntry = ConfigEntry[Zentrale]
 
 async def async_setup_entry(hass: HomeAssistant, entry: SprachConfigEntry) -> bool:
     """Start the hub, the API, the panel and the entities."""
-    zentrale = Zentrale(hass, entry)
+    # the fallback folder is found by a look at the disk: in the executor, not on the event loop
+    ablage = str(entry.data.get(CONF_ORDNER) or await hass.async_add_executor_job(ablage_standard, hass))
+    zentrale = Zentrale(hass, entry, ablage)
     zentrale.version = str((await async_get_integration(hass, DOMAIN)).version or "0")
     try:
         await zentrale.starten()

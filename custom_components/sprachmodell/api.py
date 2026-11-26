@@ -72,6 +72,18 @@ NUR_ADMIN = {
 }
 
 
+def _text(wert: Any, laenge: int) -> str | None:
+    """Free text from a request (person, note): a short text or nothing, never another type."""
+    if not isinstance(wert, str):
+        return None
+    return wert.strip()[:laenge] or None
+
+
+def _person(wert: Any) -> str | None:
+    """Who spoke, from a request: nothing given stays None, an empty text clears the person."""
+    return wert.strip()[:40] if isinstance(wert, str) else None
+
+
 def _fehler(art: type[web.HTTPException], code: str) -> web.HTTPException:
     """HTTP error with a JSON body {"message": code}; the panel translates the code."""
     return art(text=json.dumps({"message": code}), content_type="application/json")
@@ -97,10 +109,11 @@ def _wort(z: Zentrale, wid: str | None) -> Wort:
     return wort
 
 
-def _wav(wort: Wort, aid: str) -> web.StreamResponse:
+async def _wav(hass: HomeAssistant, wort: Wort, aid: str) -> web.StreamResponse:
     aid = sichere_id(aid)
     pfad = wort.speicher.pfad("aufnahmen", aid + ".wav")
-    if aid not in wort.speicher.daten["aufnahmen"] or not os.path.isfile(pfad):
+    # the look at the disk runs in the executor, never on the event loop
+    if aid not in wort.speicher.daten["aufnahmen"] or not await hass.async_add_executor_job(os.path.isfile, pfad):
         raise _fehler(web.HTTPNotFound, "aufnahme_nicht_gefunden")
     return web.FileResponse(pfad, headers={"Content-Type": "audio/wav", "Cache-Control": "private, max-age=86400"})
 
@@ -255,7 +268,7 @@ class AudioAnsicht(HomeAssistantView):
     name = "api:sprachmodell:audio"
 
     async def get(self, request: web.Request, wid: str, aid: str) -> web.StreamResponse:
-        return _wav(_wort(_zentrale(request), wid), aid)
+        return await _wav(request.app[KEY_HASS], _wort(_zentrale(request), wid), aid)
 
 
 class UrteilAnsicht(HomeAssistantView):
@@ -275,11 +288,11 @@ class UrteilAnsicht(HomeAssistantView):
             n = await hass.async_add_executor_job(sp.loeschen, ids)
         elif "urteil" in daten:
             try:
-                n = await hass.async_add_executor_job(sp.urteilen, ids, daten.get("urteil"), daten.get("person"))
+                n = await hass.async_add_executor_job(sp.urteilen, ids, daten.get("urteil"), _person(daten.get("person")))
             except ValueError as err:
                 return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
         else:
-            n = await hass.async_add_executor_job(sp.person_setzen, ids, daten.get("person"))
+            n = await hass.async_add_executor_job(sp.person_setzen, ids, _person(daten.get("person")))
         z.geaendert()
         z.erinnern()
         return self.json({"geaendert": n, "stand": sp.stand})
@@ -329,7 +342,7 @@ class HochladenAnsicht(HomeAssistantView):
             return self.json_message("keine_datei", HTTPStatus.BAD_REQUEST)
         try:
             ergebnis = await hass.async_add_executor_job(
-                wort.speicher.zip_einlesen, inhalt, felder.get("person") or None
+                wort.speicher.zip_einlesen, inhalt, _text(felder.get("person"), 40)
             )
         except ValueError as err:
             return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
@@ -351,7 +364,7 @@ class AufnahmeAnsicht(HomeAssistantView):
         try:
             eintrag = await hass.async_add_executor_job(
                 wort.speicher.browser_aufnahme, inhalt, felder.get("urteil") or WORT,
-                felder.get("person") or None, felder.get("notiz") or None,
+                _text(felder.get("person"), 40), _text(felder.get("notiz"), 300),
             )
         except (ValueError, EOFError) as err:
             return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
@@ -389,8 +402,8 @@ class RaumAnsicht(HomeAssistantView):
         return self.json({"ok": True})
 
 
-def _raum_wav(z: Zentrale, knoten: str, rid: str) -> web.StreamResponse:
-    pfad = z.raeume.datei(knoten, rid)
+async def _raum_wav(z: Zentrale, knoten: str, rid: str) -> web.StreamResponse:
+    pfad = await z.hass.async_add_executor_job(z.raeume.datei, knoten, rid)
     if not pfad:
         raise _fehler(web.HTTPNotFound, "aufnahme_nicht_gefunden")
     return web.FileResponse(pfad, headers={"Content-Type": "audio/wav", "Cache-Control": "private, max-age=86400"})
@@ -401,7 +414,7 @@ class RaumAudio(HomeAssistantView):
     name = "api:sprachmodell:raum:audio"
 
     async def get(self, request: web.Request, knoten: str, rid: str) -> web.StreamResponse:
-        return _raum_wav(_zentrale(request), knoten, rid)
+        return await _raum_wav(_zentrale(request), knoten, rid)
 
 
 class AktionAnsicht(HomeAssistantView):
@@ -467,7 +480,7 @@ class AktionAnsicht(HomeAssistantView):
         elif aktion == "training_starten":
             z.auftrag(wort.id, "von_hand")
         elif aktion == "vergleich_starten":
-            z.vergleich_starten(wort, int(daten["a"]), int(daten["b"]))
+            await z.vergleich_starten(wort, int(daten["a"]), int(daten["b"]))
         elif aktion == "training_abbrechen":
             z.abbrechen(wort.id)
         elif aktion == "einspielen":
@@ -475,9 +488,12 @@ class AktionAnsicht(HomeAssistantView):
         elif aktion == "auswaehlen":
             return {"gesetzt": await z.auswaehlen(wort)}
         elif aktion == "schwelle":
+            wert = float(daten["wert"])
+            if not 0.0 <= wert <= 1.0:  # also refuses NaN; your own threshold has a narrower range, checked there
+                raise ValueError("schwelle_bereich")
             if daten.get("hand"):
-                return {"gesetzt": await z.schwelle_von_hand(wort, float(daten["wert"]))}
-            return {"gesetzt": await z.schwelle_setzen(wort, float(daten["wert"]))}
+                return {"gesetzt": await z.schwelle_von_hand(wort, wert)}
+            return {"gesetzt": await z.schwelle_setzen(wort, wert)}
         elif aktion == "schnitt":
             von, bis = daten.get("von"), daten.get("bis")
             await hass.async_add_executor_job(
@@ -489,7 +505,7 @@ class AktionAnsicht(HomeAssistantView):
             if aktion == "anderes_wort":
                 await hass.async_add_executor_job(
                     wort.speicher.an_wort_geben, aid, ziel.speicher, {"id": wort.id, "wort": wort.wort},
-                    {"id": ziel.id, "wort": ziel.wort}, daten.get("person"))
+                    {"id": ziel.id, "wort": ziel.wort}, _person(daten.get("person")))
             else:
                 await hass.async_add_executor_job(wort.speicher.zurueckholen, aid, ziel.speicher)
             z.erinnern()
@@ -497,7 +513,7 @@ class AktionAnsicht(HomeAssistantView):
         elif aktion == "nichts_verwerfen":
             # only unanswered recordings the list shows with the same filters (never your answers, never wakes)
             ids = wort.speicher.nichts_sammeln(str(daten.get("filter") or "offen"), daten.get("echo") or None,
-                                               daten.get("typ") or None, daten.get("person") or None)
+                                               daten.get("typ") or None, _text(daten.get("person"), 40))
             if ids:
                 await hass.async_add_executor_job(wort.speicher.urteilen, ids, VERWORFEN, None)
             z.erinnern()
@@ -510,7 +526,7 @@ class AktionAnsicht(HomeAssistantView):
             for urteil in (WORT, KEIN_WORT):
                 ids = [a["id"] for a in offen if a["vorschlag"] == urteil]
                 if ids:
-                    await hass.async_add_executor_job(wort.speicher.urteilen, ids, urteil, daten.get("person"))
+                    await hass.async_add_executor_job(wort.speicher.urteilen, ids, urteil, _person(daten.get("person")))
             z.erinnern()
         else:
             raise ValueError("unbekannte_aktion")
@@ -603,7 +619,7 @@ class TrainerAudio(_TrainerAnsicht):
     name = "api:sprachmodell:trainer:audio"
 
     async def get(self, request: web.Request, wid: str, aid: str) -> web.StreamResponse:
-        return _wav(_wort(self._pruefen(request), wid), aid)
+        return await _wav(request.app[KEY_HASS], _wort(self._pruefen(request), wid), aid)
 
 
 class TrainerRaum(_TrainerAnsicht):
@@ -611,7 +627,7 @@ class TrainerRaum(_TrainerAnsicht):
     name = "api:sprachmodell:trainer:raum"
 
     async def get(self, request: web.Request, knoten: str, rid: str) -> web.StreamResponse:
-        return _raum_wav(self._pruefen(request), knoten, rid)
+        return await _raum_wav(self._pruefen(request), knoten, rid)
 
 
 class TrainerModell(_TrainerAnsicht):
@@ -625,7 +641,7 @@ class TrainerModell(_TrainerAnsicht):
         if not nr:
             raise _fehler(web.HTTPNotFound, "modell_nicht_gefunden")
         pfad = wort.speicher.modell_datei(int(nr))
-        if not os.path.isfile(pfad):
+        if not await request.app[KEY_HASS].async_add_executor_job(os.path.isfile, pfad):
             raise _fehler(web.HTTPNotFound, "modell_nicht_gefunden")
         return web.FileResponse(pfad, headers={"Content-Type": "application/octet-stream", "X-Version": str(nr)})
 
@@ -694,7 +710,7 @@ class TrainerGehoert(_TrainerAnsicht):
             return self.json_message("ungueltig", HTTPStatus.BAD_REQUEST)
         hass = request.app[KEY_HASS]
         n = await hass.async_add_executor_job(
-            wort.speicher.gehoert_setzen, {str(k): str(v) for k, v in ergebnisse.items()}, wort.wort,
+            wort.speicher.gehoert_setzen, {str(k)[:80]: str(v)[:300] for k, v in list(ergebnisse.items())[:2000]}, wort.wort,
             bool(wort.cfg.get("vorpruefen")))
         z.geaendert()
         z.erinnern()

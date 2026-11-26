@@ -33,12 +33,12 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_call_later, async_track_state_change_event, async_track_time_change, async_track_time_interval
 from homeassistant.util import slugify
 
+from . import pruefung
 from .bausteine import KeinModell, fehlende_bausteine
 from .const import (
     BILD_MANIFEST,
     BILD_PRUEFEN_S,
     BILD_TOKEN,
-    CONF_ORDNER,
     DOMAIN,
     ENGPASS_CPU,
     ENGPASS_S,
@@ -117,7 +117,8 @@ def _live_pruefen(live: dict[str, Any]) -> dict[str, Any]:
         if isinstance(z, list) and len(z) == 3 and isinstance(z[0], int | float)
     ]
     schritte = [
-        {k: x[k] for k in ("phase", "schritt", "detail", "start", "ende") if k in x and isinstance(x[k], str | int | float)}
+        {k: (x[k] if isinstance(x[k], int | float) else x[k][:300])
+         for k in ("phase", "schritt", "detail", "start", "ende") if k in x and isinstance(x[k], str | int | float)}
         for x in (live.get("schritte") or [])[-50:]
         if isinstance(x, dict)
     ]
@@ -178,7 +179,8 @@ class Wort:
     def __init__(self, zentrale: Zentrale, wid: str, cfg: dict[str, Any]) -> None:
         self.z = zentrale
         self.id = wid
-        self.cfg = {**STANDARD_WORT, **cfg}
+        # stored values are checked again: an older version may have let a wrong one through
+        self.cfg = {**STANDARD_WORT, **pruefung.gespeichert_wort(cfg)}
         self.speicher = Speicher(os.path.join(zentrale.ablage, "woerter", wid))
         # Details of the current or last run (live log, steps, trainer load); only in memory, the trainer resends them
         self.live: dict[str, Any] | None = None
@@ -244,10 +246,10 @@ class Wort:
 class Zentrale:
     """Alles, was die Integration zur Laufzeit braucht."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, ablage: str) -> None:
         self.hass = hass
         self.entry = entry
-        self.ablage: str = entry.data.get(CONF_ORDNER) or ablage_standard(hass)
+        self.ablage: str = ablage
         self.daten: dict[str, Any] = {}
         self.woerter: dict[str, Wort] = {}
         self.sammler = Sammler(hass, self)
@@ -285,7 +287,7 @@ class Zentrale:
         except (OSError, ValueError):
             daten = {}
         daten.setdefault("woerter", {})
-        daten.setdefault("einstellungen", {})
+        daten["einstellungen"] = pruefung.gespeichert_zentrale(daten.get("einstellungen"))
         daten.setdefault("gesehen", [])
         daten.setdefault("reihe", [])
         neu = "schluessel" not in daten
@@ -329,6 +331,15 @@ class Zentrale:
 
     def opt(self, name: str) -> Any:
         return self.daten.get("einstellungen", {}).get(name, STANDARD_ZENTRALE[name])
+
+    def tage_unbewertet(self) -> int:
+        """Days an unreviewed device recording is kept. Never below the smallest value the panel allows: a wrong
+        setting must not delete recordings."""
+        von, bis = pruefung.GANZE["unbewertet_tage"]
+        try:
+            return max(von, min(bis, int(self.opt("unbewertet_tage"))))
+        except (TypeError, ValueError, OverflowError):
+            return int(str(STANDARD_ZENTRALE["unbewertet_tage"]))
 
     @property
     def schluessel(self) -> str:
@@ -427,7 +438,8 @@ class Zentrale:
     async def neustart_taste_setzen(self, tid: str, entity: str) -> None:
         tasten = dict(self.opt("neustart_tasten") or {})
         alt = self.neustart_taste(tid)
-        tasten[tid] = entity
+        geprueft = pruefung.zentrale({"neustart_tasten": {tid: entity}})["neustart_tasten"]
+        tasten.update(geprueft)
         e = self.daten.setdefault("einstellungen", {})
         e["neustart_tasten"] = tasten
         if alt and alt == e.get("trainer_neustart"):
@@ -622,7 +634,7 @@ class Zentrale:
         while wid in self.woerter:
             wid, n = f"{basis}_{n}", n + 1
         neu = {**STANDARD_WORT, "sprache": sprache_aus(self.hass)}
-        neu.update({k: v for k, v in cfg.items() if k in STANDARD_WORT})
+        neu.update(pruefung.wort(cfg))
         neu["wort"] = text
         neu["modell_id"] = sichere_id(str(neu.get("modell_id") or wid)).lower()
         wort = Wort(self, wid, neu)
@@ -649,8 +661,9 @@ class Zentrale:
         wort = self.woerter[wid]
         if "wort" in cfg and not str(cfg["wort"]).strip():
             raise ValueError("wort_fehlt")
-        for k, v in cfg.items():
-            if k in STANDARD_WORT and k != "modell_id":
+        geprueft = pruefung.wort(cfg)  # raises before anything is changed
+        for k, v in geprueft.items():
+            if k != "modell_id":
                 wort.cfg[k] = v
         self._geraete_freiraeumen(wort)
         await self.hass.async_add_executor_job(self.speichern)
@@ -709,7 +722,11 @@ class Zentrale:
     def nachts_planen(self) -> None:
         if self._nachts_weg:
             self._nachts_weg()
-        stunde, minute = (int(x) for x in str(self.opt("uhrzeit")).split(":")[:2])
+        try:
+            zeit = pruefung.uhrzeit(self.opt("uhrzeit"))
+        except ValueError:  # cannot happen with checked settings; a wrong time must never stop the integration
+            zeit = str(STANDARD_ZENTRALE["uhrzeit"])
+        stunde, minute = (int(x) for x in zeit.split(":"))
         self._nachts_weg = async_track_time_change(self.hass, self._nachts, hour=stunde, minute=minute, second=0)
 
     @callback
@@ -794,7 +811,7 @@ class Zentrale:
         weg = 0
         for wort in self.woerter.values():
             weg += await self.hass.async_add_executor_job(
-                wort.speicher.aufraeumen, int(self.opt("unbewertet_tage"))
+                wort.speicher.aufraeumen, self.tage_unbewertet()
             )
         if weg:
             self.geaendert()
@@ -1034,6 +1051,7 @@ class Zentrale:
 
     @callback
     def trainer_meldet(self, status: dict[str, Any], tid: str = TRAINER_OHNE_ID) -> None:
+        status = pruefung.status(status)  # known keys only, each with its type
         t = self.trainer_sehen(tid)
         if isinstance(status.get("info"), dict):
             alt = t["info"]
@@ -1092,6 +1110,7 @@ class Zentrale:
                        tid: str = TRAINER_OHNE_ID) -> dict[str, Any]:
         """Neue Version vom Trainer: ablegen, Lauf merken, wenn besser einspielen."""
         sp = wort.speicher
+        bericht = pruefung.sauber(bericht) if isinstance(bericht, dict) else {}
         if bericht.get("alt") and sp.daten.get("aktiv"):
             bericht["alt_nr"] = sp.daten["aktiv"]  # the trainer compared with the version on the devices
         try:
@@ -1145,12 +1164,13 @@ class Zentrale:
         return any(version_ab(((self.trainer.get(t) or {}).get("info") or {}).get("version"), VERGLEICH_AB)
                    for t in ids)
 
-    def vergleich_starten(self, wort: Wort, a: int, b: int) -> None:
+    async def vergleich_starten(self, wort: Wort, a: int, b: int) -> None:
         """Queue a fair comparison: the trainer tests both versions on exactly the same recordings."""
         if a == b:
             raise ValueError("gleiche_version")
         for nr in (a, b):
-            if wort.speicher.version(nr) is None or not os.path.isfile(wort.speicher.modell_datei(nr)):
+            if wort.speicher.version(nr) is None or not await self.hass.async_add_executor_job(
+                    os.path.isfile, wort.speicher.modell_datei(nr)):
                 raise ValueError("version_fehlt")
         if wort.speicher.daten["training"].get("phase") in (*LAEUFT, "wartet"):
             raise ValueError("laeuft_schon")
@@ -1161,6 +1181,7 @@ class Zentrale:
     async def vergleich_ergebnis(self, wort: Wort, bericht: dict[str, Any]) -> dict[str, Any]:
         """Result of a fair comparison: kept with the word (the newest VERGLEICHE_MAX), the word is free again."""
         sp = wort.speicher
+        bericht = pruefung.sauber(bericht)
         a, b = int(bericht["a"]), int(bericht["b"])
         eintrag = {
             "a": a, "b": b, "zeit": jetzt(),
@@ -1303,11 +1324,9 @@ class Zentrale:
         return werte
 
     async def einstellungen_setzen(self, neu: dict[str, Any]) -> None:
-        e = self.daten.setdefault("einstellungen", {})
-        for k, v in neu.items():
-            if k in STANDARD_ZENTRALE:
-                e[k] = v
-        if "uhrzeit" in neu:
+        geprueft = pruefung.zentrale(neu)  # raises before anything is stored
+        self.daten.setdefault("einstellungen", {}).update(geprueft)
+        if "uhrzeit" in geprueft:
             self.nachts_planen()
         await self.hass.async_add_executor_job(self.speichern)
         self.erinnern()
