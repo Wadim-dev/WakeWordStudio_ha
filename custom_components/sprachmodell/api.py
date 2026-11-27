@@ -5,7 +5,8 @@ deleting need an administrator). "wort" = id of the word:
     GET  /api/sprachmodell/daten?wort=           Zentrale + Einzelheiten eines Worts
     GET  /api/sprachmodell/liste?wort=           Aufnahmen (filter, echo, art, typ, person, nichts=1, seite, sort=zweifel)
     GET  /api/sprachmodell/audio/<wort>/<id>     WAV einer Aufnahme
-    POST /api/sprachmodell/urteil                {wort, ids, urteil | person | loeschen}
+    POST /api/sprachmodell/urteil                {wort, ids, urteil | person | loeschen} or {wort, zurueck: {id: answer
+                                                 before}} (undo; the reply to an answer carries it as "vorher")
     POST /api/sprachmodell/hochladen             multipart: wort, person, datei (Zip)
     POST /api/sprachmodell/aufnahme              multipart: wort, urteil, person, notiz, datei (WAV)
     POST /api/sprachmodell/aktion                {aktion, wort?, ...}; anderes_wort {wort, id, ziel, person}
@@ -31,6 +32,7 @@ Devices (header "Authorization: Bearer <trainer key>"), the clip upload format o
 
 from __future__ import annotations
 
+from datetime import datetime
 import hmac
 from http import HTTPStatus
 import json
@@ -54,6 +56,7 @@ from .const import (
     STANDARD_ZENTRALE,
     TRAINER_OHNE_ID,
     TRAINER_VERSION,
+    URTEILE,
     VERWORFEN,
     VORPRUEFEN_JE_MAL,
     WORT,
@@ -282,20 +285,45 @@ class UrteilAnsicht(HomeAssistantView):
         sp = wort.speicher
         ids = [str(i) for i in daten.get("ids") or []]
         hass = request.app[KEY_HASS]
+        vorher: dict[str, dict[str, Any]] = {}
         if daten.get("loeschen"):
             if not _admin(request):
                 return self.json_message("nur_admin", HTTPStatus.FORBIDDEN)
             n = await hass.async_add_executor_job(sp.loeschen, ids)
+        elif "zurueck" in daten:
+            n = await hass.async_add_executor_job(sp.urteil_zurueck, _staende(daten.get("zurueck")))
         elif "urteil" in daten:
             try:
-                n = await hass.async_add_executor_job(sp.urteilen, ids, daten.get("urteil"), _person(daten.get("person")))
+                n = await hass.async_add_executor_job(
+                    sp.urteilen, ids, daten.get("urteil"), _person(daten.get("person")), vorher)
             except ValueError as err:
                 return self.json_message(str(err), HTTPStatus.BAD_REQUEST)
         else:
             n = await hass.async_add_executor_job(sp.person_setzen, ids, _person(daten.get("person")))
         z.geaendert()
         z.erinnern()
-        return self.json({"geaendert": n, "stand": sp.stand})
+        return self.json({"geaendert": n, "stand": sp.stand, "vorher": vorher})
+
+
+def _staende(wert: Any) -> dict[str, dict[str, Any]]:
+    """What "Undo" sends back: per recording the answer it had before. Checked value by value, at most 50."""
+    if not isinstance(wert, dict) or len(wert) > 50:
+        raise _fehler(web.HTTPBadRequest, "einstellung_ungueltig")
+    aus: dict[str, dict[str, Any]] = {}
+    for aid, stand in wert.items():
+        if not isinstance(stand, dict):
+            raise _fehler(web.HTTPBadRequest, "einstellung_ungueltig")
+        urteil, bewertet = stand.get("urteil"), stand.get("bewertet")
+        if urteil is not None and urteil not in URTEILE:
+            raise _fehler(web.HTTPBadRequest, "urteil_unbekannt")
+        if bewertet is not None:
+            try:
+                datetime.fromisoformat(bewertet)
+            except (TypeError, ValueError) as err:
+                raise _fehler(web.HTTPBadRequest, "einstellung_ungueltig") from err
+        aus[str(aid)] = {"urteil": urteil, "bewertet": bewertet, "person": _text(stand.get("person"), 40),
+                         "auto": stand.get("auto") is True}
+    return aus
 
 
 async def _json(request: web.Request) -> dict[str, Any]:

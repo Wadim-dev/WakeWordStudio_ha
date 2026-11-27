@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.53
+- **Undo for the last answer**: after *said*, *not said* or *unusable* on the *Review* page and in *History*, a short message offers *Undo*. **Backspace** or **Ctrl+Z** (Cmd+Z) does the same from the keyboard and can be pressed several times to take back the last answers one by one (up to 20). The recording comes back exactly as it was: open again on the Review page, or with its earlier answer, person and *auto* mark in History, and it is marked so you can answer it right away. It also works after the last recording of the list was answered.
+- Not undone this way: *Accept all suggestions* and *Mark all … as unusable* (both ask first), and *Other word*, which has its own *Undo*. An *unusable* recording is removed from disk within the hour; after that the message says it no longer exists.
+- No trainer update needed.
+
 ## 1.0.52
 - **The area behind the device name** (idea #67): since Home Assistant names things by area + device, voice devices are often just called *Echo Dot* or *Echo Show*, and recordings of different rooms could not be told apart. Every place that shows a device (review cards, device chips, history filters, the quality table, the devices page, the start page) now shows its area behind the name, with the floor in brackets if the area has one: *Echo Dot · Kitchen (Upstairs)*. A part of a device without an area of its own uses its parent's area. A device without an area, or one whose name already says the area (*Kitchen Echo*), looks as before. Stored recordings get the new name the next time the devices are asked (within two minutes).
 - **Devices with the same name stay separate:** filters, counts and the check *woke up right after* went by the shown name, so two devices called *Echo Dot* were mixed. Two devices that would still read the same (same name, same or no area) get their node name in brackets.

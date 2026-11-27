@@ -75,6 +75,38 @@ async def test_liste_audio_urteil(admin, gast, api) -> None:
     assert r.status == 400
 
 
+async def test_urteil_zurueck(gast, api) -> None:
+    """Undo: the reply to an answer says what the recording was before, and that can be put back exactly."""
+    url = "/api/sprachmodell/urteil"
+    sp = api.woerter["hey_lumi"].speicher
+    # open recording -> answered -> open again
+    r = await (await gast.post(url, json={"wort": "hey_lumi", "ids": ["a1"], "urteil": "kein_wort"})).json()
+    assert r["vorher"] == {"a1": {"urteil": None, "person": None, "auto": False, "bewertet": None}}
+    assert sp.daten["aufnahmen"]["a1"]["urteil"] == "kein_wort"
+    r = await (await gast.post(url, json={"wort": "hey_lumi", "zurueck": r["vorher"]})).json()
+    assert r["geaendert"] == 1
+    a = sp.daten["aufnahmen"]["a1"]
+    assert a["urteil"] is None and a["bewertet"] is None and "auto" not in a
+    d = await (await gast.get("/api/sprachmodell/liste?wort=hey_lumi&filter=offen")).json()
+    assert "a1" in [e["id"] for e in d["eintraege"]]
+    # an answer of the pre-review with a person: mark, time and person come back
+    a.update(urteil="wort", auto=True, bewertet="2026-11-20T10:00:00+00:00", person="Anna")
+    r = await (await gast.post(url, json={"wort": "hey_lumi", "ids": ["a1"], "urteil": "verworfen"})).json()
+    assert r["vorher"]["a1"] == {"urteil": "wort", "person": "Anna", "auto": True, "bewertet": "2026-11-20T10:00:00+00:00"}
+    assert a["urteil"] == "verworfen" and "auto" not in a
+    await gast.post(url, json={"wort": "hey_lumi", "zurueck": r["vorher"]})
+    assert (a["urteil"], a["auto"], a["bewertet"], a["person"]) == ("wort", True, "2026-11-20T10:00:00+00:00", "Anna")
+    # a recording that is gone: nothing changed, no error
+    r = await (await gast.post(url, json={"wort": "hey_lumi", "zurueck": {"gibtsnicht": {"urteil": None}}})).json()
+    assert r["geaendert"] == 0
+    # only clean values are taken
+    for schlecht in ([1], {"a1": 5}, {"a1": {"urteil": "falsch"}}, {"a1": {"urteil": "wort", "bewertet": "<b>"}},
+                     {"a1": {"urteil": "wort", "bewertet": 5}}, {str(i): {"urteil": None} for i in range(51)}):
+        assert (await gast.post(url, json={"wort": "hey_lumi", "zurueck": schlecht})).status == 400
+    await gast.post(url, json={"wort": "hey_lumi", "zurueck": {"a1": {"urteil": "wort", "auto": "ja", "person": "<i>" + "x" * 80}}})
+    assert "auto" not in a and len(a["person"]) == 40 and a["bewertet"]
+
+
 def _form(**felder) -> aiohttp.FormData:
     f = aiohttp.FormData(default_to_multipart=True)
     for k, v in felder.items():
