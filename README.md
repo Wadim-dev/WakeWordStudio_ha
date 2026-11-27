@@ -78,6 +78,10 @@ Home Assistant Voice PE, ESP32-S3-Box, M5Stack Atom Echo with micro wake word, a
 | Any ESPHome voice firmware with micro wake word | ✅ | – (record in the browser or upload zips) |
 | [TECHO5](https://github.com/HuskerMinion/techo5) (Echo Show, Dot, Spot, 2nd gen) | ✅ | ✅ every wake-up and near miss, sent the moment it happens |
 
+**Devices are shown with their area.** Home Assistant names things by area + device, so several devices are often just called *Echo Dot*. The Studio shows the area behind the name everywhere (review cards, device chips, history filters, quality table, devices page), with the floor in brackets if the area has one: *Echo Dot · Kitchen (Upstairs)*. A part of a device without an area of its own uses its parent's area; a device without an area, or one whose name already says the area, is shown as it is. Devices with the same name are always kept apart in filters and counts.
+
+<p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/areas.png" alt="Devices with their area and floor" width="900"></p>
+
 ## Review
 
 <p align="center"><img src="https://raw.githubusercontent.com/Wadim-dev/WakeWordStudio_ha/main/docs/images/review.png" alt="Review recordings" width="900"></p>

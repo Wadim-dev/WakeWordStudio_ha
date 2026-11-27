@@ -18,7 +18,7 @@ from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import area_registry as ar, device_registry as dr, entity_registry as er, floor_registry as fr
 
 from .speicher import sichere_id
 
@@ -42,15 +42,42 @@ def esphome_eintraege(hass: HomeAssistant) -> dict[str, ConfigEntry]:
     return eintraege
 
 
-def _name(hass: HomeAssistant, knoten: str, eintrag: ConfigEntry | None) -> str:
-    """Name as the user sees it in Home Assistant (renamed devices keep their new name)."""
+def _name(hass: HomeAssistant, knoten: str, eintrag: ConfigEntry | None) -> tuple[str, str]:
+    """Name as the user sees it in Home Assistant (renamed devices keep their new name) and where it is: the
+    area, with the floor behind it. Since Home Assistant names things by area + device, a device is often just
+    called "Echo Dot"; the area then tells the rooms apart. A part of a device without an area of its own is in
+    its parent's area."""
+    name, ort = "", ""
     if eintrag is not None:
-        for geraet in dr.async_entries_for_config_entry(dr.async_get(hass), eintrag.entry_id):
+        reg = dr.async_get(hass)
+        geraete = dr.async_entries_for_config_entry(reg, eintrag.entry_id)
+        # the device itself first, its parts (child devices) after it
+        for geraet in sorted(geraete, key=lambda g: g.via_device_id is not None):
             if geraet.name_by_user or geraet.name:
-                return str(geraet.name_by_user or geraet.name)
-        if eintrag.title:
-            return str(eintrag.title)
-    return knoten.replace("_", " ").title()
+                name = str(geraet.name_by_user or geraet.name)
+                eltern = reg.async_get(geraet.via_device_id) if geraet.via_device_id else None
+                ort = _ort(hass, geraet.area_id or (eltern.area_id if eltern else None))
+                break
+        if not name and eintrag.title:
+            name = str(eintrag.title)
+    return name or knoten.replace("_", " ").title(), ort
+
+
+def _ort(hass: HomeAssistant, area_id: str | None) -> str:
+    """Area name, with the floor in brackets unless the area's name already says it."""
+    bereich = ar.async_get(hass).async_get_area(area_id) if area_id else None
+    if bereich is None:
+        return ""
+    etage = fr.async_get(hass).async_get_floor(bereich.floor_id) if bereich.floor_id else None
+    if etage is not None and etage.name.casefold() not in bereich.name.casefold():
+        return f"{bereich.name} ({etage.name})"
+    return str(bereich.name)
+
+
+def _anzeige(name: str, ort: str) -> str:
+    """Device name with its area behind it. A name that already says the area stays as it is."""
+    raum = ort.split(" (")[0]
+    return name if not ort or raum.casefold() in name.casefold() else f"{name} · {ort}"
 
 
 def geraete_info(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
@@ -58,7 +85,7 @@ def geraete_info(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
 
     A device counts when it has a "Wake word" select (a model can be rolled out to it)
     or offers wake clips (recordings can be collected from it).
-    Node name -> {"name", "clips", "plaetze"}.
+    Node name -> {"name" (shown everywhere: device name, its area behind it), "geraet", "raum", "clips", "plaetze"}.
     """
     dienste = hass.services.async_services().get("esphome", {})
     mit_clips = {n[: -len(LISTE)] for n in dienste if n.endswith(LISTE)}
@@ -75,7 +102,16 @@ def geraete_info(hass: HomeAssistant) -> dict[str, dict[str, Any]]:
         clips = knoten in mit_clips
         if not plaetze and not clips:
             continue
-        aus[knoten] = {"name": _name(hass, knoten, eintrag), "clips": clips, "plaetze": plaetze or ["1"]}
+        geraet, ort = _name(hass, knoten, eintrag)
+        aus[knoten] = {"name": _anzeige(geraet, ort), "geraet": geraet, "raum": ort, "clips": clips, "plaetze": plaetze or ["1"]}
+    # recordings, filters and counts go by this name: two devices must never share it
+    je_name: dict[str, list[str]] = {}
+    for knoten, info in aus.items():
+        je_name.setdefault(info["name"].casefold(), []).append(knoten)
+    for gleiche in je_name.values():
+        if len(gleiche) > 1:
+            for knoten in gleiche:
+                aus[knoten]["name"] = f"{aus[knoten]['name']} ({knoten})"
     return aus
 
 
