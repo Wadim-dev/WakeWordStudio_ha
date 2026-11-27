@@ -324,7 +324,9 @@ class Speicher:
                     vorschlag, grund = KEIN_WORT, "geraeusch"
                 a["vorschlag"], a["grund"] = vorschlag, grund
 
-    def urteilen(self, ids: list[str], urteil: str | None, person: str | None) -> int:
+    def urteilen(self, ids: list[str], urteil: str | None, person: str | None,
+                 vorher: dict[str, dict[str, Any]] | None = None) -> int:
+        """Answer recordings. vorher, if given, is filled with what each one was before (for "Undo")."""
         if urteil is not None and urteil not in URTEILE:
             raise ValueError("urteil_unbekannt")
         n = 0
@@ -333,11 +335,35 @@ class Speicher:
                 a = self.daten["aufnahmen"].get(aid)
                 if not a:
                     continue
+                if vorher is not None:
+                    vorher[aid] = {"urteil": a.get("urteil"), "person": a.get("person"),
+                                   "auto": bool(a.get("auto")), "bewertet": a.get("bewertet")}
                 a["urteil"] = urteil
                 a["bewertet"] = jetzt() if urteil else None
                 a.pop("auto", None)  # your own answer replaces the pre-review's
                 if person is not None:
                     a["person"] = person or None
+                n += 1
+            self.speichern()
+        return n
+
+    def urteil_zurueck(self, staende: dict[str, dict[str, Any]]) -> int:
+        """Undo: put recordings back to what they were before an answer (id -> what urteilen noted in vorher).
+        A recording that is gone meanwhile (unusable ones are removed from disk) is left out."""
+        n = 0
+        with self._sperre:
+            for aid, stand in staende.items():
+                a = self.daten["aufnahmen"].get(aid)
+                if not a:
+                    continue
+                urteil = stand.get("urteil")
+                a["urteil"] = urteil
+                a["bewertet"] = (stand.get("bewertet") or jetzt()) if urteil else None
+                a["person"] = stand.get("person") or None
+                if urteil and stand.get("auto"):
+                    a["auto"] = True
+                else:
+                    a.pop("auto", None)
                 n += 1
             self.speichern()
         return n

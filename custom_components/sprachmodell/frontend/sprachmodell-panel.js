@@ -10,7 +10,7 @@ const TEXTE_DA = import(`./sprachmodell-texte.js${new URL(import.meta.url).searc
   .then((m) => { TEXTE = m.TEXTE; SPRACHNAMEN = m.SPRACHNAMEN; })
   .catch((e) => console.error('Wake Word Studio: texts could not be loaded', e));
 
-const VERSION = '1.0.52';
+const VERSION = '1.0.53';
 const KURVE_VERSIONEN = 12; // how many of the newest versions the curve shows
 const REPO = 'https://github.com/Wadim-dev/WakeWordStudio_ha';
 const BILD = 'ghcr.io/wadim-dev/wake-word-studio-trainer:latest';
@@ -653,6 +653,7 @@ class SprachmodellPanel extends HTMLElement {
     this._aktiv = 0;
     this._stempel = '';
     this._taste = (e) => this._tastatur(e);
+    this._zurueck = [];  // the last answers, newest last, for "Undo"
     this._rec = { modus: 'wort', takes: [], an: false, notiz: '' };
     this._entwurf = null;
   }
@@ -1600,8 +1601,14 @@ ${this._andere().length && !a.zu_wort && !a.von_wort ? `<button class="k leise" 
   _tastatur(e) {
     if (this._raumD && e.key === 'Escape') { this._raumSchliessen(); return; }
     if (this._raumD) return;
-    if ((this._reiter !== 'pruefen' && this._reiter !== 'verlauf') || e.ctrlKey || e.metaKey || e.altKey) return;
+    if ((this._reiter !== 'pruefen' && this._reiter !== 'verlauf') || e.altKey) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes((e.composedPath()[0] || {}).tagName)) return;
+    // undo the last answer: Backspace or Ctrl/Cmd+Z (also when the list is empty after the last answer)
+    if ((e.key === 'Backspace' && !e.ctrlKey && !e.metaKey) || ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
+      if (this._zurueck.length && !this._schnitt) { e.preventDefault(); if (!e.repeat) this._urteilZurueck(); }
+      return;
+    }
+    if (e.ctrlKey || e.metaKey) return;
     const alle = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')];
     if (!alle.length) return;
     const akt = alle[this._aktiv] || alle[0];
@@ -1748,8 +1755,16 @@ ${this._andere().length && !a.zu_wort && !a.von_wort ? `<button class="k leise" 
     if (knopf) { knopf.classList.remove('drueck'); void knopf.offsetWidth; knopf.classList.add('drueck'); }
     try { if (navigator.vibrate) navigator.vibrate(12); } catch (e) { /* not supported */ }
     if (zeile) zeile.querySelectorAll('[data-urteil]').forEach((b) => b.classList.toggle('gewaehlt', b.dataset.urteil === urteil));
-    try { await this._api('POST', 'urteil', { wort: this._wortId, ids: [id], urteil, person }); }
+    let antwort;
+    try { antwort = await this._api('POST', 'urteil', { wort: this._wortId, ids: [id], urteil, person }); }
     catch (e) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(e) })); return; }
+    const vorher = antwort && antwort.vorher && antwort.vorher[id];
+    if (vorher) {
+      // remember what it was, so the answer can be taken back (toast, Backspace, Ctrl+Z); the last 20
+      const schritt = { wort: this._wortId, id, vorher, pruefen: this._reiter === 'pruefen' };
+      this._zurueck = this._zurueck.filter((x) => !(x.wort === schritt.wort && x.id === id)).concat(schritt).slice(-20);
+      this._meldung(this.t('zr_markiert', { u: this.t('u_' + urteil) }), { text: this.t('pr_rueckgaengig'), action: () => this._urteilZurueck(schritt) }, 5000);
+    }
     if (this._reiter === 'pruefen') { this._prGemacht = this._prGemacht || {}; this._prGemacht[this._wortId] = (this._prGemacht[this._wortId] || 0) + 1; this._prRing(); }
     if (this._reiter === 'pruefen' && zeile) {
       // stamp with the answer, then the tile slides away and the list closes the gap
@@ -1766,6 +1781,26 @@ ${this._andere().length && !a.zu_wort && !a.von_wort ? `<button class="k leise" 
         if (e) { this._aktiv = alle.indexOf(e); this._markieren(); this._spielen(nid); }
       }
     }
+  }
+
+  // take back an answer: the given one (from its toast) or the newest; the recording is as it was before
+  async _urteilZurueck(schritt) {
+    schritt = schritt || this._zurueck[this._zurueck.length - 1];
+    if (!schritt || !this._zurueck.includes(schritt) || this._zurueckLaeuft) return;
+    this._zurueckLaeuft = true;
+    try {
+      const r = await this._api('POST', 'urteil', { wort: schritt.wort, zurueck: { [schritt.id]: schritt.vorher } });
+      this._zurueck = this._zurueck.filter((x) => x !== schritt);
+      if (!r || !r.geaendert) { this._meldung(this.t('zr_weg')); return; }
+      if (schritt.pruefen && this._prGemacht && this._prGemacht[schritt.wort]) this._prGemacht[schritt.wort] -= 1;
+      clearTimeout(this._nachladen);
+      await this._laden();
+      // show it again: mark it, if it is on this page
+      const alle = [...this.shadowRoot.querySelectorAll('.eintrag:not(.weg)')], e = alle.find((x) => x.dataset.id === schritt.id);
+      if (e) { this._aktiv = alle.indexOf(e); this._markieren(); if (e.scrollIntoView) e.scrollIntoView({ block: 'nearest' }); }
+      this._meldung(this.t('zr_ok'));
+    } catch (e) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(e) })); }
+    finally { this._zurueckLaeuft = false; }
   }
 
   // the ring at the top fills with every decision, without drawing the page again
@@ -3413,8 +3448,8 @@ ${geraete.length ? `<h3 style="margin:16px 0 8px">${esc(this.t('es_senden_geraet
     } catch (err) { this._meldung(this.t('ging_nicht', { f: this._fehlerText(err) })); }
   }
 
-  _meldung(text, aktion) {
-    const detail = aktion ? { message: text, action: aktion, duration: 8000 } : { message: text };
+  _meldung(text, aktion, dauer) {
+    const detail = aktion ? { message: text, action: aktion, duration: dauer || 8000 } : { message: text };
     this.dispatchEvent(new CustomEvent('hass-notification', { detail, bubbles: true, composed: true }));
   }
 }
