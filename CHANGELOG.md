@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.52
+- **The area behind the device name** (idea #67): since Home Assistant names things by area + device, voice devices are often just called *Echo Dot* or *Echo Show*, and recordings of different rooms could not be told apart. Every place that shows a device (review cards, device chips, history filters, the quality table, the devices page, the start page) now shows its area behind the name, with the floor in brackets if the area has one: *Echo Dot · Kitchen (Upstairs)*. A part of a device without an area of its own uses its parent's area. A device without an area, or one whose name already says the area (*Kitchen Echo*), looks as before. Stored recordings get the new name the next time the devices are asked (within two minutes).
+- **Devices with the same name stay separate:** filters, counts and the check *woke up right after* went by the shown name, so two devices called *Echo Dot* were mixed. Two devices that would still read the same (same name, same or no area) get their node name in brackets.
+- The attribute *per_device* of the review queue sensor uses the same names.
+- No trainer update needed.
+
 ## 1.0.51
 - **You decide what comes to review.** Under *Training → Automatic → Pre-review* there are two new settings per word:
   - *Settle near misses below this score* (0.50 to 0.99, default 0.80 as before): near misses of a device below it count as *not said* by themselves (marked *auto*, they still teach the model as negatives, and you can change them in *History → Reviewed*). Higher means less to review.
